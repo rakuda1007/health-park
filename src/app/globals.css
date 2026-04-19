@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --hp-background: #f8fafc;
+  --hp-foreground: #0f172a;
+  --hp-muted: #64748b;
+  --hp-border: #e2e8f0;
+  --hp-surface: #ffffff;
+  --hp-card: #ffffff;
+  --hp-input: #ffffff;
+  --hp-accent: #0f172a;
+  --hp-accent-fg: #f8fafc;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #020617;
+    --foreground: #f1f5f9;
+    --hp-background: #020617;
+    --hp-foreground: #f1f5f9;
+    --hp-muted: #94a3b8;
+    --hp-border: #1e293b;
+    --hp-surface: #0f172a;
+    --hp-card: #0f172a;
+    --hp-input: #1e293b;
+    --hp-accent: #c4a574;
+    --hp-accent-fg: #0f172a;
+  }
+}
+
+body {
+  background: var(--hp-background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
