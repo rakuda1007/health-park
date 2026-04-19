@@ -1,11 +1,13 @@
 "use client";
 
+import { useAuth } from "@/contexts/auth-context";
 import {
   exportHealthParkJsonPretty,
   replaceAllFromBackup,
 } from "@/lib/db/backup";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
 import { pullCloudToLocal, pushLocalToCloud } from "@/lib/sync/cloud-sync";
+import Link from "next/link";
 import { useCallback, useState } from "react";
 
 function downloadJson(filename: string, text: string) {
@@ -33,6 +35,9 @@ export function BackupPageClient() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const firebaseReady = isFirebaseConfigured();
+  const { ready: authReady, user } = useAuth();
+  const cloudAllowed =
+    firebaseReady && authReady && user && !user.isAnonymous;
 
   const clearFeedback = useCallback(() => {
     setMessage(null);
@@ -148,10 +153,15 @@ export function BackupPageClient() {
           >
             Firebase バックアップ（任意）
           </h2>
-          {firebaseReady ? (
+          {firebaseReady && !authReady ? (
+            <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
+              認証状態を確認しています…
+            </p>
+          ) : null}
+          {firebaseReady && authReady && cloudAllowed ? (
             <>
               <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
-                匿名認証であなたの Firebase プロジェクトにのみ保存されます。ローカルが正とみなし、プッシュで上書き同期します。プルはこの端末のデータをクラウドの内容で
+                ログイン中のあなたの Firebase プロジェクトにのみ保存されます。ローカルが正とみなし、プッシュで上書き同期します。プルはこの端末のデータをクラウドの内容で
                 <strong className="font-medium text-[color:var(--hp-foreground)]">
                   すべて置き換え
                 </strong>
@@ -176,7 +186,24 @@ export function BackupPageClient() {
                 </button>
               </div>
             </>
-          ) : (
+          ) : null}
+          {firebaseReady && authReady && !cloudAllowed ? (
+            <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
+              クラウドのバックアップ・復元には、メールアドレスとパスワードでの
+              <Link
+                href="/login?redirect=/backup"
+                className="font-medium text-[color:var(--hp-accent)] underline"
+              >
+                ログイン
+              </Link>
+              が必要です。Firebase コンソールで
+              <strong className="font-medium text-[color:var(--hp-foreground)]">
+                メール／パスワード
+              </strong>
+              認証を有効にしてください。
+            </p>
+          ) : null}
+          {!firebaseReady ? (
             <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
               利用するにはプロジェクト直下に{" "}
               <code className="rounded bg-[color:var(--hp-surface)] px-1 py-0.5 text-xs">
@@ -190,9 +217,9 @@ export function BackupPageClient() {
               <code className="rounded bg-[color:var(--hp-surface)] px-1 py-0.5 text-xs">
                 NEXT_PUBLIC_FIREBASE_*
               </code>{" "}
-              を設定してください。Firebase コンソールで匿名認証・Firestore・Storage を有効にし、ルールをデプロイしてください。
+              を設定してください。Firebase コンソールでメール／パスワード認証・Firestore・Storage を有効にし、ルールをデプロイしてください。
             </p>
-          )}
+          ) : null}
         </section>
       </div>
 

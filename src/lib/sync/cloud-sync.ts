@@ -13,7 +13,7 @@ import type {
   StepsEntry,
   WeightEntry,
 } from "@/lib/db/types";
-import { ensureAnonymousUser } from "@/lib/firebase/auth";
+import { ensureSignedInUser } from "@/lib/firebase/auth";
 import { getFirebaseDb, getFirebaseStorage } from "@/lib/firebase/client";
 import { collection, doc, getDocs, writeBatch } from "firebase/firestore";
 import {
@@ -34,7 +34,7 @@ function prescriptionImagePath(uid: string, id: string): string {
 
 /** IndexedDB の内容を Firestore + Storage に反映（ローカルが正） */
 export async function pushLocalToCloud(): Promise<void> {
-  const uid = await ensureAnonymousUser();
+  const uid = await ensureSignedInUser();
   const db = getFirebaseDb();
   const storage = getFirebaseStorage();
   const backup = await buildHealthParkBackup();
@@ -162,7 +162,7 @@ async function deleteOrphans(
 
 /** クラウドから取得し IndexedDB に復元（ローカルは上書き） */
 export async function pullCloudToLocal(): Promise<void> {
-  const uid = await ensureAnonymousUser();
+  const uid = await ensureSignedInUser();
   const db = getFirebaseDb();
   const storage = getFirebaseStorage();
 

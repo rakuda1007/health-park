@@ -1,3 +1,6 @@
+"use client";
+
+import { useAuth } from "@/contexts/auth-context";
 import Link from "next/link";
 
 const nav = [
@@ -12,6 +15,9 @@ const nav = [
 ] as const;
 
 export function AppHeader() {
+  const { user, signOut } = useAuth();
+  const signedInWithEmail = Boolean(user && !user.isAnonymous);
+
   return (
     <header className="border-b border-[color:var(--hp-border)] bg-[color:var(--hp-surface)]">
       <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-3 px-4 py-3">
@@ -34,6 +40,27 @@ export function AppHeader() {
               {item.label}
             </Link>
           ))}
+          {signedInWithEmail ? (
+            <span className="flex flex-wrap items-center gap-2 border-l border-[color:var(--hp-border)] pl-3 text-xs text-[color:var(--hp-muted)]">
+              <span className="max-w-[10rem] truncate" title={user?.email ?? ""}>
+                {user?.email ?? ""}
+              </span>
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                className="rounded-md border border-[color:var(--hp-border)] px-2 py-1 text-[color:var(--hp-foreground)] hover:bg-[color:var(--hp-card)]"
+              >
+                ログアウト
+              </button>
+            </span>
+          ) : (
+            <Link
+              href="/login?redirect=/backup"
+              className="border-l border-[color:var(--hp-border)] pl-3 text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
+            >
+              ログイン
+            </Link>
+          )}
         </nav>
       </div>
     </header>

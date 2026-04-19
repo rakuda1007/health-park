@@ -1,6 +1,6 @@
 import { AppFooter } from "@/components/app-footer";
 import { AppHeader } from "@/components/app-header";
-import { FirebaseProvider } from "@/components/firebase-provider";
+import { AuthProvider } from "@/contexts/auth-context";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -47,11 +47,11 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full min-w-0 flex-col bg-[color:var(--hp-background)]">
-        <FirebaseProvider>
+        <AuthProvider>
           <AppHeader />
           <div className="min-h-0 flex-1">{children}</div>
           <AppFooter />
-        </FirebaseProvider>
+        </AuthProvider>
       </body>
     </html>
   );

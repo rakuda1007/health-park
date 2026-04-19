@@ -10,7 +10,7 @@
 
 ## Firebase コンソール側の設定
 
-1. **Authentication** → Sign-in method → **匿名**を有効化する。
+1. **Authentication** → Sign-in method → **メール／パスワード**を有効化する。
 2. **Firestore Database** を作成する（本番モードで開始し、後述のルールをデプロイする）。
 3. **Storage** を有効化する。
 4. プロジェクト設定から **ウェブアプリ**を登録し、SDK 用の設定値（API Key など）を控える。
@@ -51,5 +51,5 @@ firebase deploy --only hosting
 
 ## よくある注意点
 
-- **別のブラウザ／端末**では匿名 UID が変わるため、同じ Firebase バックアップを共有するには、同じブラウザプロファイルでアクセスするか、将来「アカウント連携」を検討する必要があります。
+- **別のブラウザ／端末**で同じバックアップを使うには、**同じメールアドレスでログイン**してください。
 - カスタムドメインやリライト規則は [Firebase Hosting のドキュメント](https://firebase.google.com/docs/hosting)に従って `firebase.json` を拡張してください。
