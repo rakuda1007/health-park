@@ -45,7 +45,11 @@ export default function Home() {
         Health Park
       </h1>
       <p className="mt-2 max-w-xl text-sm leading-relaxed text-[color:var(--hp-muted)]">
-        日々の記録を、あなたのブラウザ内にだけ保存します。下のメニューから各機能へ移動できます。
+        日々の記録は、このブラウザの中（IndexedDB）に保存されます。PC とスマホでは別々のデータになります。別の端末と揃えたいときは、ログインのうえ
+        <Link href="/backup" className="text-[color:var(--hp-accent)] underline">
+          バックアップ
+        </Link>
+        から Firebase にプッシュ／プルしてください。
       </p>
       <ul className="mt-8 grid gap-3 sm:grid-cols-2">
         {cards.map((c) => (
