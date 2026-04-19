@@ -1,11 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "export",
+  // App Hosting は Next のサーバービルドを使う。output: "export" は従来の Hosting（out/）向け。
   serverExternalPackages: ["firebase-admin"],
-  images: {
-    unoptimized: true,
-  },
 };
 
 export default nextConfig;
