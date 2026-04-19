@@ -8,6 +8,8 @@ export type WeightEntry = {
   weightKg: number;
   note?: string;
   createdAt: string;
+  /** 同期・マージ用（保存のたびに更新） */
+  updatedAt?: string;
 };
 
 export type StepsEntry = {
@@ -15,6 +17,7 @@ export type StepsEntry = {
   date: IsoDate;
   steps: number;
   createdAt: string;
+  updatedAt?: string;
 };
 
 export type BloodPressureEntry = {
@@ -25,6 +28,7 @@ export type BloodPressureEntry = {
   pulse?: number;
   note?: string;
   createdAt: string;
+  updatedAt?: string;
 };
 
 export type MealSlot = "breakfast" | "lunch" | "dinner";
@@ -36,6 +40,7 @@ export type MealEntry = {
   foods: string;
   note: string;
   createdAt: string;
+  updatedAt?: string;
 };
 
 export type ClinicEntry = {
@@ -43,6 +48,7 @@ export type ClinicEntry = {
   name: string;
   note?: string;
   createdAt: string;
+  updatedAt?: string;
 };
 
 export type PrescriptionMedicine = {

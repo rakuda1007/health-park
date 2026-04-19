@@ -14,6 +14,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -35,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
   const firebaseConfigured = isFirebaseConfigured();
+  const remoteSyncUnsub = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!firebaseConfigured) {
@@ -48,6 +50,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     return unsub;
   }, [firebaseConfigured]);
+
+  /** メールログイン後: クラウドとマージ → リアルタイム購読（ログアウトで解除） */
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- uid / isAnonymous でログイン状態を表す
+  useEffect(() => {
+    remoteSyncUnsub.current?.();
+    remoteSyncUnsub.current = null;
+    if (!firebaseConfigured || !ready) {
+      return;
+    }
+    if (!user || user.isAnonymous) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const m = await import("@/lib/sync/incremental-cloud-sync");
+        await m.mergeCloudWithLocal();
+        if (cancelled) {
+          return;
+        }
+        remoteSyncUnsub.current = m.startRemoteSync(user.uid);
+      } catch (e) {
+        console.error("[Health Park] クラウド同期の初期化に失敗しました", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      remoteSyncUnsub.current?.();
+      remoteSyncUnsub.current = null;
+    };
+  }, [firebaseConfigured, ready, user?.uid, user?.isAnonymous]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     try {

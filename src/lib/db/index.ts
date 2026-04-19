@@ -89,16 +89,56 @@ function listByDateDesc<T>(storeName: string): Promise<T[]> {
   );
 }
 
-function putEntry(storeName: string, entry: object): Promise<void> {
+/** リモート同期中は Firestore へ再送しない（ループ防止） */
+let suppressCloudReplicate = false;
+
+export function setSuppressCloudReplicate(v: boolean): void {
+  suppressCloudReplicate = v;
+}
+
+function putEntryRaw(storeName: string, entry: object): Promise<void> {
   return getHealthDb().then(
     (db) =>
       new Promise((resolve, reject) => {
         const tx = db.transaction(storeName, "readwrite");
-        tx.oncomplete = () => resolve();
+        tx.oncomplete = () => resolve(undefined);
         tx.onerror = () => reject(tx.error ?? new Error("transaction error"));
         tx.objectStore(storeName).put(entry);
       }),
   );
+}
+
+function scheduleReplicateAfterPut(storeName: string, entry: object): void {
+  if (suppressCloudReplicate) {
+    return;
+  }
+  void import("@/lib/sync/incremental-cloud-sync").then((m) =>
+    m.replicateAfterPut(storeName, entry).catch((err: unknown) => {
+      console.error("[Health Park] クラウドへ複製に失敗しました", err);
+    }),
+  );
+}
+
+function scheduleReplicateAfterDelete(storeName: string, id: string): void {
+  if (suppressCloudReplicate) {
+    return;
+  }
+  void import("@/lib/sync/incremental-cloud-sync").then((m) =>
+    m.replicateAfterDelete(storeName, id).catch((err: unknown) => {
+      console.error("[Health Park] クラウドから削除に失敗しました", err);
+    }),
+  );
+}
+
+function bumpUpdatedAt<T extends object>(entry: T): T & { updatedAt: string } {
+  return { ...entry, updatedAt: new Date().toISOString() };
+}
+
+function putEntry(storeName: string, entry: object): Promise<void> {
+  const e = bumpUpdatedAt(entry as object);
+  return putEntryRaw(storeName, e).then(() => {
+    scheduleReplicateAfterPut(storeName, e);
+  });
 }
 
 function deleteEntry(storeName: string, id: string): Promise<void> {
@@ -106,11 +146,31 @@ function deleteEntry(storeName: string, id: string): Promise<void> {
     (db) =>
       new Promise((resolve, reject) => {
         const tx = db.transaction(storeName, "readwrite");
-        tx.oncomplete = () => resolve();
+        tx.oncomplete = () => resolve(undefined);
         tx.onerror = () => reject(tx.error ?? new Error("transaction error"));
         tx.objectStore(storeName).delete(id);
       }),
-  );
+  ).then(() => {
+    scheduleReplicateAfterDelete(storeName, id);
+  });
+}
+
+/** リモート（Firestore スナップショット等）からの反映用。updatedAt は上書きしない */
+export function applyRemoteEntry(storeName: string, entry: object): Promise<void> {
+  return putEntryRaw(storeName, entry);
+}
+
+export async function getEntryById(
+  storeName: string,
+  id: string,
+): Promise<unknown | undefined> {
+  const db = await getHealthDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, "readonly");
+    const req = tx.objectStore(storeName).get(id);
+    req.onerror = () => reject(req.error ?? new Error("get error"));
+    req.onsuccess = () => resolve(req.result);
+  });
 }
 
 const slotOrder: Record<MealSlot, number> = {

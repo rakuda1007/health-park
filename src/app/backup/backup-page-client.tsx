@@ -161,7 +161,7 @@ export function BackupPageClient() {
           {firebaseReady && authReady && cloudAllowed ? (
             <>
               <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
-                ログイン中のあなたの Firebase プロジェクトにのみ保存されます。ローカルが正とみなし、プッシュで上書き同期します。プルはこの端末のデータをクラウドの内容で
+                ログイン中は、保存・削除のたびに自動で Firebase に同期されます。下のボタンは全件の手動同期・復元用です。プルはこの端末をクラウドの内容で
                 <strong className="font-medium text-[color:var(--hp-foreground)]">
                   すべて置き換え
                 </strong>
