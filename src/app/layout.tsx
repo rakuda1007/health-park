@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     template: "%s | Health Park",
   },
   description:
-    "体重・歩数・血圧・処方・食事・通院先を、端末のブラウザ内に記録するシンプルなヘルス記録アプリ。",
+    "体重・歩数・血圧・処方・食事・通院先を記録するシンプルなヘルス記録アプリ。メールログインでクラウド同期にも対応。",
   applicationName: "Health Park",
   icons: {
     icon: "/icons/HealthPark.png",

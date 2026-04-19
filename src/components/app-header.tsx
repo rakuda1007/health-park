@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/auth-context";
+import Image from "next/image";
 import Link from "next/link";
 
 const nav = [
@@ -24,8 +25,16 @@ export function AppHeader() {
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <Link
             href="/"
-            className="font-semibold tracking-tight text-[color:var(--hp-foreground)]"
+            className="flex items-center gap-2 font-semibold tracking-tight text-[color:var(--hp-foreground)]"
           >
+            <Image
+              src="/icons/HealthPark.png"
+              alt=""
+              width={36}
+              height={36}
+              className="h-9 w-9 shrink-0 rounded-full object-cover"
+              priority
+            />
             Health Park
           </Link>
           <div>
