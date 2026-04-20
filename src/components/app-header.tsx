@@ -1,7 +1,6 @@
 "use client";
 
 import { useAuth } from "@/contexts/auth-context";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useState } from "react";
@@ -119,16 +118,8 @@ export function AppHeader() {
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <Link
             href="/"
-            className="flex min-w-0 flex-1 items-center gap-2 font-semibold tracking-tight text-[color:var(--hp-foreground)]"
+            className="flex min-w-0 flex-1 items-center font-semibold tracking-tight text-[color:var(--hp-foreground)]"
           >
-            <Image
-              src="/icons/HealthPark.png"
-              alt=""
-              width={36}
-              height={36}
-              className="hidden h-9 w-9 shrink-0 rounded-full object-cover md:block"
-              priority
-            />
             <span className="truncate">Health Park</span>
           </Link>
           <div className="flex shrink-0 items-center gap-2">
