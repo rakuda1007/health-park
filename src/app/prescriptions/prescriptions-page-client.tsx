@@ -35,16 +35,13 @@ function toMedicines(drafts: MedicineDraft[]): PrescriptionMedicine[] {
     }));
 }
 
-/** 薬名セル内の更新日時表示用 */
-function formatUpdatedAt(iso: string): string {
+/** 薬名セル内：更新日付のみ（時刻なし）1行 */
+function formatUpdatedDateLine(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleString("ja-JP", {
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `更新：${y}/${m}/${day}`;
 }
 
 /**
@@ -230,9 +227,9 @@ export function PrescriptionsPageClient() {
           <div className="mt-3 rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)]">
             <table className="w-full table-fixed border-collapse text-left text-xs sm:text-sm">
               <colgroup>
-                <col className="w-[30%] sm:w-[28%]" />
-                <col className="w-[55%] sm:w-[57%]" />
-                <col className="w-[15%]" />
+                <col className="w-[76%] sm:w-[78%]" />
+                <col className="w-[11%] sm:w-[10%]" />
+                <col className="w-[13%] sm:w-[12%]" />
               </colgroup>
               <thead>
                 <tr className="border-b border-[color:var(--hp-border)] bg-[color:var(--hp-input)]">
@@ -244,9 +241,12 @@ export function PrescriptionsPageClient() {
                   </th>
                   <th
                     scope="col"
-                    className="min-w-0 px-2 py-2 font-medium text-[color:var(--hp-muted)] sm:px-3 sm:py-2.5"
+                    className="min-w-0 px-0.5 py-2 text-center text-[9px] font-medium leading-tight text-[color:var(--hp-muted)] sm:px-1 sm:text-[10px]"
+                    title="用法・用量"
                   >
-                    用法・用量
+                    <span className="inline-block">用法</span>
+                    <wbr />
+                    <span className="inline-block">・用量</span>
                   </th>
                   <th
                     scope="col"
@@ -276,14 +276,11 @@ export function PrescriptionsPageClient() {
                           ) : null}
                           {medIndex === 0 ? (
                             <div className="mt-2 border-t border-dashed border-[color:var(--hp-border)] pt-2">
-                              <p className="text-[11px] text-[color:var(--hp-muted)] sm:text-xs">
-                                更新
-                              </p>
                               <time
                                 dateTime={entry.updatedAt}
-                                className="mt-0.5 block tabular-nums text-[11px] text-[color:var(--hp-muted)] sm:text-xs"
+                                className="block tabular-nums text-[11px] text-[color:var(--hp-muted)] sm:text-xs"
                               >
-                                {formatUpdatedAt(entry.updatedAt)}
+                                {formatUpdatedDateLine(entry.updatedAt)}
                               </time>
                               {entry.memo ? (
                                 <p className="mt-1.5 break-words text-[11px] leading-relaxed text-[color:var(--hp-muted)] sm:text-xs">
@@ -293,8 +290,8 @@ export function PrescriptionsPageClient() {
                             </div>
                           ) : null}
                         </td>
-                        <td className="min-w-0 align-top break-words px-2 py-2.5 text-[color:var(--hp-foreground)] sm:px-3 sm:py-3">
-                          <span className="whitespace-pre-wrap">
+                        <td className="min-w-0 align-top break-words px-1 py-2.5 text-[10px] leading-snug text-[color:var(--hp-foreground)] sm:px-1.5 sm:py-3 sm:text-xs sm:leading-relaxed">
+                          <span className="whitespace-pre-wrap break-words">
                             {usageDosage}
                           </span>
                         </td>
