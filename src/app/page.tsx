@@ -19,7 +19,7 @@ const cards = [
   {
     href: "/prescriptions",
     title: "処方箋",
-    body: "写真と薬データ（手入力・編集）",
+    body: "薬名・用法・用量（手入力・編集）",
   },
   {
     href: "/meals",

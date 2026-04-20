@@ -62,10 +62,10 @@ export type PrescriptionEntry = {
   id: string;
   createdAt: string;
   updatedAt: string;
-  /** 処方箋写真（任意） */
+  /** 旧バージョンのバックアップ互換用（現行 UI では未使用） */
   imageBlob?: ArrayBuffer;
   imageMime?: string;
-  /** 薬の一覧（手入力または OCR 確認後の確定データ） */
+  /** 薬の一覧 */
   medicines: PrescriptionMedicine[];
   memo?: string;
 };
