@@ -46,6 +46,10 @@ export type MealEntry = {
 export type ClinicEntry = {
   id: string;
   name: string;
+  /** 住所（任意） */
+  address?: string;
+  /** 電話番号（任意） */
+  phone?: string;
   note?: string;
   createdAt: string;
   updatedAt?: string;

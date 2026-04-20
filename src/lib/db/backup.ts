@@ -179,10 +179,15 @@ function isClinicEntry(x: unknown): x is ClinicEntry {
   if (!isRecord(x)) {
     return false;
   }
+  const addressOk =
+    x.address === undefined || typeof x.address === "string";
+  const phoneOk = x.phone === undefined || typeof x.phone === "string";
   return (
     typeof x.id === "string" &&
     typeof x.name === "string" &&
-    typeof x.createdAt === "string"
+    typeof x.createdAt === "string" &&
+    addressOk &&
+    phoneOk
   );
 }
 

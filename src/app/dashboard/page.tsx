@@ -1,10 +1,5 @@
-import type { Metadata } from "next";
-import { DashboardPageClient } from "./dashboard-page-client";
-
-export const metadata: Metadata = {
-  title: "ダッシュボード",
-};
+import { redirect } from "next/navigation";
 
 export default function DashboardPage() {
-  return <DashboardPageClient />;
+  redirect("/");
 }

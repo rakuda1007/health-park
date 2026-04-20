@@ -133,7 +133,7 @@ export function DashboardPageClient() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
       <h1 className="text-xl font-semibold text-[color:var(--hp-foreground)]">
-        ダッシュボード
+        ホーム
       </h1>
       <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
         体重（折れ線）と歩数（棒）を同じ日付軸で重ね、振り返りは日ごとのスコア（〇=2、△=1、✕=0）で表示します。因果関係の証明ではなく、記録の並びを眺めるための参考です。
