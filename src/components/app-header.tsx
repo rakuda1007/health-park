@@ -126,7 +126,7 @@ export function AppHeader() {
               alt=""
               width={36}
               height={36}
-              className="h-9 w-9 shrink-0 rounded-full object-cover"
+              className="hidden h-9 w-9 shrink-0 rounded-full object-cover md:block"
               priority
             />
             <span className="truncate">Health Park</span>
