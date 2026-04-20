@@ -225,8 +225,8 @@ export function WeightVisualization({ entries }: Props) {
           <p className="mb-2 text-sm font-medium text-[color:var(--hp-foreground)]">
             日次体重と7点移動平均
           </p>
-          <div className="h-72 w-full min-w-0">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-72 w-full min-h-[18rem] min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minHeight={288}>
               <LineChart
                 data={chartData}
                 margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
@@ -296,8 +296,8 @@ export function WeightVisualization({ entries }: Props) {
           <p className="mb-2 text-sm font-medium text-[color:var(--hp-foreground)]">
             週次の平均体重（直近8週・月曜始まり）
           </p>
-          <div className="h-56 w-full min-w-0">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-56 w-full min-h-[14rem] min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minHeight={224}>
               <BarChart
                 data={weekly}
                 margin={{ top: 8, right: 8, left: 0, bottom: 8 }}

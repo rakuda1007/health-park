@@ -6,7 +6,7 @@ import {
   buildStepsBarSeries,
   countRecordedDaysInSeries,
 } from "@/lib/steps-stats";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -28,6 +28,10 @@ const PERIODS = [7, 14, 30] as const;
 
 export function StepsVisualization({ entries, compact = false }: Props) {
   const [days, setDays] = useState<number>(14);
+  const [chartReady, setChartReady] = useState(false);
+  useEffect(() => {
+    setChartReady(true);
+  }, []);
   const axisColor = "var(--hp-muted)";
   const gridColor = "var(--hp-border)";
   const barFill = "var(--hp-accent)";
@@ -92,62 +96,69 @@ export function StepsVisualization({ entries, compact = false }: Props) {
       <div
         className={`mt-3 w-full min-w-0 ${compact ? "h-48 min-h-[12rem]" : "h-56 min-h-[14rem]"}`}
       >
-        <ResponsiveContainer
-          width="100%"
-          height="100%"
-          minHeight={compact ? 192 : 224}
-        >
-          <BarChart
-            data={chartData}
-            margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+        {chartReady ? (
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            minHeight={compact ? 192 : 224}
           >
-            <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
-            <XAxis
-              dataKey="label"
-              tick={{ fill: axisColor, fontSize: 10 }}
-              interval="preserveStartEnd"
-            />
-            <YAxis
-              tick={{ fill: axisColor, fontSize: 11 }}
-              width={40}
-              tickFormatter={(v) => `${v}`}
-            />
-            <Tooltip
-              content={({ active, payload }) => {
-                if (!active || !payload?.length) {
-                  return null;
-                }
-                const p = payload[0]?.payload as {
-                  label: string;
-                  recorded: boolean;
-                  steps: number | null;
-                };
-                if (!p.recorded) {
+            <BarChart
+              data={chartData}
+              margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+            >
+              <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
+              <XAxis
+                dataKey="label"
+                tick={{ fill: axisColor, fontSize: 10 }}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                tick={{ fill: axisColor, fontSize: 11 }}
+                width={40}
+                tickFormatter={(v) => `${v}`}
+              />
+              <Tooltip
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) {
+                    return null;
+                  }
+                  const p = payload[0]?.payload as {
+                    label: string;
+                    recorded: boolean;
+                    steps: number | null;
+                  };
+                  if (!p.recorded) {
+                    return (
+                      <div className="rounded-md border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-2 py-1 text-xs shadow">
+                        <div className="font-medium">{p.label}</div>
+                        <div className="text-[color:var(--hp-muted)]">未記録</div>
+                      </div>
+                    );
+                  }
                   return (
                     <div className="rounded-md border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-2 py-1 text-xs shadow">
                       <div className="font-medium">{p.label}</div>
-                      <div className="text-[color:var(--hp-muted)]">未記録</div>
+                      <div>{(p.steps ?? 0).toLocaleString("ja-JP")} 歩</div>
                     </div>
                   );
-                }
-                return (
-                  <div className="rounded-md border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-2 py-1 text-xs shadow">
-                    <div className="font-medium">{p.label}</div>
-                    <div>{(p.steps ?? 0).toLocaleString("ja-JP")} 歩</div>
-                  </div>
-                );
-              }}
-            />
-            <Bar dataKey="barValue" radius={[4, 4, 0, 0]} maxBarSize={28}>
-              {chartData.map((entry, i) => (
-                <Cell
-                  key={`cell-${entry.date}-${i}`}
-                  fill={entry.recorded ? barFill : "transparent"}
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+                }}
+              />
+              <Bar dataKey="barValue" radius={[4, 4, 0, 0]} maxBarSize={28}>
+                {chartData.map((entry, i) => (
+                  <Cell
+                    key={`cell-${entry.date}-${i}`}
+                    fill={entry.recorded ? barFill : "transparent"}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div
+            className="h-full w-full rounded-md bg-[color:var(--hp-input)]"
+            aria-hidden
+          />
+        )}
       </div>
 
       <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-[color:var(--hp-muted)]">
