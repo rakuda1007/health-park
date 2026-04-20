@@ -13,7 +13,9 @@ import {
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Bar,
   CartesianGrid,
+  Cell,
   ComposedChart,
   Legend,
   Line,
@@ -77,13 +79,46 @@ export function DashboardPageClient() {
     (p) => p.mealScore != null || p.stepsSelfScore != null || p.conditionScore != null,
   );
 
+  /** 棒グラフ用（未記録は 0＋透明セル。ツールチップは元の steps を参照） */
+  const combinedChartData = useMemo(
+    () =>
+      dailyPoints.map((p) => ({
+        ...p,
+        stepsBar: p.steps != null ? p.steps : 0,
+        stepsRecorded: p.steps != null,
+      })),
+    [dailyPoints],
+  );
+
+  const weightAxisMax = useMemo(() => {
+    const vals = dailyPoints
+      .map((p) => p.weightKg)
+      .filter((v): v is number => v != null);
+    if (vals.length === 0) {
+      return 100;
+    }
+    const m = Math.max(...vals);
+    return Math.max(Math.ceil(m * 1.02 * 10) / 10, 0.1);
+  }, [dailyPoints]);
+
+  const stepsAxisMax = useMemo(() => {
+    const vals = dailyPoints
+      .map((p) => p.steps)
+      .filter((v): v is number => v != null);
+    if (vals.length === 0) {
+      return 8000;
+    }
+    const m = Math.max(...vals);
+    return Math.max(Math.ceil(m * 1.05), 100);
+  }, [dailyPoints]);
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
       <h1 className="text-xl font-semibold text-[color:var(--hp-foreground)]">
         ダッシュボード
       </h1>
       <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
-        体重と歩数を同じ日付軸で重ね、振り返りは日ごとのスコア（〇=2、△=1、✕=0）で表示します。因果関係の証明ではなく、記録の並びを眺めるための参考です。
+        体重（折れ線）と歩数（棒）を同じ日付軸で重ね、振り返りは日ごとのスコア（〇=2、△=1、✕=0）で表示します。因果関係の証明ではなく、記録の並びを眺めるための参考です。
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -113,10 +148,12 @@ export function DashboardPageClient() {
       <section className="mt-8 space-y-10">
         <div className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
           <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
-            体重と歩数（二軸・日ごと）
+            体重と歩数（折れ線＋棒・日ごと）
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            左軸＝体重（kg）、右軸＝歩数。未記録の日は線が途切れます（0 歩ではありません）。
+            折れ線＝体重（kg・左軸）、棒＝歩数（右軸）。両方とも軸は 0
+            から始まります。未記録の日は体重は線が途切れ、歩数は棒を出しません（0
+            歩の記録ではありません）。
           </p>
           {!hasCombined ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
@@ -126,7 +163,7 @@ export function DashboardPageClient() {
             <div className="mt-3 h-64 w-full min-h-[16rem] min-w-0">
               <ResponsiveContainer width="100%" height="100%" minHeight={256}>
                 <ComposedChart
-                  data={dailyPoints}
+                  data={combinedChartData}
                   margin={{ top: 8, right: 12, left: 4, bottom: 0 }}
                 >
                   <CartesianGrid
@@ -141,12 +178,12 @@ export function DashboardPageClient() {
                   <YAxis
                     yAxisId="w"
                     orientation="left"
-                    domain={["auto", "auto"]}
+                    domain={[0, weightAxisMax]}
                     tick={{ fill: "var(--hp-muted)", fontSize: 11 }}
                     width={44}
                     tickFormatter={(v) => `${v}`}
                     label={{
-                      value: "kg",
+                      value: "kg（0〜）",
                       position: "insideLeft",
                       fill: "var(--hp-muted)",
                       fontSize: 10,
@@ -155,12 +192,12 @@ export function DashboardPageClient() {
                   <YAxis
                     yAxisId="s"
                     orientation="right"
-                    domain={["auto", "auto"]}
+                    domain={[0, stepsAxisMax]}
                     tick={{ fill: "var(--hp-muted)", fontSize: 11 }}
                     width={48}
                     tickFormatter={(v) => `${v}`}
                     label={{
-                      value: "歩",
+                      value: "歩（0〜）",
                       position: "insideRight",
                       fill: "var(--hp-muted)",
                       fontSize: 10,
@@ -177,22 +214,29 @@ export function DashboardPageClient() {
                       return labels[value] ?? value;
                     }}
                   />
+                  <Bar
+                    yAxisId="s"
+                    dataKey="stepsBar"
+                    name="steps"
+                    fill="#16a34a"
+                    maxBarSize={22}
+                    radius={[3, 3, 0, 0]}
+                  >
+                    {combinedChartData.map((entry, i) => (
+                      <Cell
+                        key={`steps-bar-${entry.date}-${i}`}
+                        fill={
+                          entry.stepsRecorded ? "#16a34a" : "transparent"
+                        }
+                      />
+                    ))}
+                  </Bar>
                   <Line
                     yAxisId="w"
                     type="monotone"
                     dataKey="weightKg"
                     name="weightKg"
                     stroke="var(--hp-accent)"
-                    strokeWidth={2}
-                    dot={{ r: 2 }}
-                    connectNulls={false}
-                  />
-                  <Line
-                    yAxisId="s"
-                    type="monotone"
-                    dataKey="steps"
-                    name="steps"
-                    stroke="#16a34a"
                     strokeWidth={2}
                     dot={{ r: 2 }}
                     connectNulls={false}
