@@ -90,15 +90,33 @@ export function DashboardPageClient() {
     [dailyPoints],
   );
 
-  const weightAxisMax = useMemo(() => {
+  /** 体重は記録の範囲を拡大表示（0 起点は省略）。左軸の最小目盛に ～ を付与 */
+  const weightAxisConfig = useMemo(() => {
     const vals = dailyPoints
       .map((p) => p.weightKg)
       .filter((v): v is number => v != null);
     if (vals.length === 0) {
-      return 100;
+      return {
+        domain: [0, 100] as [number, number],
+        ticks: undefined as number[] | undefined,
+      };
     }
-    const m = Math.max(...vals);
-    return Math.max(Math.ceil(m * 1.02 * 10) / 10, 0.1);
+    const low = Math.min(...vals);
+    const high = Math.max(...vals);
+    const span = Math.max(high - low, 0.1);
+    const pad = Math.max(span * 0.06, 0.3);
+    const min = Math.round(Math.max(0, low - pad) * 100) / 100;
+    const max = Math.round((high + pad) * 100) / 100;
+    const domain: [number, number] =
+      min === max ? [min - 0.5, max + 0.5] : [min, max];
+    const [d0, d1] = domain;
+    const tickCount = 5;
+    const raw = Array.from({ length: tickCount }, (_, i) => {
+      const t = d0 + ((d1 - d0) * i) / (tickCount - 1);
+      return Math.round(t * 100) / 100;
+    });
+    const ticks = [...new Set(raw)];
+    return { domain, ticks: ticks.length >= 2 ? ticks : raw };
   }, [dailyPoints]);
 
   const stepsAxisMax = useMemo(() => {
@@ -151,8 +169,9 @@ export function DashboardPageClient() {
             体重と歩数（折れ線＋棒・日ごと）
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            折れ線＝体重（kg・左軸）、棒＝歩数（右軸）。両方とも軸は 0
-            から始まります。未記録の日は体重は線が途切れ、歩数は棒を出しません（0
+            折れ線＝体重（kg・左軸）、棒＝歩数（右軸）。歩数は 0 から。体重は
+            変化が見えやすいよう記録範囲を拡大表示しており、左軸の最小目盛に ～
+            が付くときは 0 からの区間が省略されています。未記録の日は体重は線が途切れ、歩数は棒を出しません（0
             歩の記録ではありません）。
           </p>
           {!hasCombined ? (
@@ -178,12 +197,20 @@ export function DashboardPageClient() {
                   <YAxis
                     yAxisId="w"
                     orientation="left"
-                    domain={[0, weightAxisMax]}
-                    tick={{ fill: "var(--hp-muted)", fontSize: 11 }}
-                    width={44}
-                    tickFormatter={(v) => `${v}`}
+                    domain={weightAxisConfig.domain}
+                    ticks={weightAxisConfig.ticks}
+                    tick={(props) => (
+                      <WeightAxisTick
+                        x={Number(props.x)}
+                        y={Number(props.y)}
+                        value={props.payload.value}
+                        weightFloor={weightAxisConfig.domain[0]}
+                        hasWeight={hasAnyWeight}
+                      />
+                    )}
+                    width={52}
                     label={{
-                      value: "kg（0〜）",
+                      value: "kg（0〜は省略）",
                       position: "insideLeft",
                       fill: "var(--hp-muted)",
                       fontSize: 10,
@@ -431,6 +458,41 @@ export function DashboardPageClient() {
         </div>
       </section>
     </main>
+  );
+}
+
+function WeightAxisTick({
+  x,
+  y,
+  value,
+  weightFloor,
+  hasWeight,
+}: {
+  x: number;
+  y: number;
+  value: number | string;
+  weightFloor: number;
+  hasWeight: boolean;
+}) {
+  const num = typeof value === "number" ? value : Number(value);
+  const eps = Math.max(1e-6, Math.abs(weightFloor) * 1e-9);
+  /** 軸の下限が 0 でないときだけ 0〜 の省略を示す */
+  const isMinTick =
+    hasWeight &&
+    weightFloor > 0.05 &&
+    Math.abs(num - weightFloor) < eps;
+  const label = isMinTick ? `～${num}` : String(num);
+  return (
+    <text
+      x={x}
+      y={y}
+      dy={3}
+      textAnchor="end"
+      fill="var(--hp-muted)"
+      fontSize={11}
+    >
+      {label}
+    </text>
   );
 }
 
