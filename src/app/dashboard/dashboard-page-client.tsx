@@ -9,6 +9,8 @@ import type { DailyReflectionEntry, StepsEntry, WeightEntry } from "@/lib/db/typ
 import {
   buildDailyDashboardPoints,
   buildWeeklyDashboardRows,
+  weeklyStepsNarrative,
+  weeklyWeightNarrative,
 } from "@/lib/dashboard-series";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -378,82 +380,161 @@ export function DashboardPageClient() {
             週ごとのサマリー（直近8週）
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            その週に記録があった日だけを平均しています。記録日数が少ない週は値がブレやすいです。
+            その週に記録があった日だけを平均しています。記録日数が少ない週は値がブレやすいです。体重・歩数の文は自動生成です（診断や目標設定ではありません）。
           </p>
           {weeklyRows.length === 0 ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
               データがありません。
             </p>
           ) : (
-            <div className="mt-3 overflow-x-auto">
-              <table className="w-full min-w-[36rem] border-collapse text-left text-xs sm:text-sm">
-                <thead>
-                  <tr className="border-b border-[color:var(--hp-border)] bg-[color:var(--hp-input)]">
-                    <th className="px-2 py-2 font-medium text-[color:var(--hp-muted)]">
-                      週
-                    </th>
-                    <th className="px-2 py-2 text-right font-medium text-[color:var(--hp-muted)]">
-                      体重(平均)
-                    </th>
-                    <th className="px-2 py-2 text-center font-medium text-[color:var(--hp-muted)]">
-                      体重
-                      <br />
-                      日数
-                    </th>
-                    <th className="px-2 py-2 text-right font-medium text-[color:var(--hp-muted)]">
-                      歩数(平均)
-                    </th>
-                    <th className="px-2 py-2 text-center font-medium text-[color:var(--hp-muted)]">
-                      歩数
-                      <br />
-                      日数
-                    </th>
-                    <th className="px-2 py-2 text-right font-medium text-[color:var(--hp-muted)]">
-                      振り返り
-                      <br />
-                      合計(平均)
-                    </th>
-                    <th className="px-2 py-2 text-center font-medium text-[color:var(--hp-muted)]">
-                      振り返り
-                      <br />
-                      日数
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="text-[color:var(--hp-foreground)]">
-                  {weeklyRows.map((row) => (
-                    <tr
+            <>
+              <ul className="mt-3 space-y-3 md:hidden">
+                {weeklyRows.map((row, i) => {
+                  const prev = i > 0 ? weeklyRows[i - 1]! : null;
+                  return (
+                    <li
                       key={row.weekStart}
-                      className="border-b border-[color:var(--hp-border)] last:border-b-0"
+                      className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] p-3"
                     >
-                      <td className="whitespace-nowrap px-2 py-2">{row.label}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">
-                        {row.avgWeightKg != null ? `${row.avgWeightKg} kg` : "—"}
-                      </td>
-                      <td className="px-2 py-2 text-center tabular-nums">
-                        {row.weightDays}
-                      </td>
-                      <td className="px-2 py-2 text-right tabular-nums">
-                        {row.avgSteps != null
-                          ? `${row.avgSteps.toLocaleString("ja-JP")} 歩`
-                          : "—"}
-                      </td>
-                      <td className="px-2 py-2 text-center tabular-nums">
-                        {row.stepsRecordedDays}
-                      </td>
-                      <td className="px-2 py-2 text-right tabular-nums">
-                        {row.avgReflectionTotal != null
-                          ? `${row.avgReflectionTotal} / 6`
-                          : "—"}
-                      </td>
-                      <td className="px-2 py-2 text-center tabular-nums">
-                        {row.reflectionDays}
-                      </td>
+                      <p className="text-sm font-medium text-[color:var(--hp-foreground)]">
+                        {row.label}
+                      </p>
+                      <dl className="mt-2 space-y-3 text-sm">
+                        <div>
+                          <dt className="text-xs text-[color:var(--hp-muted)]">
+                            体重
+                          </dt>
+                          <dd className="mt-0.5 tabular-nums text-[color:var(--hp-foreground)]">
+                            {row.avgWeightKg != null
+                              ? `${row.avgWeightKg} kg`
+                              : "—"}
+                            <span className="text-xs text-[color:var(--hp-muted)]">
+                              {" "}
+                              （記録 {row.weightDays} 日）
+                            </span>
+                          </dd>
+                          <p className="mt-1.5 text-xs leading-relaxed text-[color:var(--hp-muted)]">
+                            {weeklyWeightNarrative(row, prev)}
+                          </p>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-[color:var(--hp-muted)]">
+                            歩数
+                          </dt>
+                          <dd className="mt-0.5 tabular-nums text-[color:var(--hp-foreground)]">
+                            {row.avgSteps != null
+                              ? `${row.avgSteps.toLocaleString("ja-JP")} 歩`
+                              : "—"}
+                            <span className="text-xs text-[color:var(--hp-muted)]">
+                              {" "}
+                              （記録 {row.stepsRecordedDays} 日）
+                            </span>
+                          </dd>
+                          <p className="mt-1.5 text-xs leading-relaxed text-[color:var(--hp-muted)]">
+                            {weeklyStepsNarrative(row, prev)}
+                          </p>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-[color:var(--hp-muted)]">
+                            振り返り（合計の週平均）
+                          </dt>
+                          <dd className="mt-0.5 tabular-nums text-[color:var(--hp-foreground)]">
+                            {row.avgReflectionTotal != null
+                              ? `${row.avgReflectionTotal} / 6`
+                              : "—"}
+                            <span className="text-xs text-[color:var(--hp-muted)]">
+                              {" "}
+                              （記録 {row.reflectionDays} 日）
+                            </span>
+                          </dd>
+                        </div>
+                      </dl>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              <div className="mt-3 hidden overflow-x-hidden md:block">
+                <table className="w-full min-w-0 table-fixed border-collapse text-left text-xs lg:text-sm">
+                  <thead>
+                    <tr className="border-b border-[color:var(--hp-border)] bg-[color:var(--hp-input)]">
+                      <th className="w-[5.5rem] px-2 py-2 font-medium text-[color:var(--hp-muted)]">
+                        週
+                      </th>
+                      <th className="w-[4.5rem] px-1 py-2 text-right font-medium text-[color:var(--hp-muted)]">
+                        体重
+                      </th>
+                      <th className="w-[2.5rem] px-1 py-2 text-center font-medium text-[color:var(--hp-muted)]">
+                        日
+                      </th>
+                      <th className="w-[5rem] px-1 py-2 text-right font-medium text-[color:var(--hp-muted)]">
+                        歩数
+                      </th>
+                      <th className="w-[2.5rem] px-1 py-2 text-center font-medium text-[color:var(--hp-muted)]">
+                        日
+                      </th>
+                      <th className="w-[4rem] px-1 py-2 text-right font-medium text-[color:var(--hp-muted)]">
+                        振返
+                      </th>
+                      <th className="w-[2.5rem] px-1 py-2 text-center font-medium text-[color:var(--hp-muted)]">
+                        日
+                      </th>
+                      <th className="min-w-0 px-2 py-2 font-medium text-[color:var(--hp-muted)]">
+                        自動コメント（体重・歩数）
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="text-[color:var(--hp-foreground)]">
+                    {weeklyRows.map((row, i) => {
+                      const prev = i > 0 ? weeklyRows[i - 1]! : null;
+                      return (
+                        <tr
+                          key={row.weekStart}
+                          className="border-b border-[color:var(--hp-border)] align-top last:border-b-0"
+                        >
+                          <td className="whitespace-nowrap px-2 py-2">
+                            {row.label}
+                          </td>
+                          <td className="px-1 py-2 text-right tabular-nums">
+                            {row.avgWeightKg != null
+                              ? `${row.avgWeightKg} kg`
+                              : "—"}
+                          </td>
+                          <td className="px-1 py-2 text-center tabular-nums">
+                            {row.weightDays}
+                          </td>
+                          <td className="break-all px-1 py-2 text-right tabular-nums">
+                            {row.avgSteps != null
+                              ? row.avgSteps.toLocaleString("ja-JP")
+                              : "—"}
+                          </td>
+                          <td className="px-1 py-2 text-center tabular-nums">
+                            {row.stepsRecordedDays}
+                          </td>
+                          <td className="px-1 py-2 text-right tabular-nums">
+                            {row.avgReflectionTotal != null
+                              ? `${row.avgReflectionTotal}/6`
+                              : "—"}
+                          </td>
+                          <td className="px-1 py-2 text-center tabular-nums">
+                            {row.reflectionDays}
+                          </td>
+                          <td className="min-w-0 whitespace-normal break-words px-2 py-2 text-[11px] leading-snug text-[color:var(--hp-muted)] lg:text-xs">
+                            <p>{weeklyWeightNarrative(row, prev)}</p>
+                            <p className="mt-1.5 border-t border-dashed border-[color:var(--hp-border)] pt-1.5">
+                              {weeklyStepsNarrative(row, prev)}
+                            </p>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <p className="mt-2 text-[11px] text-[color:var(--hp-muted)]">
+                  列見出し：体重・歩数・振返は週平均、隣の「日」は記録があった日数です。
+                </p>
+              </div>
+            </>
           )}
         </div>
       </section>

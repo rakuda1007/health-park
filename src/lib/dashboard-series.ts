@@ -169,3 +169,60 @@ function formatWeekLabel(weekStartIso: string): string {
   const dt = new Date(y, mo - 1, da);
   return `${dt.getMonth() + 1}/${dt.getDate()}週`;
 }
+
+/**
+ * 週次サマリー用の自動コメント（医療診断ではなく傾向の参考）。
+ * prev は直前の週（より古い週）。先頭週は prev が null。
+ */
+export function weeklyWeightNarrative(
+  row: WeeklyDashboardRow,
+  prev: WeeklyDashboardRow | null,
+): string {
+  if (row.avgWeightKg == null) {
+    return "体重の記録がありません。";
+  }
+  const days = row.weightDays;
+  const avg = row.avgWeightKg;
+  let text = `週平均は ${avg} kg（${days}日分の記録）。`;
+  if (days <= 2) {
+    text += " 記録日が少ないため、代表値としては参考程度です。";
+  }
+  if (prev?.avgWeightKg != null) {
+    const diff = Math.round((row.avgWeightKg - prev.avgWeightKg) * 10) / 10;
+    if (Math.abs(diff) < 0.15) {
+      text += " 前週の平均とほぼ同じ水準です。";
+    } else if (diff < 0) {
+      text += ` 前週の平均より約 ${Math.abs(diff)} kg 低いです。`;
+    } else {
+      text += ` 前週の平均より約 ${diff} kg 高いです。`;
+    }
+  }
+  return text;
+}
+
+export function weeklyStepsNarrative(
+  row: WeeklyDashboardRow,
+  prev: WeeklyDashboardRow | null,
+): string {
+  if (row.avgSteps == null) {
+    return "歩数の記録がありません。";
+  }
+  const days = row.stepsRecordedDays;
+  const avg = row.avgSteps;
+  let text = `週平均は ${avg.toLocaleString("ja-JP")} 歩（${days}日分の記録）。`;
+  if (days <= 2) {
+    text += " 記録日が少ないため、代表値としては参考程度です。";
+  }
+  if (prev?.avgSteps != null && prev.avgSteps > 0) {
+    const diff = row.avgSteps - prev.avgSteps;
+    const pct = Math.round((diff / prev.avgSteps) * 100);
+    if (Math.abs(pct) < 5) {
+      text += " 前週の平均とほぼ同じ水準です。";
+    } else if (diff > 0) {
+      text += ` 前週の平均より約 ${Math.abs(Math.round(diff)).toLocaleString("ja-JP")} 歩多いです。`;
+    } else {
+      text += ` 前週の平均より約 ${Math.abs(Math.round(diff)).toLocaleString("ja-JP")} 歩少ないです。`;
+    }
+  }
+  return text;
+}
