@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 export function ClinicsPageClient() {
   const [entries, setEntries] = useState<ClinicEntry[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
@@ -31,27 +32,58 @@ export function ClinicsPageClient() {
     void load();
   }, [load]);
 
+  function resetForm() {
+    setEditingId(null);
+    setName("");
+    setAddress("");
+    setPhone("");
+    setNote("");
+  }
+
+  function beginEdit(row: ClinicEntry) {
+    setLoadError(null);
+    setEditingId(row.id);
+    setName(row.name);
+    setAddress(row.address ?? "");
+    setPhone(row.phone ?? "");
+    setNote(row.note ?? "");
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (name.trim() === "") {
       return;
     }
     setSaving(true);
+    setLoadError(null);
     try {
-      const now = new Date().toISOString();
-      const entry: ClinicEntry = {
-        id: crypto.randomUUID(),
-        name: name.trim(),
-        address: address.trim() || undefined,
-        phone: phone.trim() || undefined,
-        note: note.trim() || undefined,
-        createdAt: now,
-      };
-      await putClinicEntry(entry);
-      setName("");
-      setAddress("");
-      setPhone("");
-      setNote("");
+      if (editingId != null) {
+        const existing = entries.find((x) => x.id === editingId);
+        if (!existing) {
+          setLoadError("編集対象の通院先が見つかりません。一覧を再読み込みしてください。");
+          return;
+        }
+        await putClinicEntry({
+          ...existing,
+          name: name.trim(),
+          address: address.trim() || undefined,
+          phone: phone.trim() || undefined,
+          note: note.trim() || undefined,
+        });
+        resetForm();
+      } else {
+        const now = new Date().toISOString();
+        const entry: ClinicEntry = {
+          id: crypto.randomUUID(),
+          name: name.trim(),
+          address: address.trim() || undefined,
+          phone: phone.trim() || undefined,
+          note: note.trim() || undefined,
+          createdAt: now,
+        };
+        await putClinicEntry(entry);
+        resetForm();
+      }
       await load();
     } finally {
       setSaving(false);
@@ -62,9 +94,14 @@ export function ClinicsPageClient() {
     if (!window.confirm("この通院先を削除しますか？")) {
       return;
     }
+    if (editingId === id) {
+      resetForm();
+    }
     await deleteClinicEntry(id);
     await load();
   }
+
+  const isEditing = editingId != null;
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
@@ -79,6 +116,9 @@ export function ClinicsPageClient() {
         onSubmit={handleSubmit}
         className="mt-6 space-y-4 rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4"
       >
+        <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
+          {isEditing ? "編集" : "新規登録"}
+        </h2>
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-[color:var(--hp-muted)]">名称</span>
           <input
@@ -122,13 +162,25 @@ export function ClinicsPageClient() {
             placeholder="例: かかりつけ、火曜午後"
           />
         </label>
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-lg bg-[color:var(--hp-accent)] px-4 py-2 text-sm font-medium text-[color:var(--hp-accent-fg)] disabled:opacity-60"
-        >
-          {saving ? "保存中…" : "保存"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-lg bg-[color:var(--hp-accent)] px-4 py-2 text-sm font-medium text-[color:var(--hp-accent-fg)] disabled:opacity-60"
+          >
+            {saving ? "保存中…" : isEditing ? "更新" : "登録"}
+          </button>
+          {isEditing ? (
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => resetForm()}
+              className="rounded-lg border border-[color:var(--hp-border)] px-4 py-2 text-sm font-medium text-[color:var(--hp-foreground)] hover:bg-[color:var(--hp-input)] disabled:opacity-60"
+            >
+              キャンセル
+            </button>
+          ) : null}
+        </div>
       </form>
 
       {loadError ? (
@@ -180,13 +232,25 @@ export function ClinicsPageClient() {
                     </span>
                   ) : null}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void handleDelete(row.id)}
-                  className="shrink-0 text-sm text-red-600 underline-offset-2 hover:underline dark:text-red-400"
-                >
-                  削除
-                </button>
+                <div className="flex shrink-0 flex-wrap gap-x-3 gap-y-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      beginEdit(row);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="text-sm text-[color:var(--hp-accent)] underline-offset-2 hover:underline"
+                  >
+                    編集
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete(row.id)}
+                    className="text-sm text-red-600 underline-offset-2 hover:underline dark:text-red-400"
+                  >
+                    削除
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

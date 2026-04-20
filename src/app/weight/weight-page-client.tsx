@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from "react";
 export function WeightPageClient() {
   const [entries, setEntries] = useState<WeightEntry[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [date, setDate] = useState(todayIso);
   const [weightKg, setWeightKg] = useState("");
   const [note, setNote] = useState("");
@@ -32,6 +33,21 @@ export function WeightPageClient() {
     void load();
   }, [load]);
 
+  function resetForm() {
+    setEditingId(null);
+    setDate(todayIso());
+    setWeightKg("");
+    setNote("");
+  }
+
+  function beginEdit(row: WeightEntry) {
+    setLoadError(null);
+    setEditingId(row.id);
+    setDate(row.date);
+    setWeightKg(String(row.weightKg));
+    setNote(row.note ?? "");
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const w = Number.parseFloat(weightKg);
@@ -39,18 +55,35 @@ export function WeightPageClient() {
       return;
     }
     setSaving(true);
+    setLoadError(null);
     try {
-      const now = new Date().toISOString();
-      const entry: WeightEntry = {
-        id: crypto.randomUUID(),
-        date,
-        weightKg: w,
-        note: note.trim() || undefined,
-        createdAt: now,
-      };
-      await putWeightEntry(entry);
-      setWeightKg("");
-      setNote("");
+      if (editingId != null) {
+        const existing = entries.find((x) => x.id === editingId);
+        if (!existing) {
+          setLoadError("編集対象の記録が見つかりません。一覧を再読み込みしてください。");
+          return;
+        }
+        await putWeightEntry({
+          ...existing,
+          date,
+          weightKg: w,
+          note: note.trim() || undefined,
+        });
+        resetForm();
+      } else {
+        const now = new Date().toISOString();
+        const entry: WeightEntry = {
+          id: crypto.randomUUID(),
+          date,
+          weightKg: w,
+          note: note.trim() || undefined,
+          createdAt: now,
+        };
+        await putWeightEntry(entry);
+        setEditingId(null);
+        setWeightKg("");
+        setNote("");
+      }
       await load();
     } finally {
       setSaving(false);
@@ -61,9 +94,14 @@ export function WeightPageClient() {
     if (!window.confirm("この記録を削除しますか？")) {
       return;
     }
+    if (editingId === id) {
+      resetForm();
+    }
     await deleteWeightEntry(id);
     await load();
   }
+
+  const isEditing = editingId != null;
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
@@ -78,6 +116,9 @@ export function WeightPageClient() {
         onSubmit={handleSubmit}
         className="mt-6 space-y-4 rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4"
       >
+        <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
+          {isEditing ? "記録を編集" : "新規記録"}
+        </h2>
         <div className="grid gap-2 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-[color:var(--hp-muted)]">日付</span>
@@ -113,13 +154,25 @@ export function WeightPageClient() {
             className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
           />
         </label>
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-lg bg-[color:var(--hp-accent)] px-4 py-2 text-sm font-medium text-[color:var(--hp-accent-fg)] disabled:opacity-60"
-        >
-          {saving ? "保存中…" : "保存"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-lg bg-[color:var(--hp-accent)] px-4 py-2 text-sm font-medium text-[color:var(--hp-accent-fg)] disabled:opacity-60"
+          >
+            {saving ? "保存中…" : isEditing ? "更新" : "保存"}
+          </button>
+          {isEditing ? (
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => resetForm()}
+              className="rounded-lg border border-[color:var(--hp-border)] px-4 py-2 text-sm font-medium text-[color:var(--hp-foreground)] hover:bg-[color:var(--hp-input)] disabled:opacity-60"
+            >
+              キャンセル
+            </button>
+          ) : null}
+        </div>
       </form>
 
       {loadError ? (
@@ -163,13 +216,25 @@ export function WeightPageClient() {
                     </span>
                   ) : null}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void handleDelete(row.id)}
-                  className="text-sm text-red-600 underline-offset-2 hover:underline dark:text-red-400"
-                >
-                  削除
-                </button>
+                <div className="flex shrink-0 flex-wrap gap-x-3 gap-y-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      beginEdit(row);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="text-sm text-[color:var(--hp-accent)] underline-offset-2 hover:underline"
+                  >
+                    編集
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete(row.id)}
+                    className="text-sm text-red-600 underline-offset-2 hover:underline dark:text-red-400"
+                  >
+                    削除
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
