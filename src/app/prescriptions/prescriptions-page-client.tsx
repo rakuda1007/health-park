@@ -48,27 +48,22 @@ function formatUpdatedAt(iso: string): string {
 }
 
 /**
- * フォームの「用法・用量」1欄を一覧では用法 / 用量に分けて表示する。
- * 改行で区切った場合は1行目→用法、2行目以降→用量。1行だけなら用法に全文・用量は「—」。
+ * フォームの「用法・用量」1欄を一覧の1列に表示する。
+ * 改行があれば 用法（1行目）＋ 改行 ＋ 用量（2行目以降）。1行だけならそのまま。
  */
-function splitUsageAndAmount(
-  dosage: string | undefined,
-): { usage: string; amount: string } {
+function formatUsageDosageForTable(dosage: string | undefined): string {
   const raw = dosage?.trim();
   if (!raw) {
-    return { usage: "—", amount: "—" };
+    return "—";
   }
   const lines = raw
     .split(/\n/)
     .map((l) => l.trim())
     .filter(Boolean);
   if (lines.length >= 2) {
-    return {
-      usage: lines[0] ?? "—",
-      amount: lines.slice(1).join("\n") || "—",
-    };
+    return `${lines[0]}\n${lines.slice(1).join("\n")}`;
   }
-  return { usage: raw, amount: "—" };
+  return raw;
 }
 
 export function PrescriptionsPageClient() {
@@ -232,31 +227,30 @@ export function PrescriptionsPageClient() {
             まだ登録がありません。
           </p>
         ) : (
-          <div className="mt-3 overflow-x-auto rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)]">
-            <table className="w-full min-w-[34rem] border-collapse text-left text-sm">
+          <div className="mt-3 rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)]">
+            <table className="w-full table-fixed border-collapse text-left text-xs sm:text-sm">
+              <colgroup>
+                <col className="w-[30%] sm:w-[28%]" />
+                <col className="w-[55%] sm:w-[57%]" />
+                <col className="w-[15%]" />
+              </colgroup>
               <thead>
                 <tr className="border-b border-[color:var(--hp-border)] bg-[color:var(--hp-input)]">
                   <th
                     scope="col"
-                    className="min-w-[9rem] px-3 py-2.5 text-xs font-medium text-[color:var(--hp-muted)]"
+                    className="min-w-0 px-2 py-2 font-medium text-[color:var(--hp-muted)] sm:px-3 sm:py-2.5"
                   >
                     薬名
                   </th>
                   <th
                     scope="col"
-                    className="min-w-[7rem] px-3 py-2.5 text-xs font-medium text-[color:var(--hp-muted)]"
+                    className="min-w-0 px-2 py-2 font-medium text-[color:var(--hp-muted)] sm:px-3 sm:py-2.5"
                   >
-                    用法
+                    用法・用量
                   </th>
                   <th
                     scope="col"
-                    className="min-w-[7rem] px-3 py-2.5 text-xs font-medium text-[color:var(--hp-muted)]"
-                  >
-                    用量
-                  </th>
-                  <th
-                    scope="col"
-                    className="w-[1%] whitespace-nowrap px-3 py-2.5 text-right text-xs font-medium text-[color:var(--hp-muted)]"
+                    className="min-w-0 px-2 py-2 text-right font-medium text-[color:var(--hp-muted)] sm:px-3 sm:py-2.5"
                   >
                     操作
                   </th>
@@ -265,61 +259,62 @@ export function PrescriptionsPageClient() {
               <tbody>
                 {tableRows.map(
                   ({ entry, med, medIndex, entryMedCount }) => {
-                    const { usage, amount } = splitUsageAndAmount(med.dosage);
+                    const usageDosage = formatUsageDosageForTable(med.dosage);
                     return (
                       <tr
                         key={`${entry.id}-${med.id}`}
                         className="border-b border-[color:var(--hp-border)]"
                       >
-                        <td className="align-top px-3 py-3 text-[color:var(--hp-foreground)]">
-                          <div className="font-medium leading-snug">{med.name}</div>
+                        <td className="min-w-0 align-top px-2 py-2.5 text-[color:var(--hp-foreground)] sm:px-3 sm:py-3">
+                          <div className="break-words font-medium leading-snug">
+                            {med.name}
+                          </div>
                           {med.note ? (
-                            <p className="mt-1 text-xs leading-relaxed text-[color:var(--hp-muted)]">
+                            <p className="mt-1 break-words text-[11px] leading-relaxed text-[color:var(--hp-muted)] sm:text-xs">
                               {med.note}
                             </p>
                           ) : null}
                           {medIndex === 0 ? (
                             <div className="mt-2 border-t border-dashed border-[color:var(--hp-border)] pt-2">
-                              <p className="text-xs text-[color:var(--hp-muted)]">
+                              <p className="text-[11px] text-[color:var(--hp-muted)] sm:text-xs">
                                 更新
                               </p>
                               <time
                                 dateTime={entry.updatedAt}
-                                className="mt-0.5 block tabular-nums text-xs text-[color:var(--hp-muted)]"
+                                className="mt-0.5 block tabular-nums text-[11px] text-[color:var(--hp-muted)] sm:text-xs"
                               >
                                 {formatUpdatedAt(entry.updatedAt)}
                               </time>
                               {entry.memo ? (
-                                <p className="mt-1.5 text-xs leading-relaxed text-[color:var(--hp-muted)]">
+                                <p className="mt-1.5 break-words text-[11px] leading-relaxed text-[color:var(--hp-muted)] sm:text-xs">
                                   {entry.memo}
                                 </p>
                               ) : null}
                             </div>
                           ) : null}
                         </td>
-                        <td className="align-top whitespace-pre-wrap px-3 py-3 text-[color:var(--hp-foreground)]">
-                          {usage}
-                        </td>
-                        <td className="align-top whitespace-pre-wrap px-3 py-3 text-[color:var(--hp-foreground)]">
-                          {amount}
+                        <td className="min-w-0 align-top break-words px-2 py-2.5 text-[color:var(--hp-foreground)] sm:px-3 sm:py-3">
+                          <span className="whitespace-pre-wrap">
+                            {usageDosage}
+                          </span>
                         </td>
                         {medIndex === 0 ? (
                           <td
                             rowSpan={entryMedCount}
-                            className="align-top px-3 py-3 text-right"
+                            className="min-w-0 align-top px-1 py-2.5 text-right sm:px-2 sm:py-3"
                           >
-                            <div className="inline-flex flex-col items-end gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+                            <div className="flex flex-col items-end gap-1">
                               <button
                                 type="button"
                                 onClick={() => startEdit(entry)}
-                                className="text-[color:var(--hp-accent)] underline"
+                                className="text-[11px] text-[color:var(--hp-accent)] underline sm:text-sm"
                               >
                                 編集
                               </button>
                               <button
                                 type="button"
                                 onClick={() => void handleDelete(entry.id)}
-                                className="text-red-600 dark:text-red-400"
+                                className="text-[11px] text-red-600 dark:text-red-400 sm:text-sm"
                               >
                                 削除
                               </button>
@@ -404,7 +399,7 @@ export function PrescriptionsPageClient() {
                   placeholder="例: 1日1回朝食後、1回1錠"
                 />
                 <span className="text-xs text-[color:var(--hp-muted)]">
-                  一覧表では、改行を入れると上段が「用法」、下段が「用量」になります。
+                  一覧の「用法・用量」列では改行どおり表示されます（複数行で書き分けできます）。
                 </span>
               </label>
               <label className="flex flex-col gap-1.5 text-sm">
