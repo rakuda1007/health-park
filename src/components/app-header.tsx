@@ -6,6 +6,7 @@ import Link from "next/link";
 
 const nav = [
   { href: "/", label: "ホーム" },
+  { href: "/dashboard", label: "ダッシュボード" },
   { href: "/weight", label: "体重" },
   { href: "/steps", label: "歩数" },
   { href: "/blood-pressure", label: "血圧" },

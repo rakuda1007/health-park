@@ -3,9 +3,11 @@
 import {
   deleteDailyReflectionEntry,
   getDailyReflectionByDate,
+  listDailyReflectionEntries,
   putDailyReflectionEntry,
 } from "@/lib/db";
 import type { DailyReflectionEntry, ReflectionRating } from "@/lib/db/types";
+import { ratingSymbol } from "@/lib/reflection-display";
 import { todayIso } from "@/lib/date";
 import { useCallback, useEffect, useState } from "react";
 
@@ -27,7 +29,19 @@ export function ReflectionPageClient() {
   const [comment, setComment] = useState("");
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [allRows, setAllRows] = useState<DailyReflectionEntry[]>([]);
+
+  const loadList = useCallback(async () => {
+    try {
+      setListError(null);
+      const list = await listDailyReflectionEntries();
+      setAllRows(list);
+    } catch (e) {
+      setListError(e instanceof Error ? e.message : "一覧の読み込みに失敗しました");
+    }
+  }, []);
 
   const loadForDate = useCallback(async (d: string) => {
     try {
@@ -53,6 +67,10 @@ export function ReflectionPageClient() {
   }, []);
 
   useEffect(() => {
+    void loadList();
+  }, [loadList]);
+
+  useEffect(() => {
     void loadForDate(date);
   }, [date, loadForDate]);
 
@@ -76,6 +94,7 @@ export function ReflectionPageClient() {
       });
       setLoadedId(id);
       await loadForDate(date);
+      await loadList();
     } finally {
       setSaving(false);
     }
@@ -96,6 +115,17 @@ export function ReflectionPageClient() {
     setCondition(defs.condition);
     setComment("");
     await loadForDate(date);
+    await loadList();
+  }
+
+  function editRow(iso: string) {
+    setDate(iso);
+    requestAnimationFrame(() => {
+      document.getElementById("reflection-form")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   }
 
   return (
@@ -108,6 +138,7 @@ export function ReflectionPageClient() {
       </p>
 
       <form
+        id="reflection-form"
         onSubmit={handleSubmit}
         className="mt-6 space-y-5 rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4"
       >
@@ -174,6 +205,87 @@ export function ReflectionPageClient() {
           {loadError}
         </p>
       ) : null}
+
+      <section className="mt-10" aria-labelledby="reflection-list-heading">
+        <h2
+          id="reflection-list-heading"
+          className="text-sm font-medium text-[color:var(--hp-foreground)]"
+        >
+          振り返り一覧
+        </h2>
+        <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
+          日付ごとの自己評価（食事・歩数・体調）。行を選ぶと上のフォームで編集できます。
+        </p>
+        {listError ? (
+          <p className="mt-2 text-sm text-red-600 dark:text-red-400" role="alert">
+            {listError}
+          </p>
+        ) : allRows.length === 0 ? (
+          <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
+            まだ記録がありません。
+          </p>
+        ) : (
+          <div className="mt-3 overflow-x-auto rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)]">
+            <table className="w-full min-w-[28rem] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-[color:var(--hp-border)] bg-[color:var(--hp-input)]">
+                  <th className="px-3 py-2 text-xs font-medium text-[color:var(--hp-muted)]">
+                    日付
+                  </th>
+                  <th className="px-2 py-2 text-center text-xs font-medium text-[color:var(--hp-muted)]">
+                    食事
+                  </th>
+                  <th className="px-2 py-2 text-center text-xs font-medium text-[color:var(--hp-muted)]">
+                    歩数
+                  </th>
+                  <th className="px-2 py-2 text-center text-xs font-medium text-[color:var(--hp-muted)]">
+                    体調
+                  </th>
+                  <th className="min-w-[8rem] px-3 py-2 text-xs font-medium text-[color:var(--hp-muted)]">
+                    コメント
+                  </th>
+                  <th className="w-[1%] whitespace-nowrap px-2 py-2 text-right text-xs font-medium text-[color:var(--hp-muted)]">
+                    操作
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {allRows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-b border-[color:var(--hp-border)] last:border-b-0"
+                  >
+                    <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-[color:var(--hp-foreground)]">
+                      {row.date}
+                    </td>
+                    <td className="px-2 py-2.5 text-center text-lg">
+                      {ratingSymbol(row.mealRating)}
+                    </td>
+                    <td className="px-2 py-2.5 text-center text-lg">
+                      {ratingSymbol(row.stepsRating)}
+                    </td>
+                    <td className="px-2 py-2.5 text-center text-lg">
+                      {ratingSymbol(row.conditionRating)}
+                    </td>
+                    <td className="max-w-[14rem] truncate px-3 py-2.5 text-xs text-[color:var(--hp-muted)]">
+                      {row.comment ?? "—"}
+                    </td>
+                    <td className="px-2 py-2.5 text-right">
+                      <button
+                        type="button"
+                        onClick={() => editRow(row.date)}
+                        className="text-xs text-[color:var(--hp-accent)] underline"
+                      >
+                        編集
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <p className="mt-6 text-xs text-[color:var(--hp-muted)]">
         〇＝よかった／十分　△＝まあまあ　✕＝いまいち（主観の目安です）

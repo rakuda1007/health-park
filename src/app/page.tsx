@@ -2,6 +2,11 @@ import Link from "next/link";
 
 const cards = [
   {
+    href: "/dashboard",
+    title: "ダッシュボード",
+    body: "体重・歩数・振り返りのサマリー",
+  },
+  {
     href: "/weight",
     title: "体重",
     body: "日付・体重を手入力",

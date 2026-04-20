@@ -20,37 +20,41 @@ import {
 
 type Props = {
   entries: StepsEntry[];
+  /** ダッシュボード用：直近14日固定・期間切替なし */
+  compact?: boolean;
 };
 
 const PERIODS = [7, 14, 30] as const;
 
-export function StepsVisualization({ entries }: Props) {
+export function StepsVisualization({ entries, compact = false }: Props) {
   const [days, setDays] = useState<number>(14);
   const axisColor = "var(--hp-muted)";
   const gridColor = "var(--hp-border)";
   const barFill = "var(--hp-accent)";
 
+  const periodDays = compact ? 14 : days;
+
   const chartData = useMemo(() => {
-    const series = buildStepsBarSeries(entries, days);
+    const series = buildStepsBarSeries(entries, periodDays);
     return series.map((p) => ({
       ...p,
       /** Recharts 用：未記録は 0 だが描画しない（Cell で透明） */
       barValue: p.recorded && p.steps != null ? p.steps : 0,
     }));
-  }, [entries, days]);
+  }, [entries, periodDays]);
 
   const avg = useMemo(
-    () => averageRecordedSteps(entries, days),
-    [entries, days],
+    () => averageRecordedSteps(entries, periodDays),
+    [entries, periodDays],
   );
   const recordedDays = useMemo(
-    () => countRecordedDaysInSeries(entries, days),
-    [entries, days],
+    () => countRecordedDaysInSeries(entries, periodDays),
+    [entries, periodDays],
   );
 
   return (
     <section
-      className="mt-8 rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4"
+      className={`rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4 ${compact ? "" : "mt-8"}`}
       aria-labelledby="steps-chart-heading"
     >
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -59,32 +63,40 @@ export function StepsVisualization({ entries }: Props) {
             id="steps-chart-heading"
             className="text-sm font-medium text-[color:var(--hp-foreground)]"
           >
-            歩数の推移（棒グラフ）
+            {compact ? "歩数（直近14日）" : "歩数の推移（棒グラフ）"}
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
             未記録の日は棒を表示しません。平均は記録がある日のみの算術平均です。
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {PERIODS.map((d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => setDays(d)}
-              className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
-                days === d
-                  ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
-                  : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
-              }`}
-            >
-              {d}日
-            </button>
-          ))}
-        </div>
+        {!compact ? (
+          <div className="flex flex-wrap gap-2">
+            {PERIODS.map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setDays(d)}
+                className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
+                  days === d
+                    ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
+                    : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
+                }`}
+              >
+                {d}日
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
 
-      <div className="mt-3 h-56 w-full min-h-[14rem] min-w-0">
-        <ResponsiveContainer width="100%" height="100%" minHeight={224}>
+      <div
+        className={`mt-3 w-full min-w-0 ${compact ? "h-48 min-h-[12rem]" : "h-56 min-h-[14rem]"}`}
+      >
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
+          minHeight={compact ? 192 : 224}
+        >
           <BarChart
             data={chartData}
             margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
