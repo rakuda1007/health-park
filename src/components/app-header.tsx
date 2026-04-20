@@ -11,6 +11,7 @@ const nav = [
   { href: "/blood-pressure", label: "血圧" },
   { href: "/prescriptions", label: "処方箋" },
   { href: "/meals", label: "食事" },
+  { href: "/reflection", label: "振り返り" },
   { href: "/clinics", label: "通院先" },
   { href: "/backup", label: "バックアップ" },
 ] as const;

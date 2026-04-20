@@ -27,6 +27,11 @@ const cards = [
     body: "朝・昼・晩・食べたものと一言（任意）",
   },
   {
+    href: "/reflection",
+    title: "振り返り",
+    body: "食事・歩数・体調を〇△✕と一言で記録",
+  },
+  {
     href: "/clinics",
     title: "通院先",
     body: "病院・クリニック名のメモ",

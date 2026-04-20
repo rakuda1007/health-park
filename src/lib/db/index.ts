@@ -1,6 +1,7 @@
 import type {
   BloodPressureEntry,
   ClinicEntry,
+  DailyReflectionEntry,
   MealEntry,
   MealSlot,
   PrescriptionEntry,
@@ -9,7 +10,7 @@ import type {
 } from "./types";
 
 const DB_NAME = "health-park";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const STORE_WEIGHT = "weight";
 const STORE_STEPS = "steps";
@@ -17,6 +18,7 @@ const STORE_BP = "bloodPressure";
 const STORE_MEALS = "meals";
 const STORE_CLINICS = "clinics";
 const STORE_PRESCRIPTIONS = "prescriptions";
+const STORE_DAILY_REFLECTIONS = "dailyReflections";
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -47,6 +49,14 @@ function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(STORE_PRESCRIPTIONS)) {
         db.createObjectStore(STORE_PRESCRIPTIONS, { keyPath: "id" });
+      }
+      if (event.oldVersion < 2) {
+        if (!db.objectStoreNames.contains(STORE_DAILY_REFLECTIONS)) {
+          const s = db.createObjectStore(STORE_DAILY_REFLECTIONS, {
+            keyPath: "id",
+          });
+          s.createIndex("by-date", "date", { unique: false });
+        }
       }
     };
   });
@@ -277,4 +287,27 @@ export function putPrescriptionEntry(entry: PrescriptionEntry): Promise<void> {
 
 export function deletePrescriptionEntry(id: string): Promise<void> {
   return deleteEntry(STORE_PRESCRIPTIONS, id);
+}
+
+export async function listDailyReflectionEntries(): Promise<
+  DailyReflectionEntry[]
+> {
+  return listByDateDesc<DailyReflectionEntry>(STORE_DAILY_REFLECTIONS);
+}
+
+export async function getDailyReflectionByDate(
+  date: string,
+): Promise<DailyReflectionEntry | undefined> {
+  const list = await listDailyReflectionEntries();
+  return list.find((r) => r.date === date);
+}
+
+export function putDailyReflectionEntry(
+  entry: DailyReflectionEntry,
+): Promise<void> {
+  return putEntry(STORE_DAILY_REFLECTIONS, entry);
+}
+
+export function deleteDailyReflectionEntry(id: string): Promise<void> {
+  return deleteEntry(STORE_DAILY_REFLECTIONS, id);
 }

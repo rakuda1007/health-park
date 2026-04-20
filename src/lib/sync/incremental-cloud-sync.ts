@@ -2,18 +2,21 @@ import {
   applyRemoteEntry,
   deleteBloodPressureEntry,
   deleteClinicEntry,
+  deleteDailyReflectionEntry,
   deleteMealEntry,
   deletePrescriptionEntry,
   deleteStepsEntry,
   deleteWeightEntry,
   listBloodPressureEntries,
   listClinicEntries,
+  listDailyReflectionEntries,
   listMealEntries,
   listPrescriptionEntries,
   listStepsEntries,
   listWeightEntries,
   putBloodPressureEntry,
   putClinicEntry,
+  putDailyReflectionEntry,
   putMealEntry,
   putPrescriptionEntry,
   putStepsEntry,
@@ -23,6 +26,7 @@ import {
 import type {
   BloodPressureEntry,
   ClinicEntry,
+  DailyReflectionEntry,
   MealEntry,
   PrescriptionEntry,
   StepsEntry,
@@ -46,6 +50,7 @@ const COL_STEPS = "steps";
 const COL_BP = "bloodPressure";
 const COL_MEALS = "meals";
 const COL_CLINICS = "clinics";
+const COL_DAILY_REFLECTIONS = "dailyReflections";
 const COL_RX = "prescriptions";
 
 const STORE_WEIGHT = "weight";
@@ -53,6 +58,7 @@ const STORE_STEPS = "steps";
 const STORE_BP = "bloodPressure";
 const STORE_MEALS = "meals";
 const STORE_CLINICS = "clinics";
+const STORE_DAILY_REFLECTIONS = "dailyReflections";
 const STORE_RX = "prescriptions";
 
 function scrub<T extends object>(o: T): Record<string, unknown> {
@@ -129,7 +135,9 @@ export async function replicateAfterPut(
             ? COL_MEALS
             : storeName === STORE_CLINICS
               ? COL_CLINICS
-              : null;
+              : storeName === STORE_DAILY_REFLECTIONS
+                ? COL_DAILY_REFLECTIONS
+                : null;
   if (!col) {
     return;
   }
@@ -161,9 +169,11 @@ export async function replicateAfterDelete(
             ? COL_MEALS
             : storeName === STORE_CLINICS
               ? COL_CLINICS
-              : storeName === STORE_RX
-                ? COL_RX
-                : null;
+              : storeName === STORE_DAILY_REFLECTIONS
+                ? COL_DAILY_REFLECTIONS
+                : storeName === STORE_RX
+                  ? COL_RX
+                  : null;
   if (!col) {
     return;
   }
@@ -229,6 +239,21 @@ export async function mergeCloudWithLocal(): Promise<void> {
         await putClinicEntry(l);
       }
     }, putClinicEntry);
+
+    await mergeSimpleCollection(
+      db,
+      COL_DAILY_REFLECTIONS,
+      STORE_DAILY_REFLECTIONS,
+      listDailyReflectionEntries,
+      async (c, l) => {
+        if (!l || versionOf(c) > versionOf(l)) {
+          await applyRemoteEntry(STORE_DAILY_REFLECTIONS, c);
+        } else {
+          await putDailyReflectionEntry(l);
+        }
+      },
+      putDailyReflectionEntry,
+    );
 
     const pSnap = await getDocs(collection(db, "users", uid, COL_RX));
     const localRx = await listPrescriptionEntries();
@@ -331,6 +356,8 @@ export function startRemoteSync(uid: string): () => void {
                 await deleteMealEntry(id);
               } else if (store === STORE_CLINICS) {
                 await deleteClinicEntry(id);
+              } else if (store === STORE_DAILY_REFLECTIONS) {
+                await deleteDailyReflectionEntry(id);
               } else if (store === STORE_RX) {
                 await deletePrescriptionEntry(id);
               }
@@ -364,6 +391,12 @@ export function startRemoteSync(uid: string): () => void {
   });
   sub(COL_CLINICS, STORE_CLINICS, async (id, data) => {
     await applyRemoteEntry(STORE_CLINICS, { ...data, id } as ClinicEntry);
+  });
+  sub(COL_DAILY_REFLECTIONS, STORE_DAILY_REFLECTIONS, async (id, data) => {
+    await applyRemoteEntry(STORE_DAILY_REFLECTIONS, {
+      ...data,
+      id,
+    } as DailyReflectionEntry);
   });
   sub(COL_RX, STORE_RX, async (id, data) => {
     const d = data as {

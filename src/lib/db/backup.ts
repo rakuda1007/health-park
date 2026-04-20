@@ -1,18 +1,21 @@
 import {
   deleteBloodPressureEntry,
   deleteClinicEntry,
+  deleteDailyReflectionEntry,
   deleteMealEntry,
   deletePrescriptionEntry,
   deleteStepsEntry,
   deleteWeightEntry,
   listBloodPressureEntries,
   listClinicEntries,
+  listDailyReflectionEntries,
   listMealEntries,
   listPrescriptionEntries,
   listStepsEntries,
   listWeightEntries,
   putBloodPressureEntry,
   putClinicEntry,
+  putDailyReflectionEntry,
   putMealEntry,
   putPrescriptionEntry,
   putStepsEntry,
@@ -21,21 +24,23 @@ import {
 import type {
   BloodPressureEntry,
   ClinicEntry,
+  DailyReflectionEntry,
   MealEntry,
   PrescriptionEntry,
   PrescriptionMedicine,
+  ReflectionRating,
   StepsEntry,
   WeightEntry,
 } from "./types";
 
-export const BACKUP_SCHEMA_VERSION = 1 as const;
+export const BACKUP_SCHEMA_VERSION = 2 as const;
 
 export type PrescriptionBackup = Omit<PrescriptionEntry, "imageBlob"> & {
   imageBase64?: string;
 };
 
 export type HealthParkBackupV1 = {
-  schemaVersion: typeof BACKUP_SCHEMA_VERSION;
+  schemaVersion: typeof BACKUP_SCHEMA_VERSION | 1;
   exportedAt: string;
   app: "health-park";
   weight: WeightEntry[];
@@ -44,6 +49,8 @@ export type HealthParkBackupV1 = {
   meals: MealEntry[];
   clinics: ClinicEntry[];
   prescriptions: PrescriptionBackup[];
+  /** schemaVersion 2 以降（v1 ファイルには無い） */
+  dailyReflections?: DailyReflectionEntry[];
 };
 
 function arrayBufferToBase64(buf: ArrayBuffer): string {
@@ -120,6 +127,26 @@ function isStepsEntry(x: unknown): x is StepsEntry {
   );
 }
 
+function isReflectionRating(x: unknown): x is ReflectionRating {
+  return x === "good" || x === "ok" || x === "bad";
+}
+
+function isDailyReflectionEntry(x: unknown): x is DailyReflectionEntry {
+  if (!isRecord(x)) {
+    return false;
+  }
+  return (
+    typeof x.id === "string" &&
+    typeof x.date === "string" &&
+    isReflectionRating(x.mealRating) &&
+    isReflectionRating(x.stepsRating) &&
+    isReflectionRating(x.conditionRating) &&
+    typeof x.createdAt === "string" &&
+    typeof x.updatedAt === "string" &&
+    (x.comment === undefined || typeof x.comment === "string")
+  );
+}
+
 function isBloodPressureEntry(x: unknown): x is BloodPressureEntry {
   if (!isRecord(x)) {
     return false;
@@ -190,6 +217,7 @@ export async function buildHealthParkBackup(): Promise<HealthParkBackupV1> {
     meals,
     clinics,
     prescriptionsRaw,
+    dailyReflections,
   ] = await Promise.all([
     listWeightEntries(),
     listStepsEntries(),
@@ -197,6 +225,7 @@ export async function buildHealthParkBackup(): Promise<HealthParkBackupV1> {
     listMealEntries(),
     listClinicEntries(),
     listPrescriptionEntries(),
+    listDailyReflectionEntries(),
   ]);
   const prescriptions = prescriptionsRaw.map(serializePrescription);
   return {
@@ -209,6 +238,7 @@ export async function buildHealthParkBackup(): Promise<HealthParkBackupV1> {
     meals,
     clinics,
     prescriptions,
+    dailyReflections,
   };
 }
 
@@ -221,7 +251,8 @@ export function validateHealthParkBackupData(data: unknown): HealthParkBackupV1 
   if (!isRecord(data)) {
     throw new Error("バックアップ形式が正しくありません（オブジェクトではありません）。");
   }
-  if (data.schemaVersion !== BACKUP_SCHEMA_VERSION) {
+  const sv = data.schemaVersion;
+  if (sv !== 1 && sv !== BACKUP_SCHEMA_VERSION) {
     throw new Error(
       `未対応のバージョンです（schemaVersion: ${String(data.schemaVersion)}）。`,
     );
@@ -235,6 +266,7 @@ export function validateHealthParkBackupData(data: unknown): HealthParkBackupV1 
   const m = data.meals;
   const c = data.clinics;
   const p = data.prescriptions;
+  const dr = data.dailyReflections;
   if (!Array.isArray(w) || !w.every(isWeightEntry)) {
     throw new Error("体重データの形式が不正です。");
   }
@@ -253,7 +285,20 @@ export function validateHealthParkBackupData(data: unknown): HealthParkBackupV1 
   if (!Array.isArray(p) || !p.every(isPrescriptionBackup)) {
     throw new Error("処方箋データの形式が不正です。");
   }
-  return data as HealthParkBackupV1;
+  if (sv === BACKUP_SCHEMA_VERSION) {
+    if (!Array.isArray(dr) || !dr.every(isDailyReflectionEntry)) {
+      throw new Error("振り返りデータの形式が不正です。");
+    }
+  }
+  const dailyReflections: DailyReflectionEntry[] =
+    sv === BACKUP_SCHEMA_VERSION && Array.isArray(dr) && dr.every(isDailyReflectionEntry)
+      ? dr
+      : [];
+  return {
+    ...(data as HealthParkBackupV1),
+    schemaVersion: sv === 1 ? 1 : BACKUP_SCHEMA_VERSION,
+    dailyReflections,
+  };
 }
 
 /** 既存データをすべて削除してからバックアップ内容で置き換える */
@@ -270,6 +315,7 @@ export async function replaceAllFromBackup(
     listMealEntries().then((rows) => rows.map((r) => r.id)),
     listClinicEntries().then((rows) => rows.map((r) => r.id)),
     listPrescriptionEntries().then((rows) => rows.map((r) => r.id)),
+    listDailyReflectionEntries().then((rows) => rows.map((r) => r.id)),
   ]);
   for (const id of ids[0]) {
     await deleteWeightEntry(id);
@@ -289,6 +335,9 @@ export async function replaceAllFromBackup(
   for (const id of ids[5]) {
     await deletePrescriptionEntry(id);
   }
+  for (const id of ids[6]) {
+    await deleteDailyReflectionEntry(id);
+  }
 
   for (const row of data.weight) {
     await putWeightEntry(row);
@@ -307,6 +356,9 @@ export async function replaceAllFromBackup(
   }
   for (const row of prescriptions) {
     await putPrescriptionEntry(row);
+  }
+  for (const row of data.dailyReflections ?? []) {
+    await putDailyReflectionEntry(row);
   }
 
   return data;

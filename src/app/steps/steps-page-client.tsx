@@ -5,6 +5,7 @@ import {
   listStepsEntries,
   putStepsEntry,
 } from "@/lib/db";
+import { StepsVisualization } from "@/components/steps-visualization";
 import type { StepsEntry } from "@/lib/db/types";
 import { todayIso } from "@/lib/date";
 import { useCallback, useEffect, useState } from "react";
@@ -114,6 +115,8 @@ export function StepsPageClient() {
           {loadError}
         </p>
       ) : null}
+
+      {!loadError ? <StepsVisualization entries={entries} /> : null}
 
       <section className="mt-8" aria-labelledby="steps-heading">
         <h2
