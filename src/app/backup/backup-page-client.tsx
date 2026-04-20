@@ -235,7 +235,8 @@ export function BackupPageClient() {
             JSON エクスポート
           </h3>
           <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
-            体重・歩数・血圧・食事・通院先・処方箋を1つの JSON にまとめます。
+            体重・歩数・血圧・食事・通院先・処方箋・既往歴などを1つの JSON
+            にまとめます。
           </p>
           <button
             type="button"

@@ -55,6 +55,19 @@ export type ClinicEntry = {
   updatedAt?: string;
 };
 
+/** 既往歴（手入力メモ。医療記録としての証明力はありません） */
+export type PastMedicalHistoryEntry = {
+  id: string;
+  /** 病名・疾患の要約 */
+  title: string;
+  /** 診断日や発症の目安（任意） */
+  diagnosedOn?: IsoDate;
+  /** 詳細メモ（任意） */
+  note?: string;
+  createdAt: string;
+  updatedAt?: string;
+};
+
 /** 振り返りの自己評価（表示は 〇・△・✕） */
 export type ReflectionRating = "good" | "ok" | "bad";
 

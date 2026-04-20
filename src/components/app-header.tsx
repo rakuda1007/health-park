@@ -16,6 +16,7 @@ const recordLinks = [
 const masterLinks = [
   { href: "/clinics", label: "通院先" },
   { href: "/prescriptions", label: "処方箋" },
+  { href: "/medical-history", label: "既往歴" },
 ] as const;
 
 function NavLink({

@@ -4,13 +4,14 @@ import type {
   DailyReflectionEntry,
   MealEntry,
   MealSlot,
+  PastMedicalHistoryEntry,
   PrescriptionEntry,
   StepsEntry,
   WeightEntry,
 } from "./types";
 
 const DB_NAME = "health-park";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 const STORE_WEIGHT = "weight";
 const STORE_STEPS = "steps";
@@ -19,6 +20,7 @@ const STORE_MEALS = "meals";
 const STORE_CLINICS = "clinics";
 const STORE_PRESCRIPTIONS = "prescriptions";
 const STORE_DAILY_REFLECTIONS = "dailyReflections";
+const STORE_PAST_MEDICAL_HISTORY = "pastMedicalHistory";
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -56,6 +58,11 @@ function openDb(): Promise<IDBDatabase> {
             keyPath: "id",
           });
           s.createIndex("by-date", "date", { unique: false });
+        }
+      }
+      if (event.oldVersion < 3) {
+        if (!db.objectStoreNames.contains(STORE_PAST_MEDICAL_HISTORY)) {
+          db.createObjectStore(STORE_PAST_MEDICAL_HISTORY, { keyPath: "id" });
         }
       }
     };
@@ -265,6 +272,38 @@ export function putClinicEntry(entry: ClinicEntry): Promise<void> {
 
 export function deleteClinicEntry(id: string): Promise<void> {
   return deleteEntry(STORE_CLINICS, id);
+}
+
+export async function listPastMedicalHistoryEntries(): Promise<
+  PastMedicalHistoryEntry[]
+> {
+  const db = await getHealthDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_PAST_MEDICAL_HISTORY, "readonly");
+    const req = tx.objectStore(STORE_PAST_MEDICAL_HISTORY).getAll();
+    req.onerror = () => reject(req.error ?? new Error("getAll error"));
+    req.onsuccess = () => {
+      const rows = req.result as PastMedicalHistoryEntry[];
+      rows.sort((a, b) => {
+        const ta = a.title.localeCompare(b.title, "ja");
+        if (ta !== 0) {
+          return ta;
+        }
+        return a.id.localeCompare(b.id);
+      });
+      resolve(rows);
+    };
+  });
+}
+
+export function putPastMedicalHistoryEntry(
+  entry: PastMedicalHistoryEntry,
+): Promise<void> {
+  return putEntry(STORE_PAST_MEDICAL_HISTORY, entry);
+}
+
+export function deletePastMedicalHistoryEntry(id: string): Promise<void> {
+  return deleteEntry(STORE_PAST_MEDICAL_HISTORY, id);
 }
 
 export async function listPrescriptionEntries(): Promise<PrescriptionEntry[]> {

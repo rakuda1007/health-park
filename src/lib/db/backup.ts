@@ -3,6 +3,7 @@ import {
   deleteClinicEntry,
   deleteDailyReflectionEntry,
   deleteMealEntry,
+  deletePastMedicalHistoryEntry,
   deletePrescriptionEntry,
   deleteStepsEntry,
   deleteWeightEntry,
@@ -10,6 +11,7 @@ import {
   listClinicEntries,
   listDailyReflectionEntries,
   listMealEntries,
+  listPastMedicalHistoryEntries,
   listPrescriptionEntries,
   listStepsEntries,
   listWeightEntries,
@@ -17,6 +19,7 @@ import {
   putClinicEntry,
   putDailyReflectionEntry,
   putMealEntry,
+  putPastMedicalHistoryEntry,
   putPrescriptionEntry,
   putStepsEntry,
   putWeightEntry,
@@ -26,6 +29,7 @@ import type {
   ClinicEntry,
   DailyReflectionEntry,
   MealEntry,
+  PastMedicalHistoryEntry,
   PrescriptionEntry,
   PrescriptionMedicine,
   ReflectionRating,
@@ -51,6 +55,8 @@ export type HealthParkBackupV1 = {
   prescriptions: PrescriptionBackup[];
   /** schemaVersion 2 以降（v1 ファイルには無い） */
   dailyReflections?: DailyReflectionEntry[];
+  /** 既往歴（schemaVersion 2 の古いファイルや未対応エクスポートには無い場合あり） */
+  pastMedicalHistory?: PastMedicalHistoryEntry[];
 };
 
 function arrayBufferToBase64(buf: ArrayBuffer): string {
@@ -191,6 +197,21 @@ function isClinicEntry(x: unknown): x is ClinicEntry {
   );
 }
 
+function isPastMedicalHistoryEntry(x: unknown): x is PastMedicalHistoryEntry {
+  if (!isRecord(x)) {
+    return false;
+  }
+  const dateOk =
+    x.diagnosedOn === undefined || typeof x.diagnosedOn === "string";
+  return (
+    typeof x.id === "string" &&
+    typeof x.title === "string" &&
+    typeof x.createdAt === "string" &&
+    dateOk &&
+    (x.note === undefined || typeof x.note === "string")
+  );
+}
+
 function isPrescriptionMedicine(x: unknown): x is PrescriptionMedicine {
   if (!isRecord(x)) {
     return false;
@@ -223,6 +244,7 @@ export async function buildHealthParkBackup(): Promise<HealthParkBackupV1> {
     clinics,
     prescriptionsRaw,
     dailyReflections,
+    pastMedicalHistory,
   ] = await Promise.all([
     listWeightEntries(),
     listStepsEntries(),
@@ -231,6 +253,7 @@ export async function buildHealthParkBackup(): Promise<HealthParkBackupV1> {
     listClinicEntries(),
     listPrescriptionEntries(),
     listDailyReflectionEntries(),
+    listPastMedicalHistoryEntries(),
   ]);
   const prescriptions = prescriptionsRaw.map(serializePrescription);
   return {
@@ -244,6 +267,7 @@ export async function buildHealthParkBackup(): Promise<HealthParkBackupV1> {
     clinics,
     prescriptions,
     dailyReflections,
+    pastMedicalHistory,
   };
 }
 
@@ -272,6 +296,7 @@ export function validateHealthParkBackupData(data: unknown): HealthParkBackupV1 
   const c = data.clinics;
   const p = data.prescriptions;
   const dr = data.dailyReflections;
+  const pmh = data.pastMedicalHistory;
   if (!Array.isArray(w) || !w.every(isWeightEntry)) {
     throw new Error("体重データの形式が不正です。");
   }
@@ -295,14 +320,23 @@ export function validateHealthParkBackupData(data: unknown): HealthParkBackupV1 
       throw new Error("振り返りデータの形式が不正です。");
     }
   }
+  if (
+    pmh !== undefined &&
+    (!Array.isArray(pmh) || !pmh.every(isPastMedicalHistoryEntry))
+  ) {
+    throw new Error("既往歴データの形式が不正です。");
+  }
   const dailyReflections: DailyReflectionEntry[] =
     sv === BACKUP_SCHEMA_VERSION && Array.isArray(dr) && dr.every(isDailyReflectionEntry)
       ? dr
       : [];
+  const pastMedicalHistory: PastMedicalHistoryEntry[] =
+    Array.isArray(pmh) && pmh.every(isPastMedicalHistoryEntry) ? pmh : [];
   return {
     ...(data as HealthParkBackupV1),
     schemaVersion: sv === 1 ? 1 : BACKUP_SCHEMA_VERSION,
     dailyReflections,
+    pastMedicalHistory,
   };
 }
 
@@ -321,6 +355,7 @@ export async function replaceAllFromBackup(
     listClinicEntries().then((rows) => rows.map((r) => r.id)),
     listPrescriptionEntries().then((rows) => rows.map((r) => r.id)),
     listDailyReflectionEntries().then((rows) => rows.map((r) => r.id)),
+    listPastMedicalHistoryEntries().then((rows) => rows.map((r) => r.id)),
   ]);
   for (const id of ids[0]) {
     await deleteWeightEntry(id);
@@ -343,6 +378,9 @@ export async function replaceAllFromBackup(
   for (const id of ids[6]) {
     await deleteDailyReflectionEntry(id);
   }
+  for (const id of ids[7]) {
+    await deletePastMedicalHistoryEntry(id);
+  }
 
   for (const row of data.weight) {
     await putWeightEntry(row);
@@ -364,6 +402,9 @@ export async function replaceAllFromBackup(
   }
   for (const row of data.dailyReflections ?? []) {
     await putDailyReflectionEntry(row);
+  }
+  for (const row of data.pastMedicalHistory ?? []) {
+    await putPastMedicalHistoryEntry(row);
   }
 
   return data;

@@ -11,6 +11,7 @@ import type {
   ClinicEntry,
   DailyReflectionEntry,
   MealEntry,
+  PastMedicalHistoryEntry,
   PrescriptionEntry,
   StepsEntry,
   WeightEntry,
@@ -82,6 +83,13 @@ export async function pushLocalToCloud(): Promise<void> {
       data: scrub(r),
     })),
   );
+  await batchSet(
+    "pastMedicalHistory",
+    (backup.pastMedicalHistory ?? []).map((r) => ({
+      id: r.id,
+      data: scrub(r),
+    })),
+  );
 
   const rxDocs: Array<{ id: string; data: Record<string, unknown> }> = [];
   for (const p of backup.prescriptions) {
@@ -138,6 +146,11 @@ export async function pushLocalToCloud(): Promise<void> {
   );
   await deleteOrphans(
     uid,
+    "pastMedicalHistory",
+    new Set((backup.pastMedicalHistory ?? []).map((r) => r.id)),
+  );
+  await deleteOrphans(
+    uid,
     "prescriptions",
     new Set(backup.prescriptions.map((p) => p.id)),
   );
@@ -186,6 +199,7 @@ export async function pullCloudToLocal(): Promise<void> {
   const meals: MealEntry[] = [];
   const clinics: ClinicEntry[] = [];
   const dailyReflections: DailyReflectionEntry[] = [];
+  const pastMedicalHistory: PastMedicalHistoryEntry[] = [];
   const prescriptions: PrescriptionEntry[] = [];
 
   const wSnap = await getDocs(collection(db, "users", uid, "weight"));
@@ -201,6 +215,10 @@ export async function pullCloudToLocal(): Promise<void> {
   const drSnap = await getDocs(collection(db, "users", uid, "dailyReflections"));
   drSnap.forEach((d) =>
     dailyReflections.push({ ...(d.data() as DailyReflectionEntry), id: d.id }),
+  );
+  const pmhSnap = await getDocs(collection(db, "users", uid, "pastMedicalHistory"));
+  pmhSnap.forEach((d) =>
+    pastMedicalHistory.push({ ...(d.data() as PastMedicalHistoryEntry), id: d.id }),
   );
 
   const pSnap = await getDocs(collection(db, "users", uid, "prescriptions"));
@@ -239,6 +257,7 @@ export async function pullCloudToLocal(): Promise<void> {
     meals,
     clinics,
     dailyReflections,
+    pastMedicalHistory,
     prescriptions: prescriptions.map((p) => serializePrescription(p)),
   };
 

@@ -4,6 +4,7 @@ import {
   deleteClinicEntry,
   deleteDailyReflectionEntry,
   deleteMealEntry,
+  deletePastMedicalHistoryEntry,
   deletePrescriptionEntry,
   deleteStepsEntry,
   deleteWeightEntry,
@@ -11,6 +12,7 @@ import {
   listClinicEntries,
   listDailyReflectionEntries,
   listMealEntries,
+  listPastMedicalHistoryEntries,
   listPrescriptionEntries,
   listStepsEntries,
   listWeightEntries,
@@ -18,6 +20,7 @@ import {
   putClinicEntry,
   putDailyReflectionEntry,
   putMealEntry,
+  putPastMedicalHistoryEntry,
   putPrescriptionEntry,
   putStepsEntry,
   putWeightEntry,
@@ -28,6 +31,7 @@ import type {
   ClinicEntry,
   DailyReflectionEntry,
   MealEntry,
+  PastMedicalHistoryEntry,
   PrescriptionEntry,
   StepsEntry,
   WeightEntry,
@@ -51,6 +55,7 @@ const COL_BP = "bloodPressure";
 const COL_MEALS = "meals";
 const COL_CLINICS = "clinics";
 const COL_DAILY_REFLECTIONS = "dailyReflections";
+const COL_PAST_MEDICAL_HISTORY = "pastMedicalHistory";
 const COL_RX = "prescriptions";
 
 const STORE_WEIGHT = "weight";
@@ -59,6 +64,7 @@ const STORE_BP = "bloodPressure";
 const STORE_MEALS = "meals";
 const STORE_CLINICS = "clinics";
 const STORE_DAILY_REFLECTIONS = "dailyReflections";
+const STORE_PAST_MEDICAL_HISTORY = "pastMedicalHistory";
 const STORE_RX = "prescriptions";
 
 function scrub<T extends object>(o: T): Record<string, unknown> {
@@ -137,7 +143,9 @@ export async function replicateAfterPut(
               ? COL_CLINICS
               : storeName === STORE_DAILY_REFLECTIONS
                 ? COL_DAILY_REFLECTIONS
-                : null;
+                : storeName === STORE_PAST_MEDICAL_HISTORY
+                  ? COL_PAST_MEDICAL_HISTORY
+                  : null;
   if (!col) {
     return;
   }
@@ -171,9 +179,11 @@ export async function replicateAfterDelete(
               ? COL_CLINICS
               : storeName === STORE_DAILY_REFLECTIONS
                 ? COL_DAILY_REFLECTIONS
-                : storeName === STORE_RX
-                  ? COL_RX
-                  : null;
+                : storeName === STORE_PAST_MEDICAL_HISTORY
+                  ? COL_PAST_MEDICAL_HISTORY
+                  : storeName === STORE_RX
+                    ? COL_RX
+                    : null;
   if (!col) {
     return;
   }
@@ -253,6 +263,21 @@ export async function mergeCloudWithLocal(): Promise<void> {
         }
       },
       putDailyReflectionEntry,
+    );
+
+    await mergeSimpleCollection(
+      db,
+      COL_PAST_MEDICAL_HISTORY,
+      STORE_PAST_MEDICAL_HISTORY,
+      listPastMedicalHistoryEntries,
+      async (c, l) => {
+        if (!l || versionOf(c) > versionOf(l)) {
+          await applyRemoteEntry(STORE_PAST_MEDICAL_HISTORY, c);
+        } else {
+          await putPastMedicalHistoryEntry(l);
+        }
+      },
+      putPastMedicalHistoryEntry,
     );
 
     const pSnap = await getDocs(collection(db, "users", uid, COL_RX));
@@ -358,6 +383,8 @@ export function startRemoteSync(uid: string): () => void {
                 await deleteClinicEntry(id);
               } else if (store === STORE_DAILY_REFLECTIONS) {
                 await deleteDailyReflectionEntry(id);
+              } else if (store === STORE_PAST_MEDICAL_HISTORY) {
+                await deletePastMedicalHistoryEntry(id);
               } else if (store === STORE_RX) {
                 await deletePrescriptionEntry(id);
               }
@@ -397,6 +424,12 @@ export function startRemoteSync(uid: string): () => void {
       ...data,
       id,
     } as DailyReflectionEntry);
+  });
+  sub(COL_PAST_MEDICAL_HISTORY, STORE_PAST_MEDICAL_HISTORY, async (id, data) => {
+    await applyRemoteEntry(STORE_PAST_MEDICAL_HISTORY, {
+      ...data,
+      id,
+    } as PastMedicalHistoryEntry);
   });
   sub(COL_RX, STORE_RX, async (id, data) => {
     const d = data as {
