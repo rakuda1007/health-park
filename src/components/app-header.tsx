@@ -117,44 +117,21 @@ export function AppHeader() {
     <header className="border-b border-[color:var(--hp-border)] bg-[color:var(--hp-surface)]">
       <div className="mx-auto flex max-w-3xl flex-col gap-3 px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <button
-              type="button"
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[color:var(--hp-border)] text-[color:var(--hp-foreground)] md:hidden"
-              aria-expanded={mobileOpen}
-              aria-controls={panelId}
-              aria-label={mobileOpen ? "メニューを閉じる" : "メニューを開く"}
-              onClick={() => setMobileOpen((o) => !o)}
-            >
-              <span className="sr-only">メニュー</span>
-              {mobileOpen ? (
-                <span className="text-2xl leading-none" aria-hidden>
-                  ×
-                </span>
-              ) : (
-                <span className="flex flex-col gap-1.5" aria-hidden>
-                  <span className="block h-0.5 w-5 rounded-sm bg-current" />
-                  <span className="block h-0.5 w-5 rounded-sm bg-current" />
-                  <span className="block h-0.5 w-5 rounded-sm bg-current" />
-                </span>
-              )}
-            </button>
-            <Link
-              href="/"
-              className="flex min-w-0 items-center gap-2 font-semibold tracking-tight text-[color:var(--hp-foreground)]"
-            >
-              <Image
-                src="/icons/HealthPark.png"
-                alt=""
-                width={36}
-                height={36}
-                className="h-9 w-9 shrink-0 rounded-full object-cover"
-                priority
-              />
-              <span className="truncate">Health Park</span>
-            </Link>
-          </div>
-          <div className="shrink-0">
+          <Link
+            href="/"
+            className="flex min-w-0 flex-1 items-center gap-2 font-semibold tracking-tight text-[color:var(--hp-foreground)]"
+          >
+            <Image
+              src="/icons/HealthPark.png"
+              alt=""
+              width={36}
+              height={36}
+              className="h-9 w-9 shrink-0 rounded-full object-cover"
+              priority
+            />
+            <span className="truncate">Health Park</span>
+          </Link>
+          <div className="flex shrink-0 items-center gap-2">
             {signedInWithEmail ? (
               <span className="flex flex-wrap items-center justify-end gap-2 text-xs text-[color:var(--hp-muted)]">
                 <span
@@ -179,6 +156,27 @@ export function AppHeader() {
                 ログイン
               </Link>
             )}
+            <button
+              type="button"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[color:var(--hp-border)] text-[color:var(--hp-foreground)] md:hidden"
+              aria-expanded={mobileOpen}
+              aria-controls={panelId}
+              aria-label={mobileOpen ? "メニューを閉じる" : "メニューを開く"}
+              onClick={() => setMobileOpen((o) => !o)}
+            >
+              <span className="sr-only">メニュー</span>
+              {mobileOpen ? (
+                <span className="text-2xl leading-none" aria-hidden>
+                  ×
+                </span>
+              ) : (
+                <span className="flex flex-col gap-1.5" aria-hidden>
+                  <span className="block h-0.5 w-5 rounded-sm bg-current" />
+                  <span className="block h-0.5 w-5 rounded-sm bg-current" />
+                  <span className="block h-0.5 w-5 rounded-sm bg-current" />
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
