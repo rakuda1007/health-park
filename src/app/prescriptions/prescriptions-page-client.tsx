@@ -35,6 +35,18 @@ function toMedicines(drafts: MedicineDraft[]): PrescriptionMedicine[] {
     }));
 }
 
+/** 表の「更新」列用（見出しで意味が分かるので本文は短く） */
+function formatUpdatedAt(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleString("ja-JP", {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function PrescriptionsPageClient() {
   const [entries, setEntries] = useState<PrescriptionEntry[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -183,66 +195,103 @@ export function PrescriptionsPageClient() {
             まだ登録がありません。
           </p>
         ) : (
-          <ul className="mt-3 space-y-3">
-            {entries.map((row) => (
-              <li
-                key={row.id}
-                className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4"
-              >
-                <p className="text-xs text-[color:var(--hp-muted)]">
-                  更新:{" "}
-                  {new Date(row.updatedAt).toLocaleString("ja-JP", {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })}
-                </p>
-                <ul className="mt-3 space-y-3 text-[color:var(--hp-foreground)]">
-                  {(row.medicines ?? []).map((med) => (
-                    <li
-                      key={med.id}
-                      className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2.5"
-                    >
-                      <p className="text-base font-medium leading-snug">
-                        {med.name}
-                        {med.dosage ? (
-                          <span className="font-normal text-[color:var(--hp-muted)]">
-                            {" "}
-                            — {med.dosage}
-                          </span>
-                        ) : null}
-                      </p>
-                      {med.note ? (
-                        <p className="mt-1.5 text-sm leading-relaxed text-[color:var(--hp-muted)]">
-                          {med.note}
+          <div className="mt-3 overflow-x-auto rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)]">
+            <table className="w-full min-w-[36rem] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-[color:var(--hp-border)] bg-[color:var(--hp-input)]">
+                  <th
+                    scope="col"
+                    className="w-[9.5rem] whitespace-nowrap px-3 py-2.5 text-xs font-medium text-[color:var(--hp-muted)]"
+                  >
+                    更新
+                  </th>
+                  <th
+                    scope="col"
+                    className="min-w-[12rem] px-3 py-2.5 text-xs font-medium text-[color:var(--hp-muted)]"
+                  >
+                    薬名・用法・用量
+                  </th>
+                  <th
+                    scope="col"
+                    className="hidden min-w-[7rem] px-3 py-2.5 text-xs font-medium text-[color:var(--hp-muted)] sm:table-cell"
+                  >
+                    メモ
+                  </th>
+                  <th
+                    scope="col"
+                    className="w-[1%] whitespace-nowrap px-3 py-2.5 text-right text-xs font-medium text-[color:var(--hp-muted)]"
+                  >
+                    操作
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {entries.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-b border-[color:var(--hp-border)] last:border-b-0"
+                  >
+                    <td className="align-top px-3 py-3">
+                      <time
+                        dateTime={row.updatedAt}
+                        className="tabular-nums text-xs leading-snug text-[color:var(--hp-muted)]"
+                      >
+                        {formatUpdatedAt(row.updatedAt)}
+                      </time>
+                    </td>
+                    <td className="align-top px-3 py-3 text-[color:var(--hp-foreground)]">
+                      <ul className="space-y-2.5">
+                        {(row.medicines ?? []).map((med) => (
+                          <li key={med.id}>
+                            <p className="font-medium leading-snug">
+                              {med.name}
+                              {med.dosage ? (
+                                <span className="font-normal text-[color:var(--hp-muted)]">
+                                  {" "}
+                                  — {med.dosage}
+                                </span>
+                              ) : null}
+                            </p>
+                            {med.note ? (
+                              <p className="mt-0.5 text-xs leading-relaxed text-[color:var(--hp-muted)]">
+                                {med.note}
+                              </p>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                      {row.memo ? (
+                        <p className="mt-2 border-t border-dashed border-[color:var(--hp-border)] pt-2 text-xs text-[color:var(--hp-muted)] sm:hidden">
+                          メモ: {row.memo}
                         </p>
                       ) : null}
-                    </li>
-                  ))}
-                </ul>
-                {row.memo ? (
-                  <p className="mt-3 text-sm text-[color:var(--hp-muted)]">
-                    {row.memo}
-                  </p>
-                ) : null}
-                <div className="mt-3 flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={() => startEdit(row)}
-                    className="text-sm text-[color:var(--hp-accent)] underline"
-                  >
-                    編集
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleDelete(row.id)}
-                    className="text-sm text-red-600 dark:text-red-400"
-                  >
-                    削除
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+                    </td>
+                    <td className="hidden align-top px-3 py-3 text-xs text-[color:var(--hp-muted)] sm:table-cell">
+                      {row.memo ? row.memo : "—"}
+                    </td>
+                    <td className="align-top px-3 py-3 text-right">
+                      <div className="inline-flex flex-col items-end gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+                        <button
+                          type="button"
+                          onClick={() => startEdit(row)}
+                          className="text-[color:var(--hp-accent)] underline"
+                        >
+                          編集
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDelete(row.id)}
+                          className="text-red-600 dark:text-red-400"
+                        >
+                          削除
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
