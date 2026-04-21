@@ -197,7 +197,7 @@ export function MedicalHistoryPageClient() {
                   </span>
                   {row.diagnosedOn ? (
                     <p className="mt-1 text-sm tabular-nums text-[color:var(--hp-muted)]">
-                      目安: {row.diagnosedOn}
+                      診断日: {row.diagnosedOn}
                     </p>
                   ) : null}
                   {row.note ? (

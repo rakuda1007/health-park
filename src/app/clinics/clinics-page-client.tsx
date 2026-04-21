@@ -60,7 +60,7 @@ export function ClinicsPageClient() {
       if (editingId != null) {
         const existing = entries.find((x) => x.id === editingId);
         if (!existing) {
-          setLoadError("編集対象の通院先が見つかりません。一覧を再読み込みしてください。");
+          setLoadError("編集対象が見つかりません。一覧を再読み込みしてください。");
           return;
         }
         await putClinicEntry({
@@ -106,7 +106,7 @@ export function ClinicsPageClient() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
       <h1 className="text-xl font-semibold text-[color:var(--hp-foreground)]">
-        通院先
+        病院
       </h1>
       <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
         病院・クリニック名に加え、住所と電話番号をメモできます（手入力のみ）。

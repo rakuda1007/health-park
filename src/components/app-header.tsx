@@ -13,8 +13,8 @@ const recordLinks = [
   { href: "/reflection", label: "振り返り" },
 ] as const;
 
-const masterLinks = [
-  { href: "/clinics", label: "通院先" },
+const healthInfoLinks = [
+  { href: "/clinics", label: "病院" },
   { href: "/prescriptions", label: "処方箋" },
   { href: "/medical-history", label: "既往歴" },
 ] as const;
@@ -58,10 +58,10 @@ function NavSections({ onNavigate }: { onNavigate?: () => void }) {
       </div>
       <div>
         <p className="text-xs font-medium text-[color:var(--hp-muted)]">
-          マスタ
+          健康情報
         </p>
         <ul className="mt-2 flex flex-col gap-1.5 border-l border-[color:var(--hp-border)] pl-3 md:mt-1.5 md:flex-row md:flex-wrap md:gap-x-3 md:gap-y-1 md:border-l-0 md:pl-0">
-          {masterLinks.map((item) => (
+          {healthInfoLinks.map((item) => (
             <li key={item.href}>
               <NavLink href={item.href} onNavigate={onNavigate}>
                 {item.label}

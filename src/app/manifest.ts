@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Health Park",
     short_name: "Health Park",
     description:
-      "体重・歩数・血圧・処方・食事・通院先を、端末内に記録するシンプルなヘルス記録アプリ",
+      "体重・歩数・血圧・処方・食事・病院・既往歴を、端末内に記録するシンプルなヘルス記録アプリ",
     start_url: "/",
     display: "standalone",
     background_color: "#0f172a",
