@@ -41,7 +41,7 @@ export function ReflectionWeeklyAvgHeatmap({ columns }: Props) {
   }
 
   return (
-    <div className="mt-2 w-full min-w-0">
+    <div className="w-full min-w-0">
       <h3 className="text-xs font-medium text-[color:var(--hp-foreground)]">
         週平均（約2か月・表示期間の切り替えと無関係）
       </h3>

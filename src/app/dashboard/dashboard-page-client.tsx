@@ -244,7 +244,7 @@ export function DashboardPageClient() {
         ホーム
       </h1>
       <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
-        体重（折れ線）と歩数（棒）を同じ日付軸で重ね、振り返りは日ごとのヒートマップ（〇=2、△=1、✕=0）と週平均のヒートマップ（約2か月）で表示します。因果関係の証明ではなく、記録の並びを眺めるための参考です。
+        体重（折れ線）と歩数（棒）を同じ日付軸で重ね、振り返りは日ごとのヒートマップ（〇=2、△=1、✕=0）を先に、そのあと週平均のヒートマップ（約2か月）で表示します。因果関係の証明ではなく、記録の並びを眺めるための参考です。
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -405,10 +405,10 @@ export function DashboardPageClient() {
 
         <div className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
           <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
-            振り返り（週平均・日ごとのヒートマップ）
+            振り返り（日ごと・週平均のヒートマップ）
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            食事・歩数・体調を 〇=2、△=1、✕=0 にしたヒートマップです。週平均は約2か月分（直近7日・14日・30日の切り替えとは別データ）。日ごとは上の表示期間に連動します。下の「週ごとのサマリー」には週平均と短い示唆文があります。
+            食事・歩数・体調を 〇=2、△=1、✕=0 にしたヒートマップです。先に日ごと（上の表示期間に連動）、続けて週平均（約2か月分・直近7日・14日・30日の切り替えとは別データ）を表示します。下の「週ごとのサマリー」には週平均と短い示唆文があります。
           </p>
           {!hasAnyWeeklyReflectionHeatmap && !hasAnyReflectionScore ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
@@ -416,25 +416,39 @@ export function DashboardPageClient() {
             </p>
           ) : (
             <>
-              {hasAnyWeeklyReflectionHeatmap ? (
-                <ReflectionWeeklyAvgHeatmap
-                  columns={weeklyReflectionHeatmapColumns}
-                />
-              ) : (
-                <p className="mt-2 text-xs text-[color:var(--hp-muted)]">
-                  週平均ヒートマップ用の振り返り記録がありません。
-                </p>
-              )}
               {hasAnyReflectionScore ? (
                 <>
-                  <h3 className="mt-4 text-xs font-medium text-[color:var(--hp-foreground)]">
+                  <h3 className="mt-2 text-xs font-medium text-[color:var(--hp-foreground)]">
                     日ごと（表示期間に連動）
                   </h3>
                   <ReflectionHeatmap points={dailyPoints} />
                 </>
               ) : (
-                <p className="mt-4 text-sm text-[color:var(--hp-muted)]">
+                <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
                   選択した表示期間に振り返りの記録がありません。
+                </p>
+              )}
+              {hasAnyWeeklyReflectionHeatmap ? (
+                <div
+                  className={
+                    hasAnyReflectionScore
+                      ? "mt-4 border-t border-dashed border-[color:var(--hp-border)] pt-4"
+                      : "mt-2"
+                  }
+                >
+                  <ReflectionWeeklyAvgHeatmap
+                    columns={weeklyReflectionHeatmapColumns}
+                  />
+                </div>
+              ) : (
+                <p
+                  className={
+                    hasAnyReflectionScore
+                      ? "mt-4 border-t border-dashed border-[color:var(--hp-border)] pt-4 text-xs text-[color:var(--hp-muted)]"
+                      : "mt-2 text-xs text-[color:var(--hp-muted)]"
+                  }
+                >
+                  週平均ヒートマップ用の振り返り記録がありません。
                 </p>
               )}
             </>
