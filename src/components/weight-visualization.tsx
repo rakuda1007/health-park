@@ -98,6 +98,51 @@ export function WeightVisualization({ entries }: Props) {
     goalMax > 0 &&
     goalMin < goalMax;
 
+  /** データと目標帯の両方が見えるよう Y 軸範囲を決める（目標だけが枠外に出ないようにする） */
+  const lineChartYDomain = useMemo((): [number, number] | ["auto", "auto"] => {
+    const vals: number[] = [];
+    for (const row of chartData) {
+      vals.push(row.weightKg);
+      if (row.ma7 != null) {
+        vals.push(row.ma7);
+      }
+    }
+    if (vals.length === 0) {
+      return ["auto", "auto"];
+    }
+    let low = Math.min(...vals);
+    let high = Math.max(...vals);
+    if (hasGoalBand) {
+      low = Math.min(low, goalMin);
+      high = Math.max(high, goalMax);
+    }
+    const span = Math.max(high - low, 0.1);
+    const pad = Math.max(span * 0.06, 0.3);
+    return [
+      Math.round((low - pad) * 10) / 10,
+      Math.round((high + pad) * 10) / 10,
+    ];
+  }, [chartData, hasGoalBand, goalMin, goalMax]);
+
+  const weeklyChartYDomain = useMemo((): [number, number] | ["auto", "auto"] => {
+    if (weekly.length === 0) {
+      return ["auto", "auto"];
+    }
+    const vals = weekly.map((w) => w.avgKg);
+    let low = Math.min(...vals);
+    let high = Math.max(...vals);
+    if (hasGoalBand) {
+      low = Math.min(low, goalMin);
+      high = Math.max(high, goalMax);
+    }
+    const span = Math.max(high - low, 0.1);
+    const pad = Math.max(span * 0.06, 0.3);
+    return [
+      Math.round((low - pad) * 10) / 10,
+      Math.round((high + pad) * 10) / 10,
+    ];
+  }, [weekly, hasGoalBand, goalMin, goalMax]);
+
   const calendarCells = useMemo(
     () => buildCalendarMonth(calYear, calMonth, dailyMap),
     [calYear, calMonth, dailyMap],
@@ -238,7 +283,7 @@ export function WeightVisualization({ entries }: Props) {
                   tickFormatter={(v: string) => v.slice(5).replace("-", "/")}
                 />
                 <YAxis
-                  domain={["auto", "auto"]}
+                  domain={lineChartYDomain}
                   tick={{ fill: axisColor, fontSize: 11 }}
                   width={40}
                   label={{
@@ -308,7 +353,7 @@ export function WeightVisualization({ entries }: Props) {
                   tick={{ fill: axisColor, fontSize: 11 }}
                 />
                 <YAxis
-                  domain={["auto", "auto"]}
+                  domain={weeklyChartYDomain}
                   tick={{ fill: axisColor, fontSize: 11 }}
                   width={40}
                 />
@@ -324,6 +369,15 @@ export function WeightVisualization({ entries }: Props) {
                     "週平均",
                   ]}
                 />
+                {hasGoalBand ? (
+                  <ReferenceArea
+                    y1={goalMin}
+                    y2={goalMax}
+                    strokeOpacity={0}
+                    fill="#22c55e"
+                    fillOpacity={0.12}
+                  />
+                ) : null}
                 <Bar
                   dataKey="avgKg"
                   name="週平均"
