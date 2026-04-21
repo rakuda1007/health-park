@@ -22,6 +22,7 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceArea,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -30,12 +31,28 @@ import {
 
 const PERIODS = [14, 30] as const;
 
+/** `weight-visualization.tsx` と同じキー（体重画面で設定した目標帯） */
+const LS_WEIGHT_GOAL_MIN = "health-park-weight-goal-min";
+const LS_WEIGHT_GOAL_MAX = "health-park-weight-goal-max";
+
+function readWeightGoalFromStorage(): { min: string; max: string } {
+  if (typeof window === "undefined") {
+    return { min: "", max: "" };
+  }
+  return {
+    min: localStorage.getItem(LS_WEIGHT_GOAL_MIN) ?? "",
+    max: localStorage.getItem(LS_WEIGHT_GOAL_MAX) ?? "",
+  };
+}
+
 export function DashboardPageClient() {
   const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([]);
   const [stepsEntries, setStepsEntries] = useState<StepsEntry[]>([]);
   const [reflections, setReflections] = useState<DailyReflectionEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [periodDays, setPeriodDays] = useState<(typeof PERIODS)[number]>(14);
+  const [goalMinStr, setGoalMinStr] = useState("");
+  const [goalMaxStr, setGoalMaxStr] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -56,6 +73,33 @@ export function DashboardPageClient() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const sync = () => {
+      const g = readWeightGoalFromStorage();
+      setGoalMinStr(g.min);
+      setGoalMaxStr(g.max);
+    };
+    sync();
+    window.addEventListener("focus", sync);
+    const onVis = () => {
+      if (document.visibilityState === "visible") {
+        sync();
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === LS_WEIGHT_GOAL_MIN || e.key === LS_WEIGHT_GOAL_MAX) {
+        sync();
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("focus", sync);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
 
   const dailyPoints = useMemo(
     () =>
@@ -92,19 +136,46 @@ export function DashboardPageClient() {
     [dailyPoints],
   );
 
-  /** 体重は記録の範囲を拡大表示（0 起点は省略）。左軸の最小目盛に ～ を付与 */
+  /** 体重は記録の範囲を拡大表示（0 起点は省略）。目標帯があるときは軸に含める。左軸の最小目盛に ～ を付与 */
   const weightAxisConfig = useMemo(() => {
+    const gm = Number.parseFloat(goalMinStr);
+    const gx = Number.parseFloat(goalMaxStr);
+    const hasGoalBand =
+      !Number.isNaN(gm) &&
+      !Number.isNaN(gx) &&
+      gm > 0 &&
+      gx > 0 &&
+      gm < gx;
+
     const vals = dailyPoints
       .map((p) => p.weightKg)
       .filter((v): v is number => v != null);
+
+    let low: number;
+    let high: number;
+
     if (vals.length === 0) {
-      return {
-        domain: [0, 100] as [number, number],
-        ticks: undefined as number[] | undefined,
-      };
+      if (hasGoalBand) {
+        low = gm;
+        high = gx;
+      } else {
+        return {
+          domain: [0, 100] as [number, number],
+          ticks: undefined as number[] | undefined,
+          hasGoalBand: false,
+          goalMin: 0,
+          goalMax: 0,
+        };
+      }
+    } else {
+      low = Math.min(...vals);
+      high = Math.max(...vals);
+      if (hasGoalBand) {
+        low = Math.min(low, gm);
+        high = Math.max(high, gx);
+      }
     }
-    const low = Math.min(...vals);
-    const high = Math.max(...vals);
+
     const span = Math.max(high - low, 0.1);
     const pad = Math.max(span * 0.06, 0.3);
     const min = Math.round(Math.max(0, low - pad) * 100) / 100;
@@ -118,8 +189,14 @@ export function DashboardPageClient() {
       return Math.round(t * 100) / 100;
     });
     const ticks = [...new Set(raw)];
-    return { domain, ticks: ticks.length >= 2 ? ticks : raw };
-  }, [dailyPoints]);
+    return {
+      domain,
+      ticks: ticks.length >= 2 ? ticks : raw,
+      hasGoalBand,
+      goalMin: hasGoalBand ? gm : 0,
+      goalMax: hasGoalBand ? gx : 0,
+    };
+  }, [dailyPoints, goalMinStr, goalMaxStr]);
 
   const stepsAxisMax = useMemo(() => {
     const vals = dailyPoints
@@ -173,7 +250,7 @@ export function DashboardPageClient() {
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
             折れ線＝体重（kg・左軸）、棒＝歩数（右軸）。歩数は 0 から。体重は
             変化が見えやすいよう記録範囲を拡大表示しており、左軸の最小目盛に ～
-            が付くときは 0 からの区間が省略されています。未記録の日は体重は線が途切れ、歩数は棒を出しません（0
+            が付くときは 0 からの区間が省略されています。体重画面で設定した目標帯（緑の薄い帯）があるときは同じ範囲に表示します。未記録の日は体重は線が途切れ、歩数は棒を出しません（0
             歩の記録ではありません）。
           </p>
           {!hasCombined ? (
@@ -243,6 +320,16 @@ export function DashboardPageClient() {
                       return labels[value] ?? value;
                     }}
                   />
+                  {weightAxisConfig.hasGoalBand ? (
+                    <ReferenceArea
+                      yAxisId="w"
+                      y1={weightAxisConfig.goalMin}
+                      y2={weightAxisConfig.goalMax}
+                      strokeOpacity={0}
+                      fill="#22c55e"
+                      fillOpacity={0.12}
+                    />
+                  ) : null}
                   <Bar
                     yAxisId="s"
                     dataKey="stepsBar"
