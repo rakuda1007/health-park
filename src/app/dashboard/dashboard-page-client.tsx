@@ -6,9 +6,12 @@ import {
   listWeightEntries,
 } from "@/lib/db";
 import type { DailyReflectionEntry, StepsEntry, WeightEntry } from "@/lib/db/types";
+import { ReflectionHeatmap } from "@/components/reflection-heatmap";
+import { ReflectionWeeklyBoxPlot } from "@/components/reflection-weekly-boxplot";
 import {
   buildDailyDashboardPoints,
   buildWeeklyDashboardRows,
+  weeklyReflectionNarrative,
   weeklyStepsNarrative,
   weeklyWeightNarrative,
 } from "@/lib/dashboard-series";
@@ -21,7 +24,6 @@ import {
   ComposedChart,
   Legend,
   Line,
-  LineChart,
   ReferenceArea,
   ResponsiveContainer,
   Tooltip,
@@ -215,7 +217,7 @@ export function DashboardPageClient() {
         ホーム
       </h1>
       <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
-        体重（折れ線）と歩数（棒）を同じ日付軸で重ね、振り返りは日ごとのスコア（〇=2、△=1、✕=0）で表示します。因果関係の証明ではなく、記録の並びを眺めるための参考です。
+        体重（折れ線）と歩数（棒）を同じ日付軸で重ね、振り返りは日ごとのスコアをヒートマップ（〇=2、△=1、✕=0）と週ごとの箱ひげ図で表示します。因果関係の証明ではなく、記録の並びを眺めるための参考です。
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -376,79 +378,20 @@ export function DashboardPageClient() {
 
         <div className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
           <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
-            振り返り（日ごとのスコア）
+            振り返り（ヒートマップ・週の箱ひげ図）
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            食事・歩数・体調それぞれを 〇=2、△=1、✕=0 にした折れ線です。未記録の日は表示されません。
+            食事・歩数・体調を 〇=2、△=1、✕=0 にした日ごとのヒートマップと、直近週の分布（箱ひげ図）です。下の「週ごとのサマリー」には週平均と短い示唆文があります。
           </p>
           {!hasAnyReflectionScore ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
               この期間に振り返りの記録がありません。
             </p>
           ) : (
-            <div className="mt-3 h-56 w-full min-h-[14rem] min-w-0">
-              <ResponsiveContainer width="100%" height="100%" minHeight={224}>
-                <LineChart
-                  data={dailyPoints}
-                  margin={{ top: 8, right: 8, left: 4, bottom: 0 }}
-                >
-                  <CartesianGrid
-                    stroke="var(--hp-border)"
-                    strokeDasharray="3 3"
-                  />
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fill: "var(--hp-muted)", fontSize: 10 }}
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis
-                    domain={[0, 2]}
-                    ticks={[0, 1, 2]}
-                    tick={{ fill: "var(--hp-muted)", fontSize: 11 }}
-                    width={32}
-                  />
-                  <Tooltip content={<ReflectionTooltip />} />
-                  <Legend
-                    wrapperStyle={{ fontSize: 11 }}
-                    formatter={(value) => {
-                      const labels: Record<string, string> = {
-                        mealScore: "食事",
-                        stepsSelfScore: "歩数(評価)",
-                        conditionScore: "体調",
-                      };
-                      return labels[value] ?? value;
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="mealScore"
-                    name="mealScore"
-                    stroke="var(--hp-accent)"
-                    strokeWidth={2}
-                    dot={{ r: 2 }}
-                    connectNulls={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="stepsSelfScore"
-                    name="stepsSelfScore"
-                    stroke="#2563eb"
-                    strokeWidth={2}
-                    dot={{ r: 2 }}
-                    connectNulls={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="conditionScore"
-                    name="conditionScore"
-                    stroke="#9333ea"
-                    strokeWidth={2}
-                    dot={{ r: 2 }}
-                    connectNulls={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            <>
+              <ReflectionHeatmap points={dailyPoints} />
+              <ReflectionWeeklyBoxPlot weeks={weeklyRows} />
+            </>
           )}
           <p className="mt-2 text-xs text-[color:var(--hp-muted)]">
             合計スコア（1日最大6）は週次表を参照。記録は{" "}
@@ -467,7 +410,7 @@ export function DashboardPageClient() {
             週ごとのサマリー（直近8週）
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            その週に記録があった日だけを平均しています。記録日数が少ない週は値がブレやすいです。体重・歩数の文は自動生成です（診断や目標設定ではありません）。
+            その週に記録があった日だけを平均しています。記録日数が少ない週は値がブレやすいです。体重・歩数・振り返りの示唆文は自動生成です（診断や目標設定ではありません）。
           </p>
           {weeklyRows.length === 0 ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
@@ -534,6 +477,9 @@ export function DashboardPageClient() {
                               （記録 {row.reflectionDays} 日）
                             </span>
                           </dd>
+                          <p className="mt-1.5 text-xs leading-relaxed text-[color:var(--hp-muted)]">
+                            {weeklyReflectionNarrative(row, prev)}
+                          </p>
                         </div>
                       </dl>
                     </li>
@@ -567,7 +513,7 @@ export function DashboardPageClient() {
                         日
                       </th>
                       <th className="min-w-0 px-2 py-2 font-medium text-[color:var(--hp-muted)]">
-                        自動コメント（体重・歩数）
+                        自動コメント（体重・歩数・振り返り）
                       </th>
                     </tr>
                   </thead>
@@ -610,6 +556,9 @@ export function DashboardPageClient() {
                             <p>{weeklyWeightNarrative(row, prev)}</p>
                             <p className="mt-1.5 border-t border-dashed border-[color:var(--hp-border)] pt-1.5">
                               {weeklyStepsNarrative(row, prev)}
+                            </p>
+                            <p className="mt-1.5 border-t border-dashed border-[color:var(--hp-border)] pt-1.5">
+                              {weeklyReflectionNarrative(row, prev)}
                             </p>
                           </td>
                         </tr>
@@ -696,40 +645,3 @@ function CombinedTooltip({
   );
 }
 
-function ReflectionTooltip({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: Array<{ payload: Record<string, unknown> }>;
-}) {
-  if (!active || !payload?.length) {
-    return null;
-  }
-  const row = payload[0]?.payload as {
-    date: string;
-    mealScore: number | null;
-    stepsSelfScore: number | null;
-    conditionScore: number | null;
-    reflectionTotal: number | null;
-  };
-  return (
-    <div className="rounded-md border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-2 py-1.5 text-xs shadow">
-      <div className="tabular-nums text-[color:var(--hp-muted)]">{row.date}</div>
-      <div className="mt-1 space-y-0.5 text-[color:var(--hp-foreground)]">
-        <div>食事: {scoreOrDash(row.mealScore)}</div>
-        <div>歩数(評価): {scoreOrDash(row.stepsSelfScore)}</div>
-        <div>体調: {scoreOrDash(row.conditionScore)}</div>
-        {row.reflectionTotal != null ? (
-          <div className="border-t border-dashed border-[color:var(--hp-border)] pt-1">
-            合計: {row.reflectionTotal} / 6
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function scoreOrDash(v: number | null): string {
-  return v != null ? String(v) : "—";
-}

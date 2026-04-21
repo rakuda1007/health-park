@@ -108,6 +108,48 @@ export function buildDailyDashboardPoints(
   });
 }
 
+/** 0〜2 のスコア分布用（週ごとの箱ひげ図） */
+export type ScoreBoxStats = {
+  min: number;
+  q1: number;
+  median: number;
+  q3: number;
+  max: number;
+  n: number;
+};
+
+function quantileSorted(sorted: number[], p: number): number {
+  if (sorted.length === 0) {
+    return 0;
+  }
+  if (sorted.length === 1) {
+    return sorted[0]!;
+  }
+  const pos = (sorted.length - 1) * p;
+  const lo = Math.floor(pos);
+  const hi = Math.ceil(pos);
+  if (lo === hi) {
+    return sorted[lo]!;
+  }
+  return sorted[lo]! * (hi - pos) + sorted[hi]! * (pos - lo);
+}
+
+export function computeBoxStats(values: number[]): ScoreBoxStats | null {
+  if (values.length === 0) {
+    return null;
+  }
+  const sorted = [...values].sort((a, b) => a - b);
+  const n = sorted.length;
+  return {
+    min: sorted[0]!,
+    max: sorted[n - 1]!,
+    q1: quantileSorted(sorted, 0.25),
+    median: quantileSorted(sorted, 0.5),
+    q3: quantileSorted(sorted, 0.75),
+    n,
+  };
+}
+
 export type WeeklyDashboardRow = {
   weekStart: string;
   label: string;
@@ -118,6 +160,16 @@ export type WeeklyDashboardRow = {
   /** 振り返り合計スコア（1日あたり0〜6）の週平均 */
   avgReflectionTotal: number | null;
   reflectionDays: number;
+  /** 次元別：記録があった日だけを平均 */
+  avgMealScore: number | null;
+  mealDays: number;
+  avgStepsSelfScore: number | null;
+  stepsSelfDays: number;
+  avgConditionScore: number | null;
+  conditionDays: number;
+  mealBox: ScoreBoxStats | null;
+  stepsSelfBox: ScoreBoxStats | null;
+  conditionBox: ScoreBoxStats | null;
 };
 
 export function buildWeeklyDashboardRows(
@@ -138,6 +190,15 @@ export function buildWeeklyDashboardRows(
       const rVals = pts
         .filter((p) => p.reflectionTotal != null)
         .map((p) => p.reflectionTotal!);
+      const mealVals = pts
+        .filter((p) => p.mealScore != null)
+        .map((p) => p.mealScore!);
+      const stepsSelfVals = pts
+        .filter((p) => p.stepsSelfScore != null)
+        .map((p) => p.stepsSelfScore!);
+      const condVals = pts
+        .filter((p) => p.conditionScore != null)
+        .map((p) => p.conditionScore!);
       return {
         weekStart,
         label: formatWeekLabel(weekStart),
@@ -158,6 +219,31 @@ export function buildWeeklyDashboardRows(
               10
             : null,
         reflectionDays: rVals.length,
+        avgMealScore:
+          mealVals.length > 0
+            ? Math.round(
+                (mealVals.reduce((a, b) => a + b, 0) / mealVals.length) * 10,
+              ) / 10
+            : null,
+        mealDays: mealVals.length,
+        avgStepsSelfScore:
+          stepsSelfVals.length > 0
+            ? Math.round(
+                (stepsSelfVals.reduce((a, b) => a + b, 0) / stepsSelfVals.length) *
+                  10,
+              ) / 10
+            : null,
+        stepsSelfDays: stepsSelfVals.length,
+        avgConditionScore:
+          condVals.length > 0
+            ? Math.round(
+                (condVals.reduce((a, b) => a + b, 0) / condVals.length) * 10,
+              ) / 10
+            : null,
+        conditionDays: condVals.length,
+        mealBox: computeBoxStats(mealVals),
+        stepsSelfBox: computeBoxStats(stepsSelfVals),
+        conditionBox: computeBoxStats(condVals),
       };
     })
     .sort((a, b) => a.weekStart.localeCompare(b.weekStart));
@@ -225,4 +311,66 @@ export function weeklyStepsNarrative(
     }
   }
   return text;
+}
+
+function fmtScore(v: number): string {
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+
+/**
+ * 振り返りスコア（食事・歩数評価・体調）の週次サマリー用。
+ * 医療診断ではなく、記録上の前週比の参考。
+ */
+export function weeklyReflectionNarrative(
+  row: WeeklyDashboardRow,
+  prev: WeeklyDashboardRow | null,
+): string {
+  const hasAny =
+    row.avgMealScore != null ||
+    row.avgStepsSelfScore != null ||
+    row.avgConditionScore != null;
+  if (!hasAny) {
+    return "振り返りの記録がありません。";
+  }
+  const parts: string[] = [];
+  const dim = (
+    label: string,
+    avg: number | null,
+    days: number,
+    prevAvg: number | null,
+  ) => {
+    if (avg == null) {
+      parts.push(`${label}は未記録`);
+      return;
+    }
+    let s = `${label}の週平均は ${fmtScore(avg)}（${days}日分）`;
+    if (days <= 2) {
+      s += "（記録が少なく参考程度）";
+    }
+    if (prevAvg != null) {
+      const d = Math.round((avg - prevAvg) * 10) / 10;
+      if (Math.abs(d) < 0.15) {
+        s += "。前週とほぼ同水準";
+      } else if (d > 0) {
+        s += `。前週より約 ${fmtScore(Math.abs(d))} 高め`;
+      } else {
+        s += `。前週より約 ${fmtScore(Math.abs(d))} 低め`;
+      }
+    }
+    parts.push(s);
+  };
+  dim("食事", row.avgMealScore, row.mealDays, prev?.avgMealScore ?? null);
+  dim(
+    "歩数(評価)",
+    row.avgStepsSelfScore,
+    row.stepsSelfDays,
+    prev?.avgStepsSelfScore ?? null,
+  );
+  dim(
+    "体調",
+    row.avgConditionScore,
+    row.conditionDays,
+    prev?.avgConditionScore ?? null,
+  );
+  return parts.join("。") + "。";
 }
