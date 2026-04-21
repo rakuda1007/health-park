@@ -108,48 +108,6 @@ export function buildDailyDashboardPoints(
   });
 }
 
-/** 0〜2 のスコア分布用（週ごとの箱ひげ図） */
-export type ScoreBoxStats = {
-  min: number;
-  q1: number;
-  median: number;
-  q3: number;
-  max: number;
-  n: number;
-};
-
-function quantileSorted(sorted: number[], p: number): number {
-  if (sorted.length === 0) {
-    return 0;
-  }
-  if (sorted.length === 1) {
-    return sorted[0]!;
-  }
-  const pos = (sorted.length - 1) * p;
-  const lo = Math.floor(pos);
-  const hi = Math.ceil(pos);
-  if (lo === hi) {
-    return sorted[lo]!;
-  }
-  return sorted[lo]! * (hi - pos) + sorted[hi]! * (pos - lo);
-}
-
-export function computeBoxStats(values: number[]): ScoreBoxStats | null {
-  if (values.length === 0) {
-    return null;
-  }
-  const sorted = [...values].sort((a, b) => a - b);
-  const n = sorted.length;
-  return {
-    min: sorted[0]!,
-    max: sorted[n - 1]!,
-    q1: quantileSorted(sorted, 0.25),
-    median: quantileSorted(sorted, 0.5),
-    q3: quantileSorted(sorted, 0.75),
-    n,
-  };
-}
-
 export type WeeklyDashboardRow = {
   weekStart: string;
   label: string;
@@ -167,14 +125,10 @@ export type WeeklyDashboardRow = {
   stepsSelfDays: number;
   avgConditionScore: number | null;
   conditionDays: number;
-  mealBox: ScoreBoxStats | null;
-  stepsSelfBox: ScoreBoxStats | null;
-  conditionBox: ScoreBoxStats | null;
 };
 
-export function buildWeeklyDashboardRows(
+function aggregateWeekRows(
   dailyPoints: DailyDashboardPoint[],
-  maxWeeks = 8,
 ): WeeklyDashboardRow[] {
   const byWeek = new Map<string, DailyDashboardPoint[]>();
   for (const p of dailyPoints) {
@@ -183,7 +137,7 @@ export function buildWeeklyDashboardRows(
     arr.push(p);
     byWeek.set(wk, arr);
   }
-  const rows: WeeklyDashboardRow[] = [...byWeek.entries()]
+  return [...byWeek.entries()]
     .map(([weekStart, pts]) => {
       const wVals = pts.filter((p) => p.weightKg != null).map((p) => p.weightKg!);
       const sVals = pts.filter((p) => p.steps != null).map((p) => p.steps!);
@@ -241,13 +195,51 @@ export function buildWeeklyDashboardRows(
               ) / 10
             : null,
         conditionDays: condVals.length,
-        mealBox: computeBoxStats(mealVals),
-        stepsSelfBox: computeBoxStats(stepsSelfVals),
-        conditionBox: computeBoxStats(condVals),
       };
     })
     .sort((a, b) => a.weekStart.localeCompare(b.weekStart));
-  return rows.slice(-maxWeeks);
+}
+
+/**
+ * 週ごとのサマリー用。新しい週が先頭になるよう降順。
+ */
+export function buildWeeklyDashboardRows(
+  dailyPoints: DailyDashboardPoint[],
+  maxWeeks = 8,
+): WeeklyDashboardRow[] {
+  const rows = aggregateWeekRows(dailyPoints);
+  return rows
+    .slice(-maxWeeks)
+    .sort((a, b) => b.weekStart.localeCompare(a.weekStart));
+}
+
+/** 週平均ヒートマップ用（左から古い週）。表示期間スイッチとは独立した長期データから生成する想定。 */
+export type WeeklyReflectionHeatmapColumn = {
+  weekStart: string;
+  label: string;
+  avgMealScore: number | null;
+  mealDays: number;
+  avgStepsSelfScore: number | null;
+  stepsSelfDays: number;
+  avgConditionScore: number | null;
+  conditionDays: number;
+};
+
+export function buildWeeklyReflectionHeatmapColumns(
+  dailyPoints: DailyDashboardPoint[],
+  maxWeeks = 9,
+): WeeklyReflectionHeatmapColumn[] {
+  const rows = aggregateWeekRows(dailyPoints);
+  return rows.slice(-maxWeeks).map((r) => ({
+    weekStart: r.weekStart,
+    label: r.label,
+    avgMealScore: r.avgMealScore,
+    mealDays: r.mealDays,
+    avgStepsSelfScore: r.avgStepsSelfScore,
+    stepsSelfDays: r.stepsSelfDays,
+    avgConditionScore: r.avgConditionScore,
+    conditionDays: r.conditionDays,
+  }));
 }
 
 function formatWeekLabel(weekStartIso: string): string {
@@ -258,7 +250,7 @@ function formatWeekLabel(weekStartIso: string): string {
 
 /**
  * 週次サマリー用の自動コメント（医療診断ではなく傾向の参考）。
- * prev は直前の週（より古い週）。先頭週は prev が null。
+ * prev はカレンダー上 1 つ前の週（より古い週）。一覧が新しい週先頭のときは、その行の次要素を prev に渡す。
  */
 export function weeklyWeightNarrative(
   row: WeeklyDashboardRow,

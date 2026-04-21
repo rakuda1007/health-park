@@ -192,14 +192,18 @@ export function MedicalHistoryPageClient() {
                 className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-3"
               >
                 <div className="min-w-0 flex-1">
-                  <span className="font-medium text-[color:var(--hp-foreground)]">
-                    {row.title}
-                  </span>
                   {row.diagnosedOn ? (
-                    <p className="mt-1 text-sm tabular-nums text-[color:var(--hp-muted)]">
+                    <p className="text-sm tabular-nums text-[color:var(--hp-muted)]">
                       診断日: {row.diagnosedOn}
                     </p>
                   ) : null}
+                  <span
+                    className={`font-medium text-[color:var(--hp-foreground)] ${
+                      row.diagnosedOn ? "mt-1 inline-block" : ""
+                    }`}
+                  >
+                    {row.title}
+                  </span>
                   {row.note ? (
                     <p className="mt-1 whitespace-pre-wrap text-sm text-[color:var(--hp-muted)]">
                       {row.note}

@@ -7,10 +7,11 @@ import {
 } from "@/lib/db";
 import type { DailyReflectionEntry, StepsEntry, WeightEntry } from "@/lib/db/types";
 import { ReflectionHeatmap } from "@/components/reflection-heatmap";
-import { ReflectionWeeklyBoxPlot } from "@/components/reflection-weekly-boxplot";
+import { ReflectionWeeklyAvgHeatmap } from "@/components/reflection-weekly-avg-heatmap";
 import {
   buildDailyDashboardPoints,
   buildWeeklyDashboardRows,
+  buildWeeklyReflectionHeatmapColumns,
   weeklyReflectionNarrative,
   weeklyStepsNarrative,
   weeklyWeightNarrative,
@@ -31,7 +32,10 @@ import {
   YAxis,
 } from "recharts";
 
-const PERIODS = [14, 30] as const;
+const PERIODS = [7, 14, 30] as const;
+
+/** 週平均ヒートマップ用（約2か月・表示期間スイッチと独立） */
+const REFLECTION_HEATMAP_DAYS_BACK = 62;
 
 /** `weight-visualization.tsx` と同じキー（体重画面で設定した目標帯） */
 const LS_WEIGHT_GOAL_MIN = "health-park-weight-goal-min";
@@ -52,7 +56,7 @@ export function DashboardPageClient() {
   const [stepsEntries, setStepsEntries] = useState<StepsEntry[]>([]);
   const [reflections, setReflections] = useState<DailyReflectionEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [periodDays, setPeriodDays] = useState<(typeof PERIODS)[number]>(14);
+  const [periodDays, setPeriodDays] = useState<(typeof PERIODS)[number]>(7);
   const [goalMinStr, setGoalMinStr] = useState("");
   const [goalMaxStr, setGoalMaxStr] = useState("");
 
@@ -119,12 +123,35 @@ export function DashboardPageClient() {
     [dailyPoints],
   );
 
+  const reflectionLongDailyPoints = useMemo(
+    () =>
+      buildDailyDashboardPoints(
+        REFLECTION_HEATMAP_DAYS_BACK,
+        weightEntries,
+        stepsEntries,
+        reflections,
+      ),
+    [weightEntries, stepsEntries, reflections],
+  );
+
+  const weeklyReflectionHeatmapColumns = useMemo(
+    () => buildWeeklyReflectionHeatmapColumns(reflectionLongDailyPoints, 9),
+    [reflectionLongDailyPoints],
+  );
+
   const hasAnyWeight = dailyPoints.some((p) => p.weightKg != null);
   const hasAnySteps = dailyPoints.some((p) => p.steps != null);
   const hasCombined = hasAnyWeight || hasAnySteps;
 
   const hasAnyReflectionScore = dailyPoints.some(
     (p) => p.mealScore != null || p.stepsSelfScore != null || p.conditionScore != null,
+  );
+
+  const hasAnyWeeklyReflectionHeatmap = weeklyReflectionHeatmapColumns.some(
+    (c) =>
+      c.avgMealScore != null ||
+      c.avgStepsSelfScore != null ||
+      c.avgConditionScore != null,
   );
 
   /** 棒グラフ用（未記録は 0＋透明セル。ツールチップは元の steps を参照） */
@@ -217,7 +244,7 @@ export function DashboardPageClient() {
         ホーム
       </h1>
       <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
-        体重（折れ線）と歩数（棒）を同じ日付軸で重ね、振り返りは日ごとのスコアをヒートマップ（〇=2、△=1、✕=0）と週ごとの箱ひげ図で表示します。因果関係の証明ではなく、記録の並びを眺めるための参考です。
+        体重（折れ線）と歩数（棒）を同じ日付軸で重ね、振り返りは日ごとのヒートマップ（〇=2、△=1、✕=0）と週平均のヒートマップ（約2か月）で表示します。因果関係の証明ではなく、記録の並びを眺めるための参考です。
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -378,19 +405,38 @@ export function DashboardPageClient() {
 
         <div className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
           <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
-            振り返り（ヒートマップ・週の箱ひげ図）
+            振り返り（週平均・日ごとのヒートマップ）
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            食事・歩数・体調を 〇=2、△=1、✕=0 にした日ごとのヒートマップと、直近週の分布（箱ひげ図）です。下の「週ごとのサマリー」には週平均と短い示唆文があります。
+            食事・歩数・体調を 〇=2、△=1、✕=0 にしたヒートマップです。週平均は約2か月分（直近7日・14日・30日の切り替えとは別データ）。日ごとは上の表示期間に連動します。下の「週ごとのサマリー」には週平均と短い示唆文があります。
           </p>
-          {!hasAnyReflectionScore ? (
+          {!hasAnyWeeklyReflectionHeatmap && !hasAnyReflectionScore ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
-              この期間に振り返りの記録がありません。
+              振り返りの記録がありません。
             </p>
           ) : (
             <>
-              <ReflectionHeatmap points={dailyPoints} />
-              <ReflectionWeeklyBoxPlot weeks={weeklyRows} />
+              {hasAnyWeeklyReflectionHeatmap ? (
+                <ReflectionWeeklyAvgHeatmap
+                  columns={weeklyReflectionHeatmapColumns}
+                />
+              ) : (
+                <p className="mt-2 text-xs text-[color:var(--hp-muted)]">
+                  週平均ヒートマップ用の振り返り記録がありません。
+                </p>
+              )}
+              {hasAnyReflectionScore ? (
+                <>
+                  <h3 className="mt-4 text-xs font-medium text-[color:var(--hp-foreground)]">
+                    日ごと（表示期間に連動）
+                  </h3>
+                  <ReflectionHeatmap points={dailyPoints} />
+                </>
+              ) : (
+                <p className="mt-4 text-sm text-[color:var(--hp-muted)]">
+                  選択した表示期間に振り返りの記録がありません。
+                </p>
+              )}
             </>
           )}
           <p className="mt-2 text-xs text-[color:var(--hp-muted)]">
@@ -410,7 +456,7 @@ export function DashboardPageClient() {
             週ごとのサマリー（直近8週）
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            その週に記録があった日だけを平均しています。記録日数が少ない週は値がブレやすいです。体重・歩数・振り返りの示唆文は自動生成です（診断や目標設定ではありません）。
+            新しい週が上に来ます。その週に記録があった日だけを平均しています。記録日数が少ない週は値がブレやすいです。体重・歩数・振り返りの示唆文は自動生成です（診断や目標設定ではありません）。
           </p>
           {weeklyRows.length === 0 ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
@@ -420,7 +466,8 @@ export function DashboardPageClient() {
             <>
               <ul className="mt-3 space-y-3 md:hidden">
                 {weeklyRows.map((row, i) => {
-                  const prev = i > 0 ? weeklyRows[i - 1]! : null;
+                  const prev =
+                    i < weeklyRows.length - 1 ? weeklyRows[i + 1]! : null;
                   return (
                     <li
                       key={row.weekStart}
@@ -519,7 +566,8 @@ export function DashboardPageClient() {
                   </thead>
                   <tbody className="text-[color:var(--hp-foreground)]">
                     {weeklyRows.map((row, i) => {
-                      const prev = i > 0 ? weeklyRows[i - 1]! : null;
+                      const prev =
+                        i < weeklyRows.length - 1 ? weeklyRows[i + 1]! : null;
                       return (
                         <tr
                           key={row.weekStart}

@@ -44,17 +44,17 @@ type Props = {
 export function ReflectionHeatmap({ points }: Props) {
   return (
     <div className="mt-3 w-full min-w-0">
-      <div className="overflow-x-auto rounded-lg border border-[color:var(--hp-border)]">
-        <table className="w-max min-w-full border-collapse text-[10px] sm:text-xs">
+      <div className="rounded-lg border border-[color:var(--hp-border)]">
+        <table className="w-full table-fixed border-collapse text-[9px] sm:text-[10px]">
           <thead>
             <tr className="border-b border-[color:var(--hp-border)] bg-[color:var(--hp-input)]">
-              <th className="sticky left-0 z-[1] min-w-[3.25rem] border-r border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-1.5 py-1 text-left font-medium text-[color:var(--hp-muted)]">
+              <th className="w-[22%] border-r border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-1 py-1 text-left font-medium text-[color:var(--hp-muted)] sm:w-[18%]">
                 項目
               </th>
               {points.map((p) => (
                 <th
                   key={p.date}
-                  className="min-w-[1.75rem] px-0.5 py-1 text-center font-normal tabular-nums text-[color:var(--hp-muted)]"
+                  className="px-0.5 py-1 text-center font-normal leading-tight tabular-nums text-[color:var(--hp-muted)]"
                 >
                   {p.label}
                 </th>
@@ -67,7 +67,7 @@ export function ReflectionHeatmap({ points }: Props) {
                 key={row.key}
                 className="border-b border-[color:var(--hp-border)] last:border-b-0"
               >
-                <th className="sticky left-0 z-[1] border-r border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-1.5 py-1 text-left font-medium text-[color:var(--hp-foreground)]">
+                <th className="border-r border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-1 py-1 text-left font-medium text-[color:var(--hp-foreground)]">
                   {row.label}
                 </th>
                 {points.map((p) => {
@@ -76,7 +76,7 @@ export function ReflectionHeatmap({ points }: Props) {
                   return (
                     <td key={`${p.date}-${row.key}`} className="p-0">
                       <div
-                        className="mx-px min-h-[1.75rem] min-w-[1.5rem] rounded-sm border border-[color:var(--hp-border)] sm:min-h-[2rem]"
+                        className="mx-px min-h-[1.75rem] min-w-0 rounded-sm border border-[color:var(--hp-border)] sm:min-h-[2rem]"
                         style={{ background: cellBg(v) }}
                         title={title}
                       />
