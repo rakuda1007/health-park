@@ -114,7 +114,7 @@ export function AppHeader() {
   }, [mobileOpen]);
 
   return (
-    <header className="border-b border-[color:var(--hp-border)] bg-[color:var(--hp-surface)]">
+    <header className="sticky top-0 z-50 border-b border-[color:var(--hp-border)] bg-[color:var(--hp-surface)] shadow-sm">
       <div className="mx-auto flex max-w-3xl flex-col gap-3 px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <Link
@@ -181,7 +181,7 @@ export function AppHeader() {
       </div>
 
       {mobileOpen ? (
-        <div className="fixed inset-0 z-40 md:hidden">
+        <div className="fixed inset-0 z-[100] md:hidden">
           <button
             type="button"
             className="absolute inset-0 bg-black/40"

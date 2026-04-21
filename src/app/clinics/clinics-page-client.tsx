@@ -112,9 +112,88 @@ export function ClinicsPageClient() {
         病院・クリニック名に加え、住所と電話番号をメモできます（手入力のみ）。
       </p>
 
+      {loadError ? (
+        <p className="mt-4 text-sm text-red-600 dark:text-red-400" role="alert">
+          {loadError}
+        </p>
+      ) : null}
+
+      <section className="mt-8" aria-labelledby="clinics-heading">
+        <h2
+          id="clinics-heading"
+          className="text-sm font-medium text-[color:var(--hp-muted)]"
+        >
+          一覧
+        </h2>
+        {entries.length === 0 ? (
+          <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
+            まだ登録がありません。
+          </p>
+        ) : (
+          <ul className="mt-3 divide-y divide-[color:var(--hp-border)] rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)]">
+            {entries.map((row) => (
+              <li
+                key={row.id}
+                className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <span className="font-medium text-[color:var(--hp-foreground)]">
+                    {row.name}
+                  </span>
+                  {row.address ? (
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-[color:var(--hp-foreground)]">
+                      {row.address}
+                    </p>
+                  ) : null}
+                  {row.phone ? (
+                    <p className="mt-1 text-sm tabular-nums text-[color:var(--hp-foreground)]">
+                      <a
+                        href={`tel:${row.phone.replace(/\s/g, "")}`}
+                        className="text-[color:var(--hp-accent)] underline-offset-2 hover:underline"
+                      >
+                        {row.phone}
+                      </a>
+                    </p>
+                  ) : null}
+                  {row.note ? (
+                    <span className="mt-1 block text-sm text-[color:var(--hp-muted)]">
+                      {row.note}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-x-3 gap-y-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      beginEdit(row);
+                      window.requestAnimationFrame(() => {
+                        document
+                          .getElementById("clinic-form")
+                          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      });
+                    }}
+                    className="text-sm text-[color:var(--hp-accent)] underline-offset-2 hover:underline"
+                  >
+                    編集
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete(row.id)}
+                    className="text-sm text-red-600 underline-offset-2 hover:underline dark:text-red-400"
+                  >
+                    削除
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <form
+        id="clinic-form"
         onSubmit={handleSubmit}
-        className="mt-6 space-y-4 rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4"
+        className="mt-10 scroll-mt-24 space-y-4 rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4"
       >
         <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
           {isEditing ? "編集" : "新規登録"}
@@ -182,80 +261,6 @@ export function ClinicsPageClient() {
           ) : null}
         </div>
       </form>
-
-      {loadError ? (
-        <p className="mt-4 text-sm text-red-600 dark:text-red-400" role="alert">
-          {loadError}
-        </p>
-      ) : null}
-
-      <section className="mt-8" aria-labelledby="clinics-heading">
-        <h2
-          id="clinics-heading"
-          className="text-sm font-medium text-[color:var(--hp-muted)]"
-        >
-          一覧
-        </h2>
-        {entries.length === 0 ? (
-          <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
-            まだ登録がありません。
-          </p>
-        ) : (
-          <ul className="mt-3 divide-y divide-[color:var(--hp-border)] rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)]">
-            {entries.map((row) => (
-              <li
-                key={row.id}
-                className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <span className="font-medium text-[color:var(--hp-foreground)]">
-                    {row.name}
-                  </span>
-                  {row.address ? (
-                    <p className="mt-1 whitespace-pre-wrap text-sm text-[color:var(--hp-foreground)]">
-                      {row.address}
-                    </p>
-                  ) : null}
-                  {row.phone ? (
-                    <p className="mt-1 text-sm tabular-nums text-[color:var(--hp-foreground)]">
-                      <a
-                        href={`tel:${row.phone.replace(/\s/g, "")}`}
-                        className="text-[color:var(--hp-accent)] underline-offset-2 hover:underline"
-                      >
-                        {row.phone}
-                      </a>
-                    </p>
-                  ) : null}
-                  {row.note ? (
-                    <span className="mt-1 block text-sm text-[color:var(--hp-muted)]">
-                      {row.note}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="flex shrink-0 flex-wrap gap-x-3 gap-y-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      beginEdit(row);
-                      window.scrollTo({ top: 0, behavior: "smooth" });
-                    }}
-                    className="text-sm text-[color:var(--hp-accent)] underline-offset-2 hover:underline"
-                  >
-                    編集
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleDelete(row.id)}
-                    className="text-sm text-red-600 underline-offset-2 hover:underline dark:text-red-400"
-                  >
-                    削除
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
     </main>
   );
 }
