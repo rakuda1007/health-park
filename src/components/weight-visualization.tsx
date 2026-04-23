@@ -236,8 +236,8 @@ export function WeightVisualization({ entries }: Props) {
           目標帯（任意・ブラウザにのみ保存）
         </p>
         <div className="mt-2 flex flex-wrap gap-3">
-          <label className="flex items-center gap-2 text-sm">
-            <span className="text-[color:var(--hp-muted)]">下限 kg</span>
+          <label className="flex items-center gap-2">
+            <span className="text-sm text-[color:var(--hp-muted)]">下限 kg</span>
             <input
               type="number"
               step="0.1"
@@ -246,11 +246,11 @@ export function WeightVisualization({ entries }: Props) {
                 setGoalMinStr(e.target.value);
               }}
               onBlur={() => persistGoal(goalMinStr, goalMaxStr)}
-              className="w-24 rounded border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-2 py-1 text-[color:var(--hp-foreground)]"
+              className="w-24 rounded border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-2 py-1 text-base text-[color:var(--hp-foreground)]"
             />
           </label>
-          <label className="flex items-center gap-2 text-sm">
-            <span className="text-[color:var(--hp-muted)]">上限 kg</span>
+          <label className="flex items-center gap-2">
+            <span className="text-sm text-[color:var(--hp-muted)]">上限 kg</span>
             <input
               type="number"
               step="0.1"
@@ -259,7 +259,7 @@ export function WeightVisualization({ entries }: Props) {
                 setGoalMaxStr(e.target.value);
               }}
               onBlur={() => persistGoal(goalMinStr, goalMaxStr)}
-              className="w-24 rounded border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-2 py-1 text-[color:var(--hp-foreground)]"
+              className="w-24 rounded border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-2 py-1 text-base text-[color:var(--hp-foreground)]"
             />
           </label>
         </div>

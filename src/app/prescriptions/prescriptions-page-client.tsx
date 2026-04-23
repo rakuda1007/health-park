@@ -372,8 +372,8 @@ export function PrescriptionsPageClient() {
                   </button>
                 ) : null}
               </div>
-              <label className="flex flex-col gap-1.5 text-sm">
-                <span className="text-[color:var(--hp-muted)]">薬名</span>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm text-[color:var(--hp-muted)]">薬名</span>
                 <textarea
                   value={m.name}
                   onChange={(e) =>
@@ -384,30 +384,30 @@ export function PrescriptionsPageClient() {
                   placeholder="例: アムロジピン錠"
                 />
               </label>
-              <label className="flex flex-col gap-1.5 text-sm">
-                <span className="text-[color:var(--hp-muted)]">用法・用量（任意）</span>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm text-[color:var(--hp-muted)]">用法・用量（任意）</span>
                 <textarea
                   value={m.dosage}
                   onChange={(e) =>
                     updateMedicine(m.id, { dosage: e.target.value })
                   }
                   rows={3}
-                  className="w-full resize-y rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-background)] px-3 py-2 text-sm leading-relaxed text-[color:var(--hp-foreground)]"
+                  className="w-full resize-y rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-background)] px-3 py-2 text-base leading-relaxed text-[color:var(--hp-foreground)]"
                   placeholder="例: 1日1回朝食後、1回1錠"
                 />
                 <span className="text-xs text-[color:var(--hp-muted)]">
                   一覧の「用法・用量」列では改行どおり表示されます（複数行で書き分けできます）。
                 </span>
               </label>
-              <label className="flex flex-col gap-1.5 text-sm">
-                <span className="text-[color:var(--hp-muted)]">メモ（任意）</span>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm text-[color:var(--hp-muted)]">メモ（任意）</span>
                 <textarea
                   value={m.note}
                   onChange={(e) =>
                     updateMedicine(m.id, { note: e.target.value })
                   }
                   rows={3}
-                  className="w-full resize-y rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-background)] px-3 py-2 text-sm leading-relaxed text-[color:var(--hp-foreground)]"
+                  className="w-full resize-y rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-background)] px-3 py-2 text-base leading-relaxed text-[color:var(--hp-foreground)]"
                   placeholder="効能・注意など"
                 />
               </label>
@@ -422,13 +422,13 @@ export function PrescriptionsPageClient() {
           </button>
         </div>
 
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="text-[color:var(--hp-muted)]">メモ（任意）</span>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm text-[color:var(--hp-muted)]">メモ（任意）</span>
           <input
             type="text"
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
-            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-background)] px-3 py-2 text-[color:var(--hp-foreground)]"
+            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-background)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
             placeholder="例: ○○病院、2026年4月処方"
           />
         </label>

@@ -198,46 +198,46 @@ export function ClinicsPageClient() {
         <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
           {isEditing ? "編集" : "新規登録"}
         </h2>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-[color:var(--hp-muted)]">名称</span>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm text-[color:var(--hp-muted)]">名称</span>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
             placeholder="例: ○○内科クリニック"
             required
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-[color:var(--hp-muted)]">住所（任意）</span>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm text-[color:var(--hp-muted)]">住所（任意）</span>
           <textarea
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             rows={2}
-            className="resize-y rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+            className="resize-y rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
             placeholder="例: 東京都○○区…"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-[color:var(--hp-muted)]">電話番号（任意）</span>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm text-[color:var(--hp-muted)]">電話番号（任意）</span>
           <input
             type="tel"
             inputMode="tel"
             autoComplete="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
             placeholder="例: 03-1234-5678"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-[color:var(--hp-muted)]">メモ（任意）</span>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm text-[color:var(--hp-muted)]">メモ（任意）</span>
           <input
             type="text"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
             placeholder="例: かかりつけ、火曜午後"
           />
         </label>

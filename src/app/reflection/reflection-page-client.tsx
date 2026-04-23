@@ -142,14 +142,14 @@ export function ReflectionPageClient() {
         onSubmit={handleSubmit}
         className="mt-6 space-y-5 rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4"
       >
-        <label className="flex max-w-xs flex-col gap-1 text-sm">
-          <span className="text-[color:var(--hp-muted)]">対象の日付</span>
+        <label className="flex max-w-xs flex-col gap-1">
+          <span className="text-sm text-[color:var(--hp-muted)]">対象の日付</span>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
             required
-            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
           />
         </label>
 
@@ -169,14 +169,14 @@ export function ReflectionPageClient() {
           onChange={setCondition}
         />
 
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-[color:var(--hp-muted)]">一言コメント（任意）</span>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm text-[color:var(--hp-muted)]">一言コメント（任意）</span>
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             rows={3}
             placeholder="今日の感想など"
-            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
           />
         </label>
 

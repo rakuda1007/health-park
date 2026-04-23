@@ -76,18 +76,18 @@ export function StepsPageClient() {
         className="mt-6 space-y-4 rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4"
       >
         <div className="grid gap-2 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-[color:var(--hp-muted)]">日付</span>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm text-[color:var(--hp-muted)]">日付</span>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required
-              className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+              className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-[color:var(--hp-muted)]">歩数</span>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm text-[color:var(--hp-muted)]">歩数</span>
             <input
               type="number"
               inputMode="numeric"
@@ -97,7 +97,7 @@ export function StepsPageClient() {
               onChange={(e) => setSteps(e.target.value)}
               placeholder="例: 6500"
               required
-              className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+              className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
             />
           </label>
         </div>

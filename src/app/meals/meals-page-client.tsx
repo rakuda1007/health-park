@@ -125,22 +125,22 @@ export function MealsPageClient() {
           </p>
         ) : null}
         <div className="grid gap-2 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-[color:var(--hp-muted)]">日付</span>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm text-[color:var(--hp-muted)]">日付</span>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required
-              className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+              className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-[color:var(--hp-muted)]">区分</span>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm text-[color:var(--hp-muted)]">区分</span>
             <select
               value={slot}
               onChange={(e) => setSlot(e.target.value as MealSlot)}
-              className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+              className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
             >
               <option value="breakfast">{SLOT_LABEL.breakfast}</option>
               <option value="lunch">{SLOT_LABEL.lunch}</option>
@@ -148,25 +148,25 @@ export function MealsPageClient() {
             </select>
           </label>
         </div>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-[color:var(--hp-muted)]">食べたもの</span>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm text-[color:var(--hp-muted)]">食べたもの</span>
           <textarea
             value={foods}
             onChange={(e) => setFoods(e.target.value)}
             rows={3}
             required
             placeholder="例: ごはん、味噌汁、焼き魚"
-            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-[color:var(--hp-muted)]">一言</span>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm text-[color:var(--hp-muted)]">一言</span>
           <input
             type="text"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="例: 外食、少し多め"
-            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
           />
         </label>
         <div className="flex flex-wrap items-center gap-2">

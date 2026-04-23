@@ -92,19 +92,19 @@ export function BloodPressurePageClient() {
         onSubmit={handleSubmit}
         className="mt-6 space-y-4 rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4"
       >
-        <label className="flex max-w-xs flex-col gap-1 text-sm">
-          <span className="text-[color:var(--hp-muted)]">日付</span>
+        <label className="flex max-w-xs flex-col gap-1">
+          <span className="text-sm text-[color:var(--hp-muted)]">日付</span>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
             required
-            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
           />
         </label>
         <div className="grid gap-2 sm:grid-cols-3">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-[color:var(--hp-muted)]">収縮期（上）</span>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm text-[color:var(--hp-muted)]">収縮期（上）</span>
             <input
               type="number"
               inputMode="numeric"
@@ -113,11 +113,11 @@ export function BloodPressurePageClient() {
               onChange={(e) => setSystolic(e.target.value)}
               placeholder="例: 120"
               required
-              className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+              className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-[color:var(--hp-muted)]">拡張期（下）</span>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm text-[color:var(--hp-muted)]">拡張期（下）</span>
             <input
               type="number"
               inputMode="numeric"
@@ -126,11 +126,11 @@ export function BloodPressurePageClient() {
               onChange={(e) => setDiastolic(e.target.value)}
               placeholder="例: 80"
               required
-              className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+              className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-[color:var(--hp-muted)]">脈拍（任意）</span>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm text-[color:var(--hp-muted)]">脈拍（任意）</span>
             <input
               type="number"
               inputMode="numeric"
@@ -138,17 +138,17 @@ export function BloodPressurePageClient() {
               value={pulse}
               onChange={(e) => setPulse(e.target.value)}
               placeholder="例: 72"
-              className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+              className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
             />
           </label>
         </div>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-[color:var(--hp-muted)]">メモ（任意）</span>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm text-[color:var(--hp-muted)]">メモ（任意）</span>
           <input
             type="text"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
           />
         </label>
         <button

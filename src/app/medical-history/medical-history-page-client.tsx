@@ -187,35 +187,35 @@ export function MedicalHistoryPageClient() {
         <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
           {isEditing ? "編集" : "新規登録"}
         </h2>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-[color:var(--hp-muted)]">病名・内容</span>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm text-[color:var(--hp-muted)]">病名・内容</span>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
             placeholder="例: 高血圧症、2型糖尿病 など"
             required
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-[color:var(--hp-muted)]">
+        <label className="flex flex-col gap-1">
+          <span className="text-sm text-[color:var(--hp-muted)]">
             診断日・発症の目安（任意）
           </span>
           <input
             type="date"
             value={diagnosedOn}
             onChange={(e) => setDiagnosedOn(e.target.value)}
-            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-[color:var(--hp-muted)]">メモ（任意）</span>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm text-[color:var(--hp-muted)]">メモ（任意）</span>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={3}
-            className="resize-y rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+            className="resize-y rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
             placeholder="治療経過や気をつけていることなど"
           />
         </label>

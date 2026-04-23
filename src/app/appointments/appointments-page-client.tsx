@@ -385,7 +385,7 @@ export function AppointmentsPageClient() {
             <select
               value={clinicId}
               onChange={(e) => setClinicId(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+              className="mt-1 w-full rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
             >
               {isEditing &&
               clinicId &&
@@ -413,76 +413,76 @@ export function AppointmentsPageClient() {
           ) : null}
           {clinicSource === "new" && !isEditing ? (
             <div className="mt-2 space-y-3 rounded-lg border border-dashed border-[color:var(--hp-border)] bg-[color:var(--hp-input)] p-3">
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-[color:var(--hp-muted)]">病院名（必須）</span>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm text-[color:var(--hp-muted)]">病院名（必須）</span>
                 <input
                   type="text"
                   value={newClinicName}
                   onChange={(e) => setNewClinicName(e.target.value)}
-                  className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-3 py-2 text-[color:var(--hp-foreground)]"
+                  className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
                   placeholder="例: ○○内科"
                   required={clinicSource === "new"}
                 />
               </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-[color:var(--hp-muted)]">住所（任意）</span>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm text-[color:var(--hp-muted)]">住所（任意）</span>
                 <textarea
                   value={newClinicAddress}
                   onChange={(e) => setNewClinicAddress(e.target.value)}
                   rows={2}
-                  className="resize-y rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-3 py-2 text-[color:var(--hp-foreground)]"
+                  className="resize-y rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
                 />
               </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-[color:var(--hp-muted)]">電話（任意）</span>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm text-[color:var(--hp-muted)]">電話（任意）</span>
                 <input
                   type="tel"
                   inputMode="tel"
                   value={newClinicPhone}
                   onChange={(e) => setNewClinicPhone(e.target.value)}
-                  className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-3 py-2 text-[color:var(--hp-foreground)]"
+                  className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
                 />
               </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-[color:var(--hp-muted)]">メモ（任意）</span>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm text-[color:var(--hp-muted)]">メモ（任意）</span>
                 <input
                   type="text"
                   value={newClinicNote}
                   onChange={(e) => setNewClinicNote(e.target.value)}
-                  className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-3 py-2 text-[color:var(--hp-foreground)]"
+                  className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
                 />
               </label>
             </div>
           ) : null}
         </fieldset>
 
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-[color:var(--hp-muted)]">日時（必須）</span>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm text-[color:var(--hp-muted)]">日時（必須）</span>
           <input
             type="datetime-local"
             value={startsAtLocal}
             onChange={(e) => setStartsAtLocal(e.target.value)}
-            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
             required
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-[color:var(--hp-muted)]">用件（任意）</span>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm text-[color:var(--hp-muted)]">用件（任意）</span>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
             placeholder="例: 再診、検査"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-[color:var(--hp-muted)]">メモ（任意）</span>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm text-[color:var(--hp-muted)]">メモ（任意）</span>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={2}
-            className="resize-y rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
+            className="resize-y rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
           />
         </label>
         <div className="flex flex-wrap gap-2">
