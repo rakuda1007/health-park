@@ -23,6 +23,8 @@ export function MealsPageClient() {
   const [foods, setFoods] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  /** 編集中の記録 ID（null なら新規） */
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -38,6 +40,22 @@ export function MealsPageClient() {
     void load();
   }, [load]);
 
+  function resetForm() {
+    setEditingId(null);
+    setDate(todayIso());
+    setSlot("breakfast");
+    setFoods("");
+    setNote("");
+  }
+
+  function startEdit(row: MealEntry) {
+    setEditingId(row.id);
+    setDate(row.date);
+    setSlot(row.slot);
+    setFoods(row.foods);
+    setNote(row.note);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (foods.trim() === "") {
@@ -46,17 +64,33 @@ export function MealsPageClient() {
     setSaving(true);
     try {
       const now = new Date().toISOString();
-      const entry: MealEntry = {
-        id: crypto.randomUUID(),
-        date,
-        slot,
-        foods: foods.trim(),
-        note: note.trim(),
-        createdAt: now,
-      };
-      await putMealEntry(entry);
-      setFoods("");
-      setNote("");
+      if (editingId) {
+        const orig = entries.find((x) => x.id === editingId);
+        if (!orig) {
+          setEditingId(null);
+          return;
+        }
+        const entry: MealEntry = {
+          ...orig,
+          date,
+          slot,
+          foods: foods.trim(),
+          note: note.trim(),
+          updatedAt: now,
+        };
+        await putMealEntry(entry);
+      } else {
+        const entry: MealEntry = {
+          id: crypto.randomUUID(),
+          date,
+          slot,
+          foods: foods.trim(),
+          note: note.trim(),
+          createdAt: now,
+        };
+        await putMealEntry(entry);
+      }
+      resetForm();
       await load();
     } finally {
       setSaving(false);
@@ -82,8 +116,14 @@ export function MealsPageClient() {
 
       <form
         onSubmit={handleSubmit}
+        aria-label={editingId ? "食事記録を編集" : "食事記録を登録"}
         className="mt-6 space-y-4 rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4"
       >
+        {editingId ? (
+          <p className="rounded-lg bg-[color:var(--hp-input)] px-3 py-2 text-sm text-[color:var(--hp-foreground)]">
+            編集中です。内容を直して「更新」するか、「編集をやめる」で取り消せます。
+          </p>
+        ) : null}
         <div className="grid gap-2 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-[color:var(--hp-muted)]">日付</span>
@@ -129,13 +169,29 @@ export function MealsPageClient() {
             className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[color:var(--hp-foreground)]"
           />
         </label>
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-lg bg-[color:var(--hp-accent)] px-4 py-2 text-sm font-medium text-[color:var(--hp-accent-fg)] disabled:opacity-60"
-        >
-          {saving ? "保存中…" : "保存"}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-lg bg-[color:var(--hp-accent)] px-4 py-2 text-sm font-medium text-[color:var(--hp-accent-fg)] disabled:opacity-60"
+          >
+            {saving
+              ? "保存中…"
+              : editingId
+                ? "更新"
+                : "保存"}
+          </button>
+          {editingId ? (
+            <button
+              type="button"
+              disabled={saving}
+              onClick={resetForm}
+              className="rounded-lg border border-[color:var(--hp-border)] px-4 py-2 text-sm font-medium text-[color:var(--hp-muted)] disabled:opacity-60"
+            >
+              編集をやめる
+            </button>
+          ) : null}
+        </div>
       </form>
 
       {loadError ? (
@@ -160,7 +216,11 @@ export function MealsPageClient() {
             {entries.map((row) => (
               <li
                 key={row.id}
-                className="flex flex-wrap items-start justify-between gap-2 px-4 py-3"
+                className={`flex flex-wrap items-start justify-between gap-2 px-4 py-3 ${
+                  editingId === row.id
+                    ? "bg-[color:var(--hp-input)]"
+                    : ""
+                }`}
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-baseline gap-2">
@@ -180,13 +240,22 @@ export function MealsPageClient() {
                     </p>
                   ) : null}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void handleDelete(row.id)}
-                  className="shrink-0 text-sm text-red-600 underline-offset-2 hover:underline dark:text-red-400"
-                >
-                  削除
-                </button>
+                <div className="flex shrink-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+                  <button
+                    type="button"
+                    onClick={() => startEdit(row)}
+                    className="text-sm text-[color:var(--hp-accent)] underline-offset-2 hover:underline"
+                  >
+                    編集
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete(row.id)}
+                    className="text-sm text-red-600 underline-offset-2 hover:underline dark:text-red-400"
+                  >
+                    削除
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
