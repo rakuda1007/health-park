@@ -55,6 +55,21 @@ export type ClinicEntry = {
   updatedAt?: string;
 };
 
+/** 通院予定（`clinicId` は登録済み `ClinicEntry.id`） */
+export type ClinicAppointmentEntry = {
+  id: string;
+  clinicId: string;
+  /** 開始日時（ISO 8601 UTC） */
+  startsAt: string;
+  /** 終了日時（任意・ISO 8601 UTC） */
+  endsAt?: string;
+  /** 例: 再診、検査（任意） */
+  title?: string;
+  note?: string;
+  createdAt: string;
+  updatedAt?: string;
+};
+
 /** 既往歴（手入力メモ。医療記録としての証明力はありません） */
 export type PastMedicalHistoryEntry = {
   id: string;

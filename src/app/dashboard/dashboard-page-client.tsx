@@ -1,11 +1,20 @@
 "use client";
 
 import {
+  listClinicAppointments,
+  listClinicEntries,
   listDailyReflectionEntries,
   listStepsEntries,
   listWeightEntries,
 } from "@/lib/db";
-import type { DailyReflectionEntry, StepsEntry, WeightEntry } from "@/lib/db/types";
+import type {
+  ClinicAppointmentEntry,
+  ClinicEntry,
+  DailyReflectionEntry,
+  StepsEntry,
+  WeightEntry,
+} from "@/lib/db/types";
+import { selectDashboardClinicAppointments } from "@/lib/clinic-appointments-dashboard";
 import { ReflectionHeatmap } from "@/components/reflection-heatmap";
 import { ReflectionWeeklyAvgHeatmap } from "@/components/reflection-weekly-avg-heatmap";
 import {
@@ -55,6 +64,10 @@ export function DashboardPageClient() {
   const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([]);
   const [stepsEntries, setStepsEntries] = useState<StepsEntry[]>([]);
   const [reflections, setReflections] = useState<DailyReflectionEntry[]>([]);
+  const [clinicAppointments, setClinicAppointments] = useState<
+    ClinicAppointmentEntry[]
+  >([]);
+  const [clinicEntries, setClinicEntries] = useState<ClinicEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [periodDays, setPeriodDays] = useState<(typeof PERIODS)[number]>(7);
   const [goalMinStr, setGoalMinStr] = useState("");
@@ -63,14 +76,18 @@ export function DashboardPageClient() {
   const load = useCallback(async () => {
     try {
       setError(null);
-      const [w, s, r] = await Promise.all([
+      const [w, s, r, ap, cl] = await Promise.all([
         listWeightEntries(),
         listStepsEntries(),
         listDailyReflectionEntries(),
+        listClinicAppointments(),
+        listClinicEntries(),
       ]);
       setWeightEntries(w);
       setStepsEntries(s);
       setReflections(r);
+      setClinicAppointments(ap);
+      setClinicEntries(cl);
     } catch (e) {
       setError(e instanceof Error ? e.message : "読み込みに失敗しました");
     }
@@ -238,6 +255,16 @@ export function DashboardPageClient() {
     return Math.max(Math.ceil(m * 1.05), 100);
   }, [dailyPoints]);
 
+  const dashboardAppointments = useMemo(
+    () => selectDashboardClinicAppointments(clinicAppointments),
+    [clinicAppointments],
+  );
+
+  const clinicNameById = useMemo(
+    () => new Map(clinicEntries.map((c) => [c.id, c.name] as const)),
+    [clinicEntries],
+  );
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
       <h1 className="text-xl font-semibold text-[color:var(--hp-foreground)]">
@@ -270,6 +297,55 @@ export function DashboardPageClient() {
           {error}
         </p>
       ) : null}
+
+      <div className="mt-6 rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
+        <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
+          通院予定（7日以内）
+        </h2>
+        <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
+          今日から1週間以内の予定を表示します。登録・変更は通院予定画面へ。
+        </p>
+        {dashboardAppointments.length === 0 ? (
+          <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
+            該当する予定はありません。
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {dashboardAppointments.map((a) => (
+              <li
+                key={a.id}
+                className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-sm"
+              >
+                <p className="font-medium tabular-nums text-[color:var(--hp-foreground)]">
+                  {new Date(a.startsAt).toLocaleString("ja-JP", {
+                    month: "numeric",
+                    day: "numeric",
+                    weekday: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+                <p className="mt-0.5 text-[color:var(--hp-foreground)]">
+                  {clinicNameById.get(a.clinicId) ?? "（削除された通院先）"}
+                </p>
+                {a.title ? (
+                  <p className="mt-0.5 text-xs text-[color:var(--hp-muted)]">
+                    {a.title}
+                  </p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-3 text-xs">
+          <Link
+            href="/appointments"
+            className="text-[color:var(--hp-accent)] underline"
+          >
+            通院予定の登録・一覧
+          </Link>
+        </p>
+      </div>
 
       <section className="mt-8 space-y-10">
         <div className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">

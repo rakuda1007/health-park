@@ -1,6 +1,7 @@
 import {
   applyRemoteEntry,
   deleteBloodPressureEntry,
+  deleteClinicAppointmentEntry,
   deleteClinicEntry,
   deleteDailyReflectionEntry,
   deleteMealEntry,
@@ -9,6 +10,7 @@ import {
   deleteStepsEntry,
   deleteWeightEntry,
   listBloodPressureEntries,
+  listClinicAppointments,
   listClinicEntries,
   listDailyReflectionEntries,
   listMealEntries,
@@ -17,6 +19,7 @@ import {
   listStepsEntries,
   listWeightEntries,
   putBloodPressureEntry,
+  putClinicAppointmentEntry,
   putClinicEntry,
   putDailyReflectionEntry,
   putMealEntry,
@@ -28,6 +31,7 @@ import {
 } from "@/lib/db";
 import type {
   BloodPressureEntry,
+  ClinicAppointmentEntry,
   ClinicEntry,
   DailyReflectionEntry,
   MealEntry,
@@ -54,6 +58,7 @@ const COL_STEPS = "steps";
 const COL_BP = "bloodPressure";
 const COL_MEALS = "meals";
 const COL_CLINICS = "clinics";
+const COL_CLINIC_APPOINTMENTS = "clinicAppointments";
 const COL_DAILY_REFLECTIONS = "dailyReflections";
 const COL_PAST_MEDICAL_HISTORY = "pastMedicalHistory";
 const COL_RX = "prescriptions";
@@ -63,6 +68,7 @@ const STORE_STEPS = "steps";
 const STORE_BP = "bloodPressure";
 const STORE_MEALS = "meals";
 const STORE_CLINICS = "clinics";
+const STORE_CLINIC_APPOINTMENTS = "clinicAppointments";
 const STORE_DAILY_REFLECTIONS = "dailyReflections";
 const STORE_PAST_MEDICAL_HISTORY = "pastMedicalHistory";
 const STORE_RX = "prescriptions";
@@ -141,11 +147,13 @@ export async function replicateAfterPut(
             ? COL_MEALS
             : storeName === STORE_CLINICS
               ? COL_CLINICS
-              : storeName === STORE_DAILY_REFLECTIONS
-                ? COL_DAILY_REFLECTIONS
-                : storeName === STORE_PAST_MEDICAL_HISTORY
-                  ? COL_PAST_MEDICAL_HISTORY
-                  : null;
+              : storeName === STORE_CLINIC_APPOINTMENTS
+                ? COL_CLINIC_APPOINTMENTS
+                : storeName === STORE_DAILY_REFLECTIONS
+                  ? COL_DAILY_REFLECTIONS
+                  : storeName === STORE_PAST_MEDICAL_HISTORY
+                    ? COL_PAST_MEDICAL_HISTORY
+                    : null;
   if (!col) {
     return;
   }
@@ -177,13 +185,15 @@ export async function replicateAfterDelete(
             ? COL_MEALS
             : storeName === STORE_CLINICS
               ? COL_CLINICS
-              : storeName === STORE_DAILY_REFLECTIONS
-                ? COL_DAILY_REFLECTIONS
-                : storeName === STORE_PAST_MEDICAL_HISTORY
-                  ? COL_PAST_MEDICAL_HISTORY
-                  : storeName === STORE_RX
-                    ? COL_RX
-                    : null;
+              : storeName === STORE_CLINIC_APPOINTMENTS
+                ? COL_CLINIC_APPOINTMENTS
+                : storeName === STORE_DAILY_REFLECTIONS
+                  ? COL_DAILY_REFLECTIONS
+                  : storeName === STORE_PAST_MEDICAL_HISTORY
+                    ? COL_PAST_MEDICAL_HISTORY
+                    : storeName === STORE_RX
+                      ? COL_RX
+                      : null;
   if (!col) {
     return;
   }
@@ -249,6 +259,21 @@ export async function mergeCloudWithLocal(): Promise<void> {
         await putClinicEntry(l);
       }
     }, putClinicEntry);
+
+    await mergeSimpleCollection(
+      db,
+      COL_CLINIC_APPOINTMENTS,
+      STORE_CLINIC_APPOINTMENTS,
+      listClinicAppointments,
+      async (c, l) => {
+        if (!l || versionOf(c) > versionOf(l)) {
+          await applyRemoteEntry(STORE_CLINIC_APPOINTMENTS, c);
+        } else {
+          await putClinicAppointmentEntry(l);
+        }
+      },
+      putClinicAppointmentEntry,
+    );
 
     await mergeSimpleCollection(
       db,
@@ -381,6 +406,8 @@ export function startRemoteSync(uid: string): () => void {
                 await deleteMealEntry(id);
               } else if (store === STORE_CLINICS) {
                 await deleteClinicEntry(id);
+              } else if (store === STORE_CLINIC_APPOINTMENTS) {
+                await deleteClinicAppointmentEntry(id);
               } else if (store === STORE_DAILY_REFLECTIONS) {
                 await deleteDailyReflectionEntry(id);
               } else if (store === STORE_PAST_MEDICAL_HISTORY) {
@@ -418,6 +445,12 @@ export function startRemoteSync(uid: string): () => void {
   });
   sub(COL_CLINICS, STORE_CLINICS, async (id, data) => {
     await applyRemoteEntry(STORE_CLINICS, { ...data, id } as ClinicEntry);
+  });
+  sub(COL_CLINIC_APPOINTMENTS, STORE_CLINIC_APPOINTMENTS, async (id, data) => {
+    await applyRemoteEntry(STORE_CLINIC_APPOINTMENTS, {
+      ...data,
+      id,
+    } as ClinicAppointmentEntry);
   });
   sub(COL_DAILY_REFLECTIONS, STORE_DAILY_REFLECTIONS, async (id, data) => {
     await applyRemoteEntry(STORE_DAILY_REFLECTIONS, {

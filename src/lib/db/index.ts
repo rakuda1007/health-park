@@ -1,5 +1,6 @@
 import type {
   BloodPressureEntry,
+  ClinicAppointmentEntry,
   ClinicEntry,
   DailyReflectionEntry,
   MealEntry,
@@ -11,13 +12,14 @@ import type {
 } from "./types";
 
 const DB_NAME = "health-park";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 const STORE_WEIGHT = "weight";
 const STORE_STEPS = "steps";
 const STORE_BP = "bloodPressure";
 const STORE_MEALS = "meals";
 const STORE_CLINICS = "clinics";
+const STORE_CLINIC_APPOINTMENTS = "clinicAppointments";
 const STORE_PRESCRIPTIONS = "prescriptions";
 const STORE_DAILY_REFLECTIONS = "dailyReflections";
 const STORE_PAST_MEDICAL_HISTORY = "pastMedicalHistory";
@@ -272,6 +274,32 @@ export function putClinicEntry(entry: ClinicEntry): Promise<void> {
 
 export function deleteClinicEntry(id: string): Promise<void> {
   return deleteEntry(STORE_CLINICS, id);
+}
+
+export async function listClinicAppointments(): Promise<
+  ClinicAppointmentEntry[]
+> {
+  const db = await getHealthDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_CLINIC_APPOINTMENTS, "readonly");
+    const req = tx.objectStore(STORE_CLINIC_APPOINTMENTS).getAll();
+    req.onerror = () => reject(req.error ?? new Error("getAll error"));
+    req.onsuccess = () => {
+      const rows = req.result as ClinicAppointmentEntry[];
+      rows.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+      resolve(rows);
+    };
+  });
+}
+
+export function putClinicAppointmentEntry(
+  entry: ClinicAppointmentEntry,
+): Promise<void> {
+  return putEntry(STORE_CLINIC_APPOINTMENTS, entry);
+}
+
+export function deleteClinicAppointmentEntry(id: string): Promise<void> {
+  return deleteEntry(STORE_CLINIC_APPOINTMENTS, id);
 }
 
 export async function listPastMedicalHistoryEntries(): Promise<

@@ -8,6 +8,7 @@ import {
 } from "@/lib/db/backup";
 import type {
   BloodPressureEntry,
+  ClinicAppointmentEntry,
   ClinicEntry,
   DailyReflectionEntry,
   MealEntry,
@@ -90,6 +91,13 @@ export async function pushLocalToCloud(): Promise<void> {
       data: scrub(r),
     })),
   );
+  await batchSet(
+    "clinicAppointments",
+    (backup.clinicAppointments ?? []).map((r) => ({
+      id: r.id,
+      data: scrub(r),
+    })),
+  );
 
   const rxDocs: Array<{ id: string; data: Record<string, unknown> }> = [];
   for (const p of backup.prescriptions) {
@@ -151,6 +159,11 @@ export async function pushLocalToCloud(): Promise<void> {
   );
   await deleteOrphans(
     uid,
+    "clinicAppointments",
+    new Set((backup.clinicAppointments ?? []).map((r) => r.id)),
+  );
+  await deleteOrphans(
+    uid,
     "prescriptions",
     new Set(backup.prescriptions.map((p) => p.id)),
   );
@@ -198,6 +211,7 @@ export async function pullCloudToLocal(): Promise<void> {
   const bloodPressure: BloodPressureEntry[] = [];
   const meals: MealEntry[] = [];
   const clinics: ClinicEntry[] = [];
+  const clinicAppointments: ClinicAppointmentEntry[] = [];
   const dailyReflections: DailyReflectionEntry[] = [];
   const pastMedicalHistory: PastMedicalHistoryEntry[] = [];
   const prescriptions: PrescriptionEntry[] = [];
@@ -212,6 +226,10 @@ export async function pullCloudToLocal(): Promise<void> {
   mSnap.forEach((d) => meals.push(d.data() as MealEntry));
   const cSnap = await getDocs(collection(db, "users", uid, "clinics"));
   cSnap.forEach((d) => clinics.push(d.data() as ClinicEntry));
+  const caSnap = await getDocs(collection(db, "users", uid, "clinicAppointments"));
+  caSnap.forEach((d) =>
+    clinicAppointments.push({ ...(d.data() as ClinicAppointmentEntry), id: d.id }),
+  );
   const drSnap = await getDocs(collection(db, "users", uid, "dailyReflections"));
   drSnap.forEach((d) =>
     dailyReflections.push({ ...(d.data() as DailyReflectionEntry), id: d.id }),
@@ -256,6 +274,7 @@ export async function pullCloudToLocal(): Promise<void> {
     bloodPressure,
     meals,
     clinics,
+    clinicAppointments,
     dailyReflections,
     pastMedicalHistory,
     prescriptions: prescriptions.map((p) => serializePrescription(p)),

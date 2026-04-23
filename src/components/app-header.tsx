@@ -15,6 +15,7 @@ const recordLinks = [
 
 const healthInfoLinks = [
   { href: "/clinics", label: "病院" },
+  { href: "/appointments", label: "通院予定" },
   { href: "/prescriptions", label: "処方箋" },
   { href: "/medical-history", label: "既往歴" },
 ] as const;
