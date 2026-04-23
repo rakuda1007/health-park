@@ -9,6 +9,7 @@ import type {
   WeightEntry,
 } from "@/lib/db/types";
 import { selectDashboardClinicAppointments } from "@/lib/clinic-appointments-dashboard";
+import { ReflectionHeatmap } from "@/components/reflection-heatmap";
 import { ReflectionWeeklyAvgHeatmap } from "@/components/reflection-weekly-avg-heatmap";
 import {
   buildCombinedChartRows,
@@ -71,8 +72,8 @@ export function DashboardPageClient() {
   const [chartGranularity, setChartGranularity] =
     useState<CombinedChartGranularity>("day");
   const [reflectionHeatmapMode, setReflectionHeatmapMode] = useState<
-    "week" | "month"
-  >("week");
+    "day" | "week" | "month"
+  >("day");
   const [goalMinStr, setGoalMinStr] = useState("");
   const [goalMaxStr, setGoalMaxStr] = useState("");
 
@@ -158,28 +159,31 @@ export function DashboardPageClient() {
     [reflectionLongDailyPoints],
   );
 
-  const activeReflectionHeatmapColumns = useMemo(
-    () =>
-      reflectionHeatmapMode === "week"
-        ? weeklyReflectionHeatmapColumns
-        : monthlyReflectionHeatmapColumns,
-    [
-      reflectionHeatmapMode,
-      weeklyReflectionHeatmapColumns,
-      monthlyReflectionHeatmapColumns,
-    ],
-  );
-
   const hasAnyWeight = dailyPoints.some((p) => p.weightKg != null);
   const hasAnySteps = dailyPoints.some((p) => p.steps != null);
   const hasCombined = hasAnyWeight || hasAnySteps;
 
-  const hasAnyReflectionHeatmap = activeReflectionHeatmapColumns.some(
+  const hasAnyDailyReflectionScore = dailyPoints.some(
+    (p) =>
+      p.mealScore != null ||
+      p.stepsSelfScore != null ||
+      p.conditionScore != null,
+  );
+
+  const hasWeeklyReflectionHeatmapData = weeklyReflectionHeatmapColumns.some(
     (c) =>
       c.avgMealScore != null ||
       c.avgStepsSelfScore != null ||
       c.avgConditionScore != null,
   );
+
+  const hasMonthlyReflectionHeatmapData =
+    monthlyReflectionHeatmapColumns.some(
+      (c) =>
+        c.avgMealScore != null ||
+        c.avgStepsSelfScore != null ||
+        c.avgConditionScore != null,
+    );
 
   /** 棒グラフ用（未記録は 0＋透明セル。ツールチップは元の steps を参照） */
   const combinedChartData = useMemo(
@@ -293,7 +297,7 @@ export function DashboardPageClient() {
         ホーム
       </h1>
       <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
-        体重（折れ線）と歩数（棒）を同じ軸で重ね、表示は日ごと・週平均・月平均から選べます。振り返りは週平均または月平均のヒートマップ（〇=2、△=1、✕=0）を切り替えて表示します。因果関係の証明ではなく、記録の並びを眺めるための参考です。
+        体重（折れ線）と歩数（棒）を同じ軸で重ね、表示は日ごと・週平均・月平均から選べます。振り返りは日ごと・週平均・月平均のヒートマップ（〇=2、△=1、✕=0）を切り替えて表示します（日ごとは上の表示期間に連動、週・月は約6か月の別集計）。因果関係の証明ではなく、記録の並びを眺めるための参考です。
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -538,13 +542,24 @@ export function DashboardPageClient() {
 
         <div className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
           <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
-            振り返り（期間平均のヒートマップ）
+            振り返り（ヒートマップ）
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
             食事・歩数・体調を 〇=2、△=1、✕=0
-            にしたヒートマップです。週平均と月平均を切り替えられます（直近約6か月・上の表示期間7/14/30日とは別データ）。下の「週ごとのサマリー」には週平均と短い示唆文があります。
+            にしたヒートマップです。日ごとは上の「直近7/14/30日」に連動し、週・月は直近約6か月を別途集計します。下の「週ごとのサマリー」には週平均と短い示唆文があります。
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setReflectionHeatmapMode("day")}
+              className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
+                reflectionHeatmapMode === "day"
+                  ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
+                  : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
+              }`}
+            >
+              日ごと
+            </button>
             <button
               type="button"
               onClick={() => setReflectionHeatmapMode("week")}
@@ -568,27 +583,45 @@ export function DashboardPageClient() {
               月ごと（月平均）
             </button>
           </div>
-          {!hasAnyReflectionHeatmap ? (
+          {reflectionHeatmapMode === "day" ? (
+            !hasAnyDailyReflectionScore ? (
+              <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
+                選択した表示期間に振り返りの記録がありません。
+              </p>
+            ) : (
+              <>
+                <h3 className="mt-3 text-xs font-medium text-[color:var(--hp-foreground)]">
+                  日ごと（表示期間に連動）
+                </h3>
+                <ReflectionHeatmap points={dailyPoints} />
+              </>
+            )
+          ) : reflectionHeatmapMode === "week" ? (
+            !hasWeeklyReflectionHeatmapData ? (
+              <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
+                週平均ヒートマップ用の振り返り記録がありません。
+              </p>
+            ) : (
+              <div className="mt-3">
+                <ReflectionWeeklyAvgHeatmap
+                  columns={weeklyReflectionHeatmapColumns}
+                  heading="週平均（約6か月・表示期間の切り替えと無関係）"
+                  footer="直近約186日を週単位に集計し、最長9週を左から古い順に表示します。セルは0〜2の週平均（記録があった日のみで平均）です。"
+                  periodAvgWord="週"
+                />
+              </div>
+            )
+          ) : !hasMonthlyReflectionHeatmapData ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
-              {reflectionHeatmapMode === "week"
-                ? "週平均ヒートマップ用の振り返り記録がありません。"
-                : "月平均ヒートマップ用の振り返り記録がありません。"}
+              月平均ヒートマップ用の振り返り記録がありません。
             </p>
           ) : (
             <div className="mt-3">
               <ReflectionWeeklyAvgHeatmap
-                columns={activeReflectionHeatmapColumns}
-                heading={
-                  reflectionHeatmapMode === "week"
-                    ? "週平均（約6か月・表示期間の切り替えと無関係）"
-                    : "月平均（約6か月・表示期間の切り替えと無関係）"
-                }
-                footer={
-                  reflectionHeatmapMode === "week"
-                    ? "直近約186日を週単位に集計し、最長9週を左から古い順に表示します。セルは0〜2の週平均（記録があった日のみで平均）です。"
-                    : "直近約186日を月単位に集計し、最長8か月を左から古い順に表示します。セルは0〜2の月平均（記録があった日のみで平均）です。"
-                }
-                periodAvgWord={reflectionHeatmapMode === "week" ? "週" : "月"}
+                columns={monthlyReflectionHeatmapColumns}
+                heading="月平均（約6か月・表示期間の切り替えと無関係）"
+                footer="直近約186日を月単位に集計し、最長8か月を左から古い順に表示します。セルは0〜2の月平均（記録があった日のみで平均）です。"
+                periodAvgWord="月"
               />
             </div>
           )}
