@@ -2,6 +2,7 @@
 
 import { loadDashboardSnapshot } from "@/lib/db";
 import type {
+  BloodPressureEntry,
   ClinicAppointmentEntry,
   ClinicEntry,
   DailyReflectionEntry,
@@ -9,15 +10,22 @@ import type {
   WeightEntry,
 } from "@/lib/db/types";
 import { selectDashboardClinicAppointments } from "@/lib/clinic-appointments-dashboard";
+import {
+  DASHBOARD_PREFS_CHANGED,
+  readDashboardDisplayPreferences,
+  type DashboardDisplayPreferences,
+} from "@/lib/dashboard-preferences";
 import { ReflectionHeatmap } from "@/components/reflection-heatmap";
 import { ReflectionWeeklyAvgHeatmap } from "@/components/reflection-weekly-avg-heatmap";
 import {
+  buildBpChartRows,
   buildCombinedChartRows,
   buildDailyDashboardPoints,
   buildMonthlyReflectionHeatmapColumns,
   buildWeeklyDashboardRows,
   buildWeeklyReflectionHeatmapColumns,
   type CombinedChartGranularity,
+  weeklyBloodPressureNarrative,
   weeklyDashboardCoachNarrative,
   weeklyReflectionNarrative,
   weeklyStepsNarrative,
@@ -33,6 +41,7 @@ import {
   ComposedChart,
   Legend,
   Line,
+  LineChart,
   ReferenceArea,
   ResponsiveContainer,
   Tooltip,
@@ -62,11 +71,17 @@ function readWeightGoalFromStorage(): { min: string; max: string } {
 export function DashboardPageClient() {
   const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([]);
   const [stepsEntries, setStepsEntries] = useState<StepsEntry[]>([]);
+  const [bloodPressureEntries, setBloodPressureEntries] = useState<
+    BloodPressureEntry[]
+  >([]);
   const [reflections, setReflections] = useState<DailyReflectionEntry[]>([]);
   const [clinicAppointments, setClinicAppointments] = useState<
     ClinicAppointmentEntry[]
   >([]);
   const [clinicEntries, setClinicEntries] = useState<ClinicEntry[]>([]);
+  const [dashPrefs, setDashPrefs] = useState<DashboardDisplayPreferences>(() =>
+    readDashboardDisplayPreferences(),
+  );
   const [error, setError] = useState<string | null>(null);
   const [periodDays, setPeriodDays] = useState<(typeof PERIODS)[number]>(7);
   const [chartGranularity, setChartGranularity] =
@@ -83,6 +98,7 @@ export function DashboardPageClient() {
       const snap = await loadDashboardSnapshot();
       setWeightEntries(snap.weight);
       setStepsEntries(snap.steps);
+      setBloodPressureEntries(snap.bloodPressure);
       setReflections(snap.dailyReflections);
       setClinicAppointments(snap.clinicAppointments);
       setClinicEntries(snap.clinics);
@@ -94,6 +110,19 @@ export function DashboardPageClient() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const syncPrefs = () => {
+      setDashPrefs(readDashboardDisplayPreferences());
+    };
+    syncPrefs();
+    window.addEventListener(DASHBOARD_PREFS_CHANGED, syncPrefs);
+    window.addEventListener("focus", syncPrefs);
+    return () => {
+      window.removeEventListener(DASHBOARD_PREFS_CHANGED, syncPrefs);
+      window.removeEventListener("focus", syncPrefs);
+    };
+  }, []);
 
   useEffect(() => {
     const sync = () => {
@@ -129,8 +158,9 @@ export function DashboardPageClient() {
         weightEntries,
         stepsEntries,
         reflections,
+        bloodPressureEntries,
       ),
-    [periodDays, weightEntries, stepsEntries, reflections],
+    [periodDays, weightEntries, stepsEntries, reflections, bloodPressureEntries],
   );
 
   const weeklyRows = useMemo(
@@ -145,8 +175,9 @@ export function DashboardPageClient() {
         weightEntries,
         stepsEntries,
         reflections,
+        bloodPressureEntries,
       ),
-    [weightEntries, stepsEntries, reflections],
+    [weightEntries, stepsEntries, reflections, bloodPressureEntries],
   );
 
   const weeklyReflectionHeatmapColumns = useMemo(
@@ -190,6 +221,42 @@ export function DashboardPageClient() {
     () => buildCombinedChartRows(dailyPoints, chartGranularity),
     [dailyPoints, chartGranularity],
   );
+
+  const bpChartData = useMemo(
+    () => buildBpChartRows(dailyPoints, chartGranularity),
+    [dailyPoints, chartGranularity],
+  );
+
+  const hasAnyBpOnChart = bpChartData.some(
+    (p) => p.systolic != null && p.diastolic != null,
+  );
+
+  const hasAnyPulseOnChart = bpChartData.some((p) => p.pulse != null);
+
+  const bpYDomain = useMemo((): [number, number] => {
+    const vals: number[] = [];
+    for (const p of bpChartData) {
+      if (p.systolic != null) {
+        vals.push(p.systolic);
+      }
+      if (p.diastolic != null) {
+        vals.push(p.diastolic);
+      }
+    }
+    if (vals.length === 0) {
+      return [60, 140];
+    }
+    const lo = Math.min(...vals);
+    const hi = Math.max(...vals);
+    const pad = Math.max(8, Math.round((hi - lo) * 0.12));
+    return [Math.max(40, lo - pad), hi + pad];
+  }, [bpChartData]);
+
+  const showCore = dashPrefs.showCoreBundle;
+  const showBp = dashPrefs.showBloodPressure;
+  const showAppt = dashPrefs.showAppointments;
+  const showWeeklySection = showCore || showBp;
+  const showPeriodToolbar = showCore || showBp;
 
   const goalBand = useMemo((): WeightGoalBand | null => {
     const gm = Number.parseFloat(goalMinStr);
@@ -297,49 +364,71 @@ export function DashboardPageClient() {
         ホーム
       </h1>
       <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
-        体重（折れ線）と歩数（棒）を同じ軸で重ね、表示は日ごと・週平均・月平均から選べます。振り返りは日ごと・週平均・月平均のヒートマップ（〇=2、△=1、✕=0）を切り替えて表示します（日ごとは上の表示期間に連動、週・月は約6か月の別集計）。因果関係の証明ではなく、記録の並びを眺めるための参考です。
+        表示するレポートは{" "}
+        <Link
+          href="/settings"
+          className="text-[color:var(--hp-accent)] underline-offset-2 hover:underline"
+        >
+          設定
+        </Link>
+        から選べます。体重・歩数・振り返り、血圧、通院予定を組み合わせて表示できます。グラフは日ごと・週平均・月平均に切り替え可能です。因果関係の証明ではなく、記録の並びを眺めるための参考です。
       </p>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <span className="text-xs text-[color:var(--hp-muted)]">表示期間:</span>
-        {PERIODS.map((d) => (
-          <button
-            key={d}
-            type="button"
-            onClick={() => setPeriodDays(d)}
-            className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
-              periodDays === d
-                ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
-                : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
-            }`}
+      {!showCore && !showBp && !showAppt ? (
+        <p className="mt-4 rounded-lg border border-dashed border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-sm text-[color:var(--hp-muted)]">
+          ダッシュボードの項目がすべてオフです。{" "}
+          <Link
+            href="/settings"
+            className="text-[color:var(--hp-accent)] underline"
           >
-            直近{d}日
-          </button>
-        ))}
-        <span className="ml-1 text-xs text-[color:var(--hp-muted)]">
-          グラフの集計:
-        </span>
-        {(
-          [
-            { id: "day" as const, label: "日ごと" },
-            { id: "week" as const, label: "週ごと" },
-            { id: "month" as const, label: "月ごと" },
-          ] as const
-        ).map(({ id, label }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setChartGranularity(id)}
-            className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
-              chartGranularity === id
-                ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
-                : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+            設定
+          </Link>
+          で表示をオンにしてください。
+        </p>
+      ) : null}
+
+      {showPeriodToolbar ? (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-[color:var(--hp-muted)]">表示期間:</span>
+          {PERIODS.map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => setPeriodDays(d)}
+              className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
+                periodDays === d
+                  ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
+                  : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
+              }`}
+            >
+              直近{d}日
+            </button>
+          ))}
+          <span className="ml-1 text-xs text-[color:var(--hp-muted)]">
+            グラフの集計:
+          </span>
+          {(
+            [
+              { id: "day" as const, label: "日ごと" },
+              { id: "week" as const, label: "週ごと" },
+              { id: "month" as const, label: "月ごと" },
+            ] as const
+          ).map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setChartGranularity(id)}
+              className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
+                chartGranularity === id
+                  ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
+                  : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {error ? (
         <p className="mt-4 text-sm text-red-600 dark:text-red-400" role="alert">
@@ -347,6 +436,7 @@ export function DashboardPageClient() {
         </p>
       ) : null}
 
+      {showAppt ? (
       <div className="mt-6 rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
         <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
           通院予定（7日以内）
@@ -395,8 +485,11 @@ export function DashboardPageClient() {
           </Link>
         </p>
       </div>
+      ) : null}
 
       <section className="mt-8 space-y-10">
+        {showCore ? (
+          <>
         <div className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
           <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
             体重と歩数（折れ線＋棒）
@@ -636,13 +729,122 @@ export function DashboardPageClient() {
             へ。
           </p>
         </div>
+          </>
+        ) : null}
 
+        {showBp ? (
+        <div className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
+          <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
+            血圧（折れ線）
+            <span className="ml-1.5 font-normal text-[color:var(--hp-muted)]">
+              {chartGranularity === "day"
+                ? "・日ごと"
+                : chartGranularity === "week"
+                  ? "・週平均"
+                  : "・月平均"}
+            </span>
+          </h2>
+          <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
+            収縮期・拡張期（脈拍は記録があるときのみ表示）の推移です。週・月は血圧を記録した日のみを平均した値です。医療的な判定ではなく、記録の並びの参考としてください。
+          </p>
+          {!hasAnyBpOnChart ? (
+            <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
+              この期間に血圧の記録がありません。
+            </p>
+          ) : (
+            <div className="mt-3 h-64 w-full min-h-[16rem] min-w-0">
+              <ResponsiveContainer width="100%" height="100%" minHeight={256}>
+                <LineChart
+                  data={bpChartData}
+                  margin={{ top: 8, right: 12, left: 4, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    stroke="var(--hp-border)"
+                    strokeDasharray="3 3"
+                  />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fill: "var(--hp-muted)", fontSize: 10 }}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis
+                    domain={bpYDomain}
+                    tick={{ fill: "var(--hp-muted)", fontSize: 11 }}
+                    width={44}
+                    label={{
+                      value: "mmHg",
+                      position: "insideLeft",
+                      fill: "var(--hp-muted)",
+                      fontSize: 10,
+                    }}
+                  />
+                  <Tooltip
+                    content={
+                      <BpTooltip chartGranularity={chartGranularity} />
+                    }
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Line
+                    type="monotone"
+                    dataKey="systolic"
+                    name="収縮期 (mmHg)"
+                    stroke="#dc2626"
+                    strokeWidth={2}
+                    dot={{ r: 2 }}
+                    connectNulls={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="diastolic"
+                    name="拡張期 (mmHg)"
+                    stroke="#2563eb"
+                    strokeWidth={2}
+                    dot={{ r: 2 }}
+                    connectNulls={false}
+                  />
+                  {hasAnyPulseOnChart ? (
+                    <Line
+                      type="monotone"
+                      dataKey="pulse"
+                      name="脈拍 (回/分)"
+                      stroke="#64748b"
+                      strokeWidth={1.5}
+                      strokeDasharray="4 3"
+                      dot={{ r: 2 }}
+                      connectNulls={false}
+                    />
+                  ) : null}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          <p className="mt-2 text-xs text-[color:var(--hp-muted)]">
+            記録の追加・修正は{" "}
+            <Link
+              href="/blood-pressure"
+              className="text-[color:var(--hp-accent)] underline"
+            >
+              血圧
+            </Link>
+            へ。
+          </p>
+        </div>
+        ) : null}
+
+        {showWeeklySection ? (
         <div className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
           <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
             週ごとのサマリー（直近8週）
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            新しい週が上に来ます。その週に記録があった日だけを平均しています。記録日数が少ない週は値がブレやすいです。体重・歩数・振り返りの事実ベースの文に続き、目標帯や食事・運動の観点からの短いコメントが付きます（いずれも自動生成・診断や目標設定ではありません）。
+            新しい週が上に来ます。その週に記録があった日だけを平均しています。記録日数が少ない週は値がブレやすいです。
+            {showCore
+              ? " 体重・歩数・振り返りの事実ベースの文に続き、目標帯や食事・運動の観点からの短いコメントが付きます。"
+              : ""}
+            {showBp
+              ? " 血圧は週平均と前週との差の事実文、および生活面の補足コメントを含みます。"
+              : ""}
+            （いずれも自動生成・診断や目標設定ではありません。）
           </p>
           {weeklyRows.length === 0 ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
@@ -663,60 +865,86 @@ export function DashboardPageClient() {
                         {row.label}
                       </p>
                       <dl className="mt-2 space-y-3 text-sm">
-                        <div>
-                          <dt className="text-xs text-[color:var(--hp-muted)]">
-                            体重
-                          </dt>
-                          <dd className="mt-0.5 tabular-nums text-[color:var(--hp-foreground)]">
-                            {row.avgWeightKg != null
-                              ? `${row.avgWeightKg} kg`
-                              : "—"}
-                            <span className="text-xs text-[color:var(--hp-muted)]">
-                              {" "}
-                              （記録 {row.weightDays} 日）
-                            </span>
-                          </dd>
-                          <p className="mt-1.5 text-xs leading-relaxed text-[color:var(--hp-muted)]">
-                            {weeklyWeightNarrative(row, prev)}
-                          </p>
-                        </div>
-                        <div>
-                          <dt className="text-xs text-[color:var(--hp-muted)]">
-                            歩数
-                          </dt>
-                          <dd className="mt-0.5 tabular-nums text-[color:var(--hp-foreground)]">
-                            {row.avgSteps != null
-                              ? `${row.avgSteps.toLocaleString("ja-JP")} 歩`
-                              : "—"}
-                            <span className="text-xs text-[color:var(--hp-muted)]">
-                              {" "}
-                              （記録 {row.stepsRecordedDays} 日）
-                            </span>
-                          </dd>
-                          <p className="mt-1.5 text-xs leading-relaxed text-[color:var(--hp-muted)]">
-                            {weeklyStepsNarrative(row, prev)}
-                          </p>
-                        </div>
-                        <div>
-                          <dt className="text-xs text-[color:var(--hp-muted)]">
-                            振り返り（合計の週平均）
-                          </dt>
-                          <dd className="mt-0.5 tabular-nums text-[color:var(--hp-foreground)]">
-                            {row.avgReflectionTotal != null
-                              ? `${row.avgReflectionTotal} / 6`
-                              : "—"}
-                            <span className="text-xs text-[color:var(--hp-muted)]">
-                              {" "}
-                              （記録 {row.reflectionDays} 日）
-                            </span>
-                          </dd>
-                          <p className="mt-1.5 text-xs leading-relaxed text-[color:var(--hp-muted)]">
-                            {weeklyReflectionNarrative(row, prev)}
-                          </p>
-                        </div>
+                        {showCore ? (
+                          <>
+                            <div>
+                              <dt className="text-xs text-[color:var(--hp-muted)]">
+                                体重
+                              </dt>
+                              <dd className="mt-0.5 tabular-nums text-[color:var(--hp-foreground)]">
+                                {row.avgWeightKg != null
+                                  ? `${row.avgWeightKg} kg`
+                                  : "—"}
+                                <span className="text-xs text-[color:var(--hp-muted)]">
+                                  {" "}
+                                  （記録 {row.weightDays} 日）
+                                </span>
+                              </dd>
+                              <p className="mt-1.5 text-xs leading-relaxed text-[color:var(--hp-muted)]">
+                                {weeklyWeightNarrative(row, prev)}
+                              </p>
+                            </div>
+                            <div>
+                              <dt className="text-xs text-[color:var(--hp-muted)]">
+                                歩数
+                              </dt>
+                              <dd className="mt-0.5 tabular-nums text-[color:var(--hp-foreground)]">
+                                {row.avgSteps != null
+                                  ? `${row.avgSteps.toLocaleString("ja-JP")} 歩`
+                                  : "—"}
+                                <span className="text-xs text-[color:var(--hp-muted)]">
+                                  {" "}
+                                  （記録 {row.stepsRecordedDays} 日）
+                                </span>
+                              </dd>
+                              <p className="mt-1.5 text-xs leading-relaxed text-[color:var(--hp-muted)]">
+                                {weeklyStepsNarrative(row, prev)}
+                              </p>
+                            </div>
+                            <div>
+                              <dt className="text-xs text-[color:var(--hp-muted)]">
+                                振り返り（合計の週平均）
+                              </dt>
+                              <dd className="mt-0.5 tabular-nums text-[color:var(--hp-foreground)]">
+                                {row.avgReflectionTotal != null
+                                  ? `${row.avgReflectionTotal} / 6`
+                                  : "—"}
+                                <span className="text-xs text-[color:var(--hp-muted)]">
+                                  {" "}
+                                  （記録 {row.reflectionDays} 日）
+                                </span>
+                              </dd>
+                              <p className="mt-1.5 text-xs leading-relaxed text-[color:var(--hp-muted)]">
+                                {weeklyReflectionNarrative(row, prev)}
+                              </p>
+                            </div>
+                          </>
+                        ) : null}
+                        {showBp ? (
+                          <div>
+                            <dt className="text-xs text-[color:var(--hp-muted)]">
+                              血圧（週平均）
+                            </dt>
+                            <dd className="mt-0.5 tabular-nums text-[color:var(--hp-foreground)]">
+                              {row.avgSystolic != null &&
+                              row.avgDiastolic != null
+                                ? `${row.avgSystolic} / ${row.avgDiastolic} mmHg`
+                                : "—"}
+                              <span className="text-xs text-[color:var(--hp-muted)]">
+                                {" "}
+                                （記録 {row.bpRecordedDays} 日）
+                              </span>
+                            </dd>
+                            <p className="mt-1.5 text-xs leading-relaxed text-[color:var(--hp-muted)]">
+                              {weeklyBloodPressureNarrative(row, prev)}
+                            </p>
+                          </div>
+                        ) : null}
                       </dl>
                       <p className="mt-3 border-t border-[color:var(--hp-border)] pt-3 text-xs leading-relaxed text-[color:var(--hp-foreground)]">
-                        {weeklyDashboardCoachNarrative(row, prev, goalBand)}
+                        {weeklyDashboardCoachNarrative(row, prev, goalBand, {
+                          includeBloodPressure: showBp,
+                        })}
                       </p>
                     </li>
                   );
@@ -730,24 +958,38 @@ export function DashboardPageClient() {
                       <th className="w-[5.5rem] px-2 py-2 font-medium text-[color:var(--hp-muted)]">
                         週
                       </th>
-                      <th className="w-[4.5rem] px-1 py-2 text-right font-medium text-[color:var(--hp-muted)]">
-                        体重
-                      </th>
-                      <th className="w-[2.5rem] px-1 py-2 text-center font-medium text-[color:var(--hp-muted)]">
-                        日
-                      </th>
-                      <th className="w-[5rem] px-1 py-2 text-right font-medium text-[color:var(--hp-muted)]">
-                        歩数
-                      </th>
-                      <th className="w-[2.5rem] px-1 py-2 text-center font-medium text-[color:var(--hp-muted)]">
-                        日
-                      </th>
-                      <th className="w-[4rem] px-1 py-2 text-right font-medium text-[color:var(--hp-muted)]">
-                        振返
-                      </th>
-                      <th className="w-[2.5rem] px-1 py-2 text-center font-medium text-[color:var(--hp-muted)]">
-                        日
-                      </th>
+                      {showCore ? (
+                        <>
+                          <th className="w-[4.5rem] px-1 py-2 text-right font-medium text-[color:var(--hp-muted)]">
+                            体重
+                          </th>
+                          <th className="w-[2.5rem] px-1 py-2 text-center font-medium text-[color:var(--hp-muted)]">
+                            日
+                          </th>
+                          <th className="w-[5rem] px-1 py-2 text-right font-medium text-[color:var(--hp-muted)]">
+                            歩数
+                          </th>
+                          <th className="w-[2.5rem] px-1 py-2 text-center font-medium text-[color:var(--hp-muted)]">
+                            日
+                          </th>
+                          <th className="w-[4rem] px-1 py-2 text-right font-medium text-[color:var(--hp-muted)]">
+                            振返
+                          </th>
+                          <th className="w-[2.5rem] px-1 py-2 text-center font-medium text-[color:var(--hp-muted)]">
+                            日
+                          </th>
+                        </>
+                      ) : null}
+                      {showBp ? (
+                        <>
+                          <th className="w-[4.25rem] px-1 py-2 text-right font-medium text-[color:var(--hp-muted)]">
+                            血圧
+                          </th>
+                          <th className="w-[2.5rem] px-1 py-2 text-center font-medium text-[color:var(--hp-muted)]">
+                            日
+                          </th>
+                        </>
+                      ) : null}
                       <th className="min-w-0 px-2 py-2 font-medium text-[color:var(--hp-muted)]">
                         自動コメント（事実＋ひとこと）
                       </th>
@@ -765,40 +1007,74 @@ export function DashboardPageClient() {
                           <td className="whitespace-nowrap px-2 py-2">
                             {row.label}
                           </td>
-                          <td className="px-1 py-2 text-right tabular-nums">
-                            {row.avgWeightKg != null
-                              ? `${row.avgWeightKg} kg`
-                              : "—"}
-                          </td>
-                          <td className="px-1 py-2 text-center tabular-nums">
-                            {row.weightDays}
-                          </td>
-                          <td className="break-all px-1 py-2 text-right tabular-nums">
-                            {row.avgSteps != null
-                              ? row.avgSteps.toLocaleString("ja-JP")
-                              : "—"}
-                          </td>
-                          <td className="px-1 py-2 text-center tabular-nums">
-                            {row.stepsRecordedDays}
-                          </td>
-                          <td className="px-1 py-2 text-right tabular-nums">
-                            {row.avgReflectionTotal != null
-                              ? `${row.avgReflectionTotal}/6`
-                              : "—"}
-                          </td>
-                          <td className="px-1 py-2 text-center tabular-nums">
-                            {row.reflectionDays}
-                          </td>
+                          {showCore ? (
+                            <>
+                              <td className="px-1 py-2 text-right tabular-nums">
+                                {row.avgWeightKg != null
+                                  ? `${row.avgWeightKg} kg`
+                                  : "—"}
+                              </td>
+                              <td className="px-1 py-2 text-center tabular-nums">
+                                {row.weightDays}
+                              </td>
+                              <td className="break-all px-1 py-2 text-right tabular-nums">
+                                {row.avgSteps != null
+                                  ? row.avgSteps.toLocaleString("ja-JP")
+                                  : "—"}
+                              </td>
+                              <td className="px-1 py-2 text-center tabular-nums">
+                                {row.stepsRecordedDays}
+                              </td>
+                              <td className="px-1 py-2 text-right tabular-nums">
+                                {row.avgReflectionTotal != null
+                                  ? `${row.avgReflectionTotal}/6`
+                                  : "—"}
+                              </td>
+                              <td className="px-1 py-2 text-center tabular-nums">
+                                {row.reflectionDays}
+                              </td>
+                            </>
+                          ) : null}
+                          {showBp ? (
+                            <>
+                              <td className="px-1 py-2 text-right tabular-nums">
+                                {row.avgSystolic != null &&
+                                row.avgDiastolic != null
+                                  ? `${row.avgSystolic}/${row.avgDiastolic}`
+                                  : "—"}
+                              </td>
+                              <td className="px-1 py-2 text-center tabular-nums">
+                                {row.bpRecordedDays}
+                              </td>
+                            </>
+                          ) : null}
                           <td className="min-w-0 whitespace-normal break-words px-2 py-2 text-[11px] leading-snug text-[color:var(--hp-muted)] lg:text-xs">
-                            <p>{weeklyWeightNarrative(row, prev)}</p>
-                            <p className="mt-1.5 border-t border-dashed border-[color:var(--hp-border)] pt-1.5">
-                              {weeklyStepsNarrative(row, prev)}
-                            </p>
-                            <p className="mt-1.5 border-t border-dashed border-[color:var(--hp-border)] pt-1.5">
-                              {weeklyReflectionNarrative(row, prev)}
-                            </p>
+                            {showCore ? (
+                              <>
+                                <p>{weeklyWeightNarrative(row, prev)}</p>
+                                <p className="mt-1.5 border-t border-dashed border-[color:var(--hp-border)] pt-1.5">
+                                  {weeklyStepsNarrative(row, prev)}
+                                </p>
+                                <p className="mt-1.5 border-t border-dashed border-[color:var(--hp-border)] pt-1.5">
+                                  {weeklyReflectionNarrative(row, prev)}
+                                </p>
+                              </>
+                            ) : null}
+                            {showBp ? (
+                              <p
+                                className={
+                                  showCore
+                                    ? "mt-1.5 border-t border-dashed border-[color:var(--hp-border)] pt-1.5"
+                                    : undefined
+                                }
+                              >
+                                {weeklyBloodPressureNarrative(row, prev)}
+                              </p>
+                            ) : null}
                             <p className="mt-1.5 border-t border-[color:var(--hp-border)] pt-1.5 text-[color:var(--hp-foreground)]">
-                              {weeklyDashboardCoachNarrative(row, prev, goalBand)}
+                              {weeklyDashboardCoachNarrative(row, prev, goalBand, {
+                                includeBloodPressure: showBp,
+                              })}
                             </p>
                           </td>
                         </tr>
@@ -807,12 +1083,20 @@ export function DashboardPageClient() {
                   </tbody>
                 </table>
                 <p className="mt-2 text-[11px] text-[color:var(--hp-muted)]">
-                  列見出し：体重・歩数・振返は週平均、隣の「日」は記録があった日数です。
+                  列見出し：
+                  {showCore
+                    ? "体重・歩数・振返は週平均、隣の「日」は記録があった日数です。"
+                    : ""}
+                  {showCore && showBp ? " " : ""}
+                  {showBp
+                    ? "血圧は週平均の収縮期/拡張期、隣の「日」は血圧を記録した日数です。"
+                    : ""}
                 </p>
               </div>
             </>
           )}
         </div>
+        ) : null}
       </section>
     </main>
   );
@@ -898,6 +1182,62 @@ function CombinedTooltip({
         歩数:{" "}
         {row.steps != null
           ? `${row.steps.toLocaleString("ja-JP")} 歩${sSuffix}`
+          : "—"}
+      </div>
+    </div>
+  );
+}
+
+function BpTooltip({
+  active,
+  payload,
+  chartGranularity,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: Record<string, unknown>; dataKey?: string }>;
+  chartGranularity: CombinedChartGranularity;
+}) {
+  if (!active || !payload?.length) {
+    return null;
+  }
+  const row = payload[0]?.payload as {
+    date: string;
+    label: string;
+    systolic: number | null;
+    diastolic: number | null;
+    pulse: number | null;
+    bpSampleDays: number;
+  };
+  const agg = chartGranularity !== "day";
+  const bpSuffix =
+    agg &&
+    row.systolic != null &&
+    row.diastolic != null &&
+    row.bpSampleDays > 0
+      ? `（${row.bpSampleDays}日分の平均）`
+      : "";
+  const pulseSuffix =
+    agg && row.pulse != null && row.bpSampleDays > 0
+      ? `（${row.bpSampleDays}日分の平均）`
+      : "";
+  return (
+    <div className="rounded-md border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-2 py-1.5 text-xs shadow">
+      <div className="tabular-nums text-[color:var(--hp-muted)]">
+        {row.label}
+        {agg ? (
+          <span className="text-[color:var(--hp-muted)]"> ({row.date}〜)</span>
+        ) : null}
+      </div>
+      <div className="mt-1 text-[color:var(--hp-foreground)]">
+        収縮期/拡張期:{" "}
+        {row.systolic != null && row.diastolic != null
+          ? `${row.systolic} / ${row.diastolic} mmHg${bpSuffix}`
+          : "—"}
+      </div>
+      <div className="text-[color:var(--hp-foreground)]">
+        脈拍:{" "}
+        {row.pulse != null
+          ? `${row.pulse} 回/分${pulseSuffix}`
           : "—"}
       </div>
     </div>

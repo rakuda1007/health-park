@@ -1,4 +1,5 @@
 import type {
+  BloodPressureEntry,
   DailyReflectionEntry,
   ReflectionRating,
   StepsEntry,
@@ -33,6 +34,10 @@ export type DailyDashboardPoint = {
   conditionScore: number | null;
   /** 食事・歩数・体調スコアの合計（0〜6）、振り返り未記録は null */
   reflectionTotal: number | null;
+  /** 同日複数件は平均。未記録は null */
+  systolic: number | null;
+  diastolic: number | null;
+  pulse: number | null;
 };
 
 /** 体重・歩数の複合グラフ用（日次・週次・月次のいずれか） */
@@ -158,6 +163,135 @@ export function buildCombinedChartRows(
     });
 }
 
+/** 血圧グラフ用（収縮期・拡張期・脈拍） */
+export type BpChartRow = {
+  date: string;
+  label: string;
+  systolic: number | null;
+  diastolic: number | null;
+  pulse: number | null;
+  /** 集計バケット内で血圧があった日数 */
+  bpSampleDays: number;
+};
+
+/**
+ * 日次ポイントから血圧チャート用の系列を生成する。
+ */
+export function buildBpChartRows(
+  dailyPoints: DailyDashboardPoint[],
+  granularity: CombinedChartGranularity,
+): BpChartRow[] {
+  if (granularity === "day") {
+    return dailyPoints.map((p) => ({
+      date: p.date,
+      label: p.label,
+      systolic: p.systolic,
+      diastolic: p.diastolic,
+      pulse: p.pulse,
+      bpSampleDays: p.systolic != null ? 1 : 0,
+    }));
+  }
+
+  if (granularity === "week") {
+    const byWeek = new Map<string, DailyDashboardPoint[]>();
+    for (const p of dailyPoints) {
+      const wk = weekMondayKey(p.date);
+      const arr = byWeek.get(wk) ?? [];
+      arr.push(p);
+      byWeek.set(wk, arr);
+    }
+    return [...byWeek.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([weekStart, pts]) => {
+        const bpPts = pts.filter((p) => p.systolic != null && p.diastolic != null);
+        const sysVals = bpPts.map((p) => p.systolic!);
+        const diaVals = bpPts.map((p) => p.diastolic!);
+        const pulVals = pts
+          .filter((p) => p.pulse != null)
+          .map((p) => p.pulse!);
+        const sysAvg =
+          sysVals.length > 0 ? Math.round(mean(sysVals)) : null;
+        const diaAvg =
+          diaVals.length > 0 ? Math.round(mean(diaVals)) : null;
+        const pulAvg =
+          pulVals.length > 0 ? Math.round(mean(pulVals)) : null;
+        return {
+          date: weekStart,
+          label: formatWeekLabel(weekStart),
+          systolic: sysAvg,
+          diastolic: diaAvg,
+          pulse: pulAvg,
+          bpSampleDays: bpPts.length,
+        };
+      });
+  }
+
+  const byMonth = new Map<string, DailyDashboardPoint[]>();
+  for (const p of dailyPoints) {
+    const mk = monthKeyFromIso(p.date);
+    const arr = byMonth.get(mk) ?? [];
+    arr.push(p);
+    byMonth.set(mk, arr);
+  }
+  return [...byMonth.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([ym, pts]) => {
+      const bpPts = pts.filter((p) => p.systolic != null && p.diastolic != null);
+      const sysVals = bpPts.map((p) => p.systolic!);
+      const diaVals = bpPts.map((p) => p.diastolic!);
+      const pulVals = pts
+        .filter((p) => p.pulse != null)
+        .map((p) => p.pulse!);
+      const sysAvg =
+        sysVals.length > 0 ? Math.round(mean(sysVals)) : null;
+      const diaAvg =
+        diaVals.length > 0 ? Math.round(mean(diaVals)) : null;
+      const pulAvg =
+        pulVals.length > 0 ? Math.round(mean(pulVals)) : null;
+      return {
+        date: firstDayOfMonthYm(ym),
+        label: formatMonthLabelJa(ym),
+        systolic: sysAvg,
+        diastolic: diaAvg,
+        pulse: pulAvg,
+        bpSampleDays: bpPts.length,
+      };
+    });
+}
+
+function aggregateBloodPressureByDate(
+  entries: BloodPressureEntry[],
+): Map<string, { systolic: number; diastolic: number; pulse: number | null }> {
+  const byDate = new Map<string, BloodPressureEntry[]>();
+  for (const e of entries) {
+    const arr = byDate.get(e.date) ?? [];
+    arr.push(e);
+    byDate.set(e.date, arr);
+  }
+  const out = new Map<
+    string,
+    { systolic: number; diastolic: number; pulse: number | null }
+  >();
+  for (const [date, list] of byDate) {
+    const n = list.length;
+    const systolic = Math.round(
+      list.reduce((a, b) => a + b.systolic, 0) / n,
+    );
+    const diastolic = Math.round(
+      list.reduce((a, b) => a + b.diastolic, 0) / n,
+    );
+    const pulses = list
+      .map((x) => x.pulse)
+      .filter((x): x is number => x != null && x > 0);
+    const pulse =
+      pulses.length > 0
+        ? Math.round(pulses.reduce((a, b) => a + b, 0) / pulses.length)
+        : null;
+    out.set(date, { systolic, diastolic, pulse });
+  }
+  return out;
+}
+
 function addOneDayIso(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
   const dt = new Date(y, m - 1, d);
@@ -190,13 +324,14 @@ function formatShortDateLabel(iso: string): string {
 
 /**
  * 直近 daysBack 日分（今日を含む）の日ごとデータ。
- * 体重・歩数・振り返りは未記録の日は null（0 ではない）。
+ * 体重・歩数・振り返り・血圧は未記録の日は null（0 ではない）。
  */
 export function buildDailyDashboardPoints(
   daysBack: number,
   weightEntries: WeightEntry[],
   stepsEntries: StepsEntry[],
   reflections: DailyReflectionEntry[],
+  bloodPressureEntries: BloodPressureEntry[] = [],
 ): DailyDashboardPoint[] {
   const since = isoDateDaysAgo(daysBack);
   const end = todayIso();
@@ -206,11 +341,13 @@ export function buildDailyDashboardPoints(
   );
   const stepsMap = aggregateStepsByDate(stepsEntries);
   const reflMap = new Map(reflections.map((r) => [r.date, r]));
+  const bpMap = aggregateBloodPressureByDate(bloodPressureEntries);
 
   return days.map((date) => {
     const w = weightMap.get(date);
     const st = stepsMap.get(date);
     const rf = reflMap.get(date);
+    const bp = bpMap.get(date);
     const mealScore = rf ? ratingToScore(rf.mealRating) : null;
     const stepsSelf = rf ? ratingToScore(rf.stepsRating) : null;
     const cond = rf ? ratingToScore(rf.conditionRating) : null;
@@ -227,6 +364,9 @@ export function buildDailyDashboardPoints(
       stepsSelfScore: stepsSelf,
       conditionScore: cond,
       reflectionTotal: total,
+      systolic: bp?.systolic ?? null,
+      diastolic: bp?.diastolic ?? null,
+      pulse: bp?.pulse ?? null,
     };
   });
 }
@@ -248,6 +388,11 @@ export type WeeklyDashboardRow = {
   stepsSelfDays: number;
   avgConditionScore: number | null;
   conditionDays: number;
+  /** 週平均（記録があった日のみ）。脈拍は記録がある日のみ平均 */
+  avgSystolic: number | null;
+  avgDiastolic: number | null;
+  avgPulse: number | null;
+  bpRecordedDays: number;
 };
 
 function aggregateWeekRows(
@@ -276,6 +421,14 @@ function aggregateWeekRows(
       const condVals = pts
         .filter((p) => p.conditionScore != null)
         .map((p) => p.conditionScore!);
+      const bpPts = pts.filter(
+        (p) => p.systolic != null && p.diastolic != null,
+      );
+      const sysVals = bpPts.map((p) => p.systolic!);
+      const diaVals = bpPts.map((p) => p.diastolic!);
+      const pulVals = pts
+        .filter((p) => p.pulse != null)
+        .map((p) => p.pulse!);
       return {
         weekStart,
         label: formatWeekLabel(weekStart),
@@ -318,6 +471,19 @@ function aggregateWeekRows(
               ) / 10
             : null,
         conditionDays: condVals.length,
+        avgSystolic:
+          sysVals.length > 0
+            ? Math.round(mean(sysVals))
+            : null,
+        avgDiastolic:
+          diaVals.length > 0
+            ? Math.round(mean(diaVals))
+            : null,
+        avgPulse:
+          pulVals.length > 0
+            ? Math.round(mean(pulVals))
+            : null,
+        bpRecordedDays: bpPts.length,
       };
     })
     .sort((a, b) => a.weekStart.localeCompare(b.weekStart));
@@ -550,6 +716,39 @@ export function weeklyReflectionNarrative(
   return parts.join("。") + "。";
 }
 
+/**
+ * 血圧の週次サマリー用（医療診断ではなく記録上の参考）。
+ */
+export function weeklyBloodPressureNarrative(
+  row: WeeklyDashboardRow,
+  prev: WeeklyDashboardRow | null,
+): string {
+  if (row.avgSystolic == null || row.avgDiastolic == null) {
+    return "血圧の記録がありません。";
+  }
+  const days = row.bpRecordedDays;
+  let text = `収縮期・拡張期の週平均は ${row.avgSystolic} / ${row.avgDiastolic} mmHg（${days}日分の記録）。`;
+  if (row.avgPulse != null) {
+    text += ` 脈拍の週平均は ${row.avgPulse} 回/分。`;
+  }
+  if (days <= 2) {
+    text += " 記録日が少ないため、代表値としては参考程度です。";
+  }
+  if (
+    prev?.avgSystolic != null &&
+    prev.avgDiastolic != null
+  ) {
+    const dSys = row.avgSystolic - prev.avgSystolic;
+    const dDia = row.avgDiastolic - prev.avgDiastolic;
+    if (Math.abs(dSys) < 3 && Math.abs(dDia) < 3) {
+      text += " 前週の平均とほぼ同じ水準です。";
+    } else {
+      text += ` 前週の平均より収縮期 ${dSys > 0 ? "+" : ""}${dSys}、拡張期 ${dDia > 0 ? "+" : ""}${dDia} ほどの差です。`;
+    }
+  }
+  return text;
+}
+
 export type WeightGoalBand = { min: number; max: number };
 
 function hashSeed(parts: string[]): number {
@@ -569,6 +768,71 @@ function pickVariant(seed: number, variants: string[]): string {
   return variants[seed % variants.length]!;
 }
 
+function bloodPressureCoachLines(
+  row: WeeklyDashboardRow,
+  prev: WeeklyDashboardRow | null,
+  seed: number,
+): string[] {
+  if (row.avgSystolic == null || row.avgDiastolic == null) {
+    return [];
+  }
+  const lines: string[] = [];
+  const sys = row.avgSystolic;
+  const dia = row.avgDiastolic;
+  if (
+    prev?.avgSystolic != null &&
+    prev.avgDiastolic != null
+  ) {
+    const dSys = sys - prev.avgSystolic;
+    const dDia = dia - prev.avgDiastolic;
+    if (Math.abs(dSys) < 3 && Math.abs(dDia) < 3) {
+      lines.push(
+        pickVariant(seed, [
+          "血圧の週平均は前週に近いです。測定条件をそろえると比較しやすくなります。",
+          "前週と同水準に近い週でした。記録を続けている点は素晴らしいです。",
+        ]),
+      );
+    } else if (dSys > 5 || dDia > 3) {
+      lines.push(
+        pickVariant(seed + 1, [
+          "血圧の週平均は前週よりやや高めに見えます。睡眠や体調の影響もあり得ます。気になるときは医師に相談ください。",
+          "平均が前週より上がっています。ストレスや食塩の取り方もふり返ってみましょう。",
+        ]),
+      );
+    } else if (dSys < -5 || dDia < -3) {
+      lines.push(
+        pickVariant(seed + 2, [
+          "血圧の週平均は前週よりやや低めに見えます。めまいなどがあるときは無理せず相談を。",
+          "平均が前週より下がっています。体調とあわせて観察してみてください。",
+        ]),
+      );
+    }
+  }
+  if (sys >= 130 || dia >= 85) {
+    lines.push(
+      pickVariant(seed + 3, [
+        "一般的な目安ではやや高めの帯に近い週かもしれません。治療中なら医師の目標値を優先してください。",
+        "数値が高めの週です。自己判断せず、かかりつけの指示を大切にしましょう。",
+      ]),
+    );
+  } else if (sys < 100 && dia < 60) {
+    lines.push(
+      pickVariant(seed + 4, [
+        "平均はやや低めの帯に見えます。具合が優れない日が続くときは相談を。",
+        "血圧が低めに見える週です。水分と休息も意識してみてください。",
+      ]),
+    );
+  } else if (lines.length === 0) {
+    lines.push(
+      pickVariant(seed + 5, [
+        "血圧の記録が続いています。この習慣は健康管理の強みになります。",
+        "週平均はおおむね穏やかな範囲に見えます。ペースを維持していきましょう。",
+      ]),
+    );
+  }
+  return lines.length > 0 ? [lines[seed % lines.length]!] : [];
+}
+
 /**
  * 週次サマリー用の「ひと踏み込んだ」コメント（目標帯・食事・運動・励まし。診断ではない）。
  * 同じ週では同じ seed により文言が安定するようになっています。
@@ -577,9 +841,13 @@ export function weeklyDashboardCoachNarrative(
   row: WeeklyDashboardRow,
   prev: WeeklyDashboardRow | null,
   goal: WeightGoalBand | null,
+  options?: { includeBloodPressure?: boolean },
 ): string {
   const seed = hashSeed([row.weekStart, "v1"]);
   const sentences: string[] = [];
+  const includeBp = options?.includeBloodPressure === true;
+  const hasBpData =
+    row.avgSystolic != null && row.avgDiastolic != null;
 
   const hasWeight = row.avgWeightKg != null;
   const hasSteps = row.avgSteps != null;
@@ -587,8 +855,28 @@ export function weeklyDashboardCoachNarrative(
     row.avgMealScore != null ||
     row.avgStepsSelfScore != null ||
     row.avgConditionScore != null;
+  const hasAnyCore = hasWeight || hasSteps || hasRefl;
 
-  if (!hasWeight && !hasSteps && !hasRefl) {
+  if (!hasAnyCore && !hasBpData) {
+    return pickVariant(seed, [
+      "記録がまだ少ない週でした。無理のない範囲から続けてみましょう。",
+      "データが揃うと振り返りやすくなります。次の一歩を楽しみにしています。",
+      "小さな記録の積み重ねが後から効いてきます。焦らずで大丈夫です。",
+    ]);
+  }
+
+  if (!hasAnyCore && hasBpData && includeBp) {
+    const bpLines = bloodPressureCoachLines(row, prev, seed + 60);
+    const closing = pickVariant(seed + 40, [
+      "次の週も、自分に合うペースで十分です。",
+      "小さな積み重ねを信じて、続けていきましょう。",
+      "完璧より継続。今週もお疲れさまでした。",
+      "焦らず、また来週も記録を楽しんでみてください。",
+    ]);
+    return [...bpLines, closing].join("");
+  }
+
+  if (!hasAnyCore && hasBpData && !includeBp) {
     return pickVariant(seed, [
       "記録がまだ少ない週でした。無理のない範囲から続けてみましょう。",
       "データが揃うと振り返りやすくなります。次の一歩を楽しみにしています。",
@@ -736,6 +1024,10 @@ export function weeklyDashboardCoachNarrative(
         "データが揃うほど、自分のペースが見えやすくなります。",
       ]),
     );
+  }
+
+  if (includeBp && hasBpData) {
+    sentences.push(...bloodPressureCoachLines(row, prev, seed + 60));
   }
 
   const closing = pickVariant(seed + 40, [

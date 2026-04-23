@@ -106,6 +106,7 @@ export function getHealthDb(): Promise<IDBDatabase> {
 export async function loadDashboardSnapshot(): Promise<{
   weight: WeightEntry[];
   steps: StepsEntry[];
+  bloodPressure: BloodPressureEntry[];
   dailyReflections: DailyReflectionEntry[];
   clinicAppointments: ClinicAppointmentEntry[];
   clinics: ClinicEntry[];
@@ -114,6 +115,7 @@ export async function loadDashboardSnapshot(): Promise<{
   return new Promise((resolve, reject) => {
     const weight: WeightEntry[] = [];
     const steps: StepsEntry[] = [];
+    const bloodPressure: BloodPressureEntry[] = [];
     const reflections: DailyReflectionEntry[] = [];
     let appointments: ClinicAppointmentEntry[] = [];
     let clinics: ClinicEntry[] = [];
@@ -122,6 +124,7 @@ export async function loadDashboardSnapshot(): Promise<{
       [
         STORE_WEIGHT,
         STORE_STEPS,
+        STORE_BP,
         STORE_DAILY_REFLECTIONS,
         STORE_CLINIC_APPOINTMENTS,
         STORE_CLINICS,
@@ -135,13 +138,14 @@ export async function loadDashboardSnapshot(): Promise<{
     tx.onabort = () =>
       reject(tx.error ?? new Error("IndexedDB の読み取りが中断されました"));
 
-    let remaining = 5;
+    let remaining = 6;
     const tryFinish = () => {
       remaining -= 1;
       if (remaining === 0) {
         resolve({
           weight,
           steps,
+          bloodPressure,
           dailyReflections: reflections,
           clinicAppointments: [...appointments].sort((a, b) =>
             a.startsAt.localeCompare(b.startsAt),
@@ -168,6 +172,7 @@ export async function loadDashboardSnapshot(): Promise<{
 
     openDateDesc(STORE_WEIGHT, weight);
     openDateDesc(STORE_STEPS, steps);
+    openDateDesc(STORE_BP, bloodPressure);
     openDateDesc(STORE_DAILY_REFLECTIONS, reflections);
 
     const apReq = tx.objectStore(STORE_CLINIC_APPOINTMENTS).getAll();
