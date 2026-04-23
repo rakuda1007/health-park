@@ -1,14 +1,14 @@
 "use client";
 
-import type { WeeklyReflectionHeatmapColumn } from "@/lib/dashboard-series";
+import type { ReflectionAggHeatmapColumn } from "@/lib/dashboard-series";
 
 const ROWS: {
   key: keyof Pick<
-    WeeklyReflectionHeatmapColumn,
+    ReflectionAggHeatmapColumn,
     "avgMealScore" | "avgStepsSelfScore" | "avgConditionScore"
   >;
   daysKey: keyof Pick<
-    WeeklyReflectionHeatmapColumn,
+    ReflectionAggHeatmapColumn,
     "mealDays" | "stepsSelfDays" | "conditionDays"
   >;
   label: string;
@@ -32,10 +32,21 @@ function cellBgAverage(v: number | null): string {
 }
 
 type Props = {
-  columns: WeeklyReflectionHeatmapColumn[];
+  columns: ReflectionAggHeatmapColumn[];
+  /** 見出し（例: 週平均（…）） */
+  heading: string;
+  /** 表下の説明文 */
+  footer: string;
+  /** ツールチップ内の「○○平均」（例: 週 / 月） */
+  periodAvgWord: string;
 };
 
-export function ReflectionWeeklyAvgHeatmap({ columns }: Props) {
+export function ReflectionWeeklyAvgHeatmap({
+  columns,
+  heading,
+  footer,
+  periodAvgWord,
+}: Props) {
   if (columns.length === 0) {
     return null;
   }
@@ -43,7 +54,7 @@ export function ReflectionWeeklyAvgHeatmap({ columns }: Props) {
   return (
     <div className="w-full min-w-0">
       <h3 className="text-xs font-medium text-[color:var(--hp-foreground)]">
-        週平均（約2か月・表示期間の切り替えと無関係）
+        {heading}
       </h3>
       <div className="mt-2 rounded-lg border border-[color:var(--hp-border)]">
         <table className="w-full table-fixed border-collapse text-[9px] sm:text-[10px]">
@@ -54,7 +65,7 @@ export function ReflectionWeeklyAvgHeatmap({ columns }: Props) {
               </th>
               {columns.map((c) => (
                 <th
-                  key={c.weekStart}
+                  key={c.periodKey}
                   className="px-0.5 py-1 text-center font-normal leading-tight text-[color:var(--hp-muted)]"
                 >
                   {c.label}
@@ -74,11 +85,11 @@ export function ReflectionWeeklyAvgHeatmap({ columns }: Props) {
                 {columns.map((c) => {
                   const v = c[row.key];
                   const days = c[row.daysKey];
-                  const title = `${c.weekStart} ${row.label}: 週平均 ${
+                  const title = `${c.periodKey} ${row.label}: ${periodAvgWord}平均 ${
                     v != null ? v.toFixed(1) : "—"
                   }（${days}日分の記録）`;
                   return (
-                    <td key={`${c.weekStart}-${row.key}`} className="p-0">
+                    <td key={`${c.periodKey}-${row.key}`} className="p-0">
                       <div
                         className="mx-px flex min-h-[1.75rem] min-w-0 items-center justify-center rounded-sm border border-[color:var(--hp-border)] tabular-nums sm:min-h-[2rem]"
                         style={{ background: cellBgAverage(v) }}
@@ -98,9 +109,7 @@ export function ReflectionWeeklyAvgHeatmap({ columns }: Props) {
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-[11px] text-[color:var(--hp-muted)]">
-        直近約62日を週単位に集計し、最長9週を左から古い順に表示します。セルは0〜2の週平均（記録があった日のみで平均）です。
-      </p>
+      <p className="mt-2 text-[11px] text-[color:var(--hp-muted)]">{footer}</p>
     </div>
   );
 }

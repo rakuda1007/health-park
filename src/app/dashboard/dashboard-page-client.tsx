@@ -9,15 +9,19 @@ import type {
   WeightEntry,
 } from "@/lib/db/types";
 import { selectDashboardClinicAppointments } from "@/lib/clinic-appointments-dashboard";
-import { ReflectionHeatmap } from "@/components/reflection-heatmap";
 import { ReflectionWeeklyAvgHeatmap } from "@/components/reflection-weekly-avg-heatmap";
 import {
+  buildCombinedChartRows,
   buildDailyDashboardPoints,
+  buildMonthlyReflectionHeatmapColumns,
   buildWeeklyDashboardRows,
   buildWeeklyReflectionHeatmapColumns,
+  type CombinedChartGranularity,
+  weeklyDashboardCoachNarrative,
   weeklyReflectionNarrative,
   weeklyStepsNarrative,
   weeklyWeightNarrative,
+  type WeightGoalBand,
 } from "@/lib/dashboard-series";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -37,8 +41,8 @@ import {
 
 const PERIODS = [7, 14, 30] as const;
 
-/** 週平均ヒートマップ用（約2か月・表示期間スイッチと独立） */
-const REFLECTION_HEATMAP_DAYS_BACK = 62;
+/** 週／月平均ヒートマップ用（表示期間スイッチと独立・約6か月） */
+const REFLECTION_HEATMAP_DAYS_BACK = 186;
 
 /** `weight-visualization.tsx` と同じキー（体重画面で設定した目標帯） */
 const LS_WEIGHT_GOAL_MIN = "health-park-weight-goal-min";
@@ -64,6 +68,11 @@ export function DashboardPageClient() {
   const [clinicEntries, setClinicEntries] = useState<ClinicEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [periodDays, setPeriodDays] = useState<(typeof PERIODS)[number]>(7);
+  const [chartGranularity, setChartGranularity] =
+    useState<CombinedChartGranularity>("day");
+  const [reflectionHeatmapMode, setReflectionHeatmapMode] = useState<
+    "week" | "month"
+  >("week");
   const [goalMinStr, setGoalMinStr] = useState("");
   const [goalMaxStr, setGoalMaxStr] = useState("");
 
@@ -144,15 +153,28 @@ export function DashboardPageClient() {
     [reflectionLongDailyPoints],
   );
 
+  const monthlyReflectionHeatmapColumns = useMemo(
+    () => buildMonthlyReflectionHeatmapColumns(reflectionLongDailyPoints, 8),
+    [reflectionLongDailyPoints],
+  );
+
+  const activeReflectionHeatmapColumns = useMemo(
+    () =>
+      reflectionHeatmapMode === "week"
+        ? weeklyReflectionHeatmapColumns
+        : monthlyReflectionHeatmapColumns,
+    [
+      reflectionHeatmapMode,
+      weeklyReflectionHeatmapColumns,
+      monthlyReflectionHeatmapColumns,
+    ],
+  );
+
   const hasAnyWeight = dailyPoints.some((p) => p.weightKg != null);
   const hasAnySteps = dailyPoints.some((p) => p.steps != null);
   const hasCombined = hasAnyWeight || hasAnySteps;
 
-  const hasAnyReflectionScore = dailyPoints.some(
-    (p) => p.mealScore != null || p.stepsSelfScore != null || p.conditionScore != null,
-  );
-
-  const hasAnyWeeklyReflectionHeatmap = weeklyReflectionHeatmapColumns.some(
+  const hasAnyReflectionHeatmap = activeReflectionHeatmapColumns.some(
     (c) =>
       c.avgMealScore != null ||
       c.avgStepsSelfScore != null ||
@@ -161,14 +183,24 @@ export function DashboardPageClient() {
 
   /** 棒グラフ用（未記録は 0＋透明セル。ツールチップは元の steps を参照） */
   const combinedChartData = useMemo(
-    () =>
-      dailyPoints.map((p) => ({
-        ...p,
-        stepsBar: p.steps != null ? p.steps : 0,
-        stepsRecorded: p.steps != null,
-      })),
-    [dailyPoints],
+    () => buildCombinedChartRows(dailyPoints, chartGranularity),
+    [dailyPoints, chartGranularity],
   );
+
+  const goalBand = useMemo((): WeightGoalBand | null => {
+    const gm = Number.parseFloat(goalMinStr);
+    const gx = Number.parseFloat(goalMaxStr);
+    if (
+      !Number.isNaN(gm) &&
+      !Number.isNaN(gx) &&
+      gm > 0 &&
+      gx > 0 &&
+      gm < gx
+    ) {
+      return { min: gm, max: gx };
+    }
+    return null;
+  }, [goalMinStr, goalMaxStr]);
 
   /** 体重は記録の範囲を拡大表示（0 起点は省略）。目標帯があるときは軸に含める。左軸の最小目盛に ～ を付与 */
   const weightAxisConfig = useMemo(() => {
@@ -181,7 +213,7 @@ export function DashboardPageClient() {
       gx > 0 &&
       gm < gx;
 
-    const vals = dailyPoints
+    const vals = combinedChartData
       .map((p) => p.weightKg)
       .filter((v): v is number => v != null);
 
@@ -230,10 +262,10 @@ export function DashboardPageClient() {
       goalMin: hasGoalBand ? gm : 0,
       goalMax: hasGoalBand ? gx : 0,
     };
-  }, [dailyPoints, goalMinStr, goalMaxStr]);
+  }, [combinedChartData, goalMinStr, goalMaxStr]);
 
   const stepsAxisMax = useMemo(() => {
-    const vals = dailyPoints
+    const vals = combinedChartData
       .map((p) => p.steps)
       .filter((v): v is number => v != null);
     if (vals.length === 0) {
@@ -241,7 +273,9 @@ export function DashboardPageClient() {
     }
     const m = Math.max(...vals);
     return Math.max(Math.ceil(m * 1.05), 100);
-  }, [dailyPoints]);
+  }, [combinedChartData]);
+
+  const hasAnyWeightOnChart = combinedChartData.some((p) => p.weightKg != null);
 
   const dashboardAppointments = useMemo(
     () => selectDashboardClinicAppointments(clinicAppointments),
@@ -259,7 +293,7 @@ export function DashboardPageClient() {
         ホーム
       </h1>
       <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
-        体重（折れ線）と歩数（棒）を同じ日付軸で重ね、振り返りは日ごとのヒートマップ（〇=2、△=1、✕=0）を先に、そのあと週平均のヒートマップ（約2か月）で表示します。因果関係の証明ではなく、記録の並びを眺めるための参考です。
+        体重（折れ線）と歩数（棒）を同じ軸で重ね、表示は日ごと・週平均・月平均から選べます。振り返りは週平均または月平均のヒートマップ（〇=2、△=1、✕=0）を切り替えて表示します。因果関係の証明ではなく、記録の並びを眺めるための参考です。
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -276,6 +310,29 @@ export function DashboardPageClient() {
             }`}
           >
             直近{d}日
+          </button>
+        ))}
+        <span className="ml-1 text-xs text-[color:var(--hp-muted)]">
+          グラフの集計:
+        </span>
+        {(
+          [
+            { id: "day" as const, label: "日ごと" },
+            { id: "week" as const, label: "週ごと" },
+            { id: "month" as const, label: "月ごと" },
+          ] as const
+        ).map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setChartGranularity(id)}
+            className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
+              chartGranularity === id
+                ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
+                : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
+            }`}
+          >
+            {label}
           </button>
         ))}
       </div>
@@ -338,12 +395,20 @@ export function DashboardPageClient() {
       <section className="mt-8 space-y-10">
         <div className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
           <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
-            体重と歩数（折れ線＋棒・日ごと）
+            体重と歩数（折れ線＋棒）
+            <span className="ml-1.5 font-normal text-[color:var(--hp-muted)]">
+              {chartGranularity === "day"
+                ? "・日ごと"
+                : chartGranularity === "week"
+                  ? "・週平均"
+                  : "・月平均"}
+            </span>
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            折れ線＝体重（kg・左軸）、棒＝歩数（右軸）。歩数は 0 から。体重は
-            変化が見えやすいよう記録範囲を拡大表示しており、左軸の最小目盛に ～
-            が付くときは 0 からの区間が省略されています。体重画面で設定した目標帯（緑の薄い帯）があるときは同じ範囲に表示します。未記録の日は体重は線が途切れ、歩数は棒を出しません（0
+            折れ線＝体重（kg・左軸）、棒＝歩数（右軸）。週・月を選んだときは、その期間内で記録があった日だけを平均した値です（歩数・体重とも）。歩数は
+            0 から。体重は変化が見えやすいよう記録範囲を拡大表示しており、左軸の最小目盛に
+            ～ が付くときは 0
+            からの区間が省略されています。体重画面で設定した目標帯（緑の薄い帯）があるときは同じ範囲に表示します。日ごと表示では未記録の日は体重は線が途切れ、歩数は棒を出しません（0
             歩の記録ではありません）。
           </p>
           {!hasCombined ? (
@@ -377,7 +442,7 @@ export function DashboardPageClient() {
                         y={Number(props.y)}
                         value={props.payload.value}
                         weightFloor={weightAxisConfig.domain[0]}
-                        hasWeight={hasAnyWeight}
+                        hasWeight={hasAnyWeightOnChart}
                       />
                     )}
                     width={52}
@@ -402,7 +467,11 @@ export function DashboardPageClient() {
                       fontSize: 10,
                     }}
                   />
-                  <Tooltip content={<CombinedTooltip />} />
+                  <Tooltip
+                    content={
+                      <CombinedTooltip chartGranularity={chartGranularity} />
+                    }
+                  />
                   <Legend
                     wrapperStyle={{ fontSize: 12 }}
                     formatter={(value) => {
@@ -469,53 +538,59 @@ export function DashboardPageClient() {
 
         <div className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
           <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
-            振り返り（日ごと・週平均のヒートマップ）
+            振り返り（期間平均のヒートマップ）
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            食事・歩数・体調を 〇=2、△=1、✕=0 にしたヒートマップです。先に日ごと（上の表示期間に連動）、続けて週平均（約2か月分・直近7日・14日・30日の切り替えとは別データ）を表示します。下の「週ごとのサマリー」には週平均と短い示唆文があります。
+            食事・歩数・体調を 〇=2、△=1、✕=0
+            にしたヒートマップです。週平均と月平均を切り替えられます（直近約6か月・上の表示期間7/14/30日とは別データ）。下の「週ごとのサマリー」には週平均と短い示唆文があります。
           </p>
-          {!hasAnyWeeklyReflectionHeatmap && !hasAnyReflectionScore ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setReflectionHeatmapMode("week")}
+              className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
+                reflectionHeatmapMode === "week"
+                  ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
+                  : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
+              }`}
+            >
+              週ごと（週平均）
+            </button>
+            <button
+              type="button"
+              onClick={() => setReflectionHeatmapMode("month")}
+              className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
+                reflectionHeatmapMode === "month"
+                  ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
+                  : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
+              }`}
+            >
+              月ごと（月平均）
+            </button>
+          </div>
+          {!hasAnyReflectionHeatmap ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
-              振り返りの記録がありません。
+              {reflectionHeatmapMode === "week"
+                ? "週平均ヒートマップ用の振り返り記録がありません。"
+                : "月平均ヒートマップ用の振り返り記録がありません。"}
             </p>
           ) : (
-            <>
-              {hasAnyReflectionScore ? (
-                <>
-                  <h3 className="mt-2 text-xs font-medium text-[color:var(--hp-foreground)]">
-                    日ごと（表示期間に連動）
-                  </h3>
-                  <ReflectionHeatmap points={dailyPoints} />
-                </>
-              ) : (
-                <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
-                  選択した表示期間に振り返りの記録がありません。
-                </p>
-              )}
-              {hasAnyWeeklyReflectionHeatmap ? (
-                <div
-                  className={
-                    hasAnyReflectionScore
-                      ? "mt-4 border-t border-dashed border-[color:var(--hp-border)] pt-4"
-                      : "mt-2"
-                  }
-                >
-                  <ReflectionWeeklyAvgHeatmap
-                    columns={weeklyReflectionHeatmapColumns}
-                  />
-                </div>
-              ) : (
-                <p
-                  className={
-                    hasAnyReflectionScore
-                      ? "mt-4 border-t border-dashed border-[color:var(--hp-border)] pt-4 text-xs text-[color:var(--hp-muted)]"
-                      : "mt-2 text-xs text-[color:var(--hp-muted)]"
-                  }
-                >
-                  週平均ヒートマップ用の振り返り記録がありません。
-                </p>
-              )}
-            </>
+            <div className="mt-3">
+              <ReflectionWeeklyAvgHeatmap
+                columns={activeReflectionHeatmapColumns}
+                heading={
+                  reflectionHeatmapMode === "week"
+                    ? "週平均（約6か月・表示期間の切り替えと無関係）"
+                    : "月平均（約6か月・表示期間の切り替えと無関係）"
+                }
+                footer={
+                  reflectionHeatmapMode === "week"
+                    ? "直近約186日を週単位に集計し、最長9週を左から古い順に表示します。セルは0〜2の週平均（記録があった日のみで平均）です。"
+                    : "直近約186日を月単位に集計し、最長8か月を左から古い順に表示します。セルは0〜2の月平均（記録があった日のみで平均）です。"
+                }
+                periodAvgWord={reflectionHeatmapMode === "week" ? "週" : "月"}
+              />
+            </div>
           )}
           <p className="mt-2 text-xs text-[color:var(--hp-muted)]">
             合計スコア（1日最大6）は週次表を参照。記録は{" "}
@@ -534,7 +609,7 @@ export function DashboardPageClient() {
             週ごとのサマリー（直近8週）
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            新しい週が上に来ます。その週に記録があった日だけを平均しています。記録日数が少ない週は値がブレやすいです。体重・歩数・振り返りの示唆文は自動生成です（診断や目標設定ではありません）。
+            新しい週が上に来ます。その週に記録があった日だけを平均しています。記録日数が少ない週は値がブレやすいです。体重・歩数・振り返りの事実ベースの文に続き、目標帯や食事・運動の観点からの短いコメントが付きます（いずれも自動生成・診断や目標設定ではありません）。
           </p>
           {weeklyRows.length === 0 ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
@@ -607,6 +682,9 @@ export function DashboardPageClient() {
                           </p>
                         </div>
                       </dl>
+                      <p className="mt-3 border-t border-[color:var(--hp-border)] pt-3 text-xs leading-relaxed text-[color:var(--hp-foreground)]">
+                        {weeklyDashboardCoachNarrative(row, prev, goalBand)}
+                      </p>
                     </li>
                   );
                 })}
@@ -638,7 +716,7 @@ export function DashboardPageClient() {
                         日
                       </th>
                       <th className="min-w-0 px-2 py-2 font-medium text-[color:var(--hp-muted)]">
-                        自動コメント（体重・歩数・振り返り）
+                        自動コメント（事実＋ひとこと）
                       </th>
                     </tr>
                   </thead>
@@ -685,6 +763,9 @@ export function DashboardPageClient() {
                             </p>
                             <p className="mt-1.5 border-t border-dashed border-[color:var(--hp-border)] pt-1.5">
                               {weeklyReflectionNarrative(row, prev)}
+                            </p>
+                            <p className="mt-1.5 border-t border-[color:var(--hp-border)] pt-1.5 text-[color:var(--hp-foreground)]">
+                              {weeklyDashboardCoachNarrative(row, prev, goalBand)}
                             </p>
                           </td>
                         </tr>
@@ -742,29 +823,48 @@ function WeightAxisTick({
 function CombinedTooltip({
   active,
   payload,
+  chartGranularity,
 }: {
   active?: boolean;
   payload?: Array<{ payload: Record<string, unknown>; dataKey?: string }>;
+  chartGranularity: CombinedChartGranularity;
 }) {
   if (!active || !payload?.length) {
     return null;
   }
   const row = payload[0]?.payload as {
     date: string;
+    label: string;
     weightKg: number | null;
     steps: number | null;
+    weightSampleDays: number;
+    stepsSampleDays: number;
   };
+  const agg = chartGranularity !== "day";
+  const wSuffix =
+    agg && row.weightKg != null && row.weightSampleDays > 0
+      ? `（${row.weightSampleDays}日分の平均）`
+      : "";
+  const sSuffix =
+    agg && row.steps != null && row.stepsSampleDays > 0
+      ? `（${row.stepsSampleDays}日分の平均）`
+      : "";
   return (
     <div className="rounded-md border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-2 py-1.5 text-xs shadow">
-      <div className="tabular-nums text-[color:var(--hp-muted)]">{row.date}</div>
+      <div className="tabular-nums text-[color:var(--hp-muted)]">
+        {row.label}
+        {agg ? (
+          <span className="text-[color:var(--hp-muted)]"> ({row.date}〜)</span>
+        ) : null}
+      </div>
       <div className="mt-1 text-[color:var(--hp-foreground)]">
         体重:{" "}
-        {row.weightKg != null ? `${row.weightKg} kg` : "—"}
+        {row.weightKg != null ? `${row.weightKg} kg${wSuffix}` : "—"}
       </div>
       <div className="text-[color:var(--hp-foreground)]">
         歩数:{" "}
         {row.steps != null
-          ? `${row.steps.toLocaleString("ja-JP")} 歩`
+          ? `${row.steps.toLocaleString("ja-JP")} 歩${sSuffix}`
           : "—"}
       </div>
     </div>
