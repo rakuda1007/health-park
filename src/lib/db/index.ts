@@ -12,7 +12,7 @@ import type {
 } from "./types";
 
 const DB_NAME = "health-park";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 const STORE_WEIGHT = "weight";
 const STORE_STEPS = "steps";
@@ -28,6 +28,11 @@ function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onerror = () => reject(req.error ?? new Error("IndexedDB open failed"));
+    req.onblocked = () => {
+      console.warn(
+        "[Health Park] IndexedDB の更新が別タブでブロックされています。他のタブを閉じて再読み込みしてください。",
+      );
+    };
     req.onsuccess = () => resolve(req.result);
     req.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
@@ -67,6 +72,13 @@ function openDb(): Promise<IDBDatabase> {
           db.createObjectStore(STORE_PAST_MEDICAL_HISTORY, { keyPath: "id" });
         }
       }
+      /** 通院予定（v4 で欠落していた環境向けに contains で冪等に作成） */
+      if (!db.objectStoreNames.contains(STORE_CLINIC_APPOINTMENTS)) {
+        const s = db.createObjectStore(STORE_CLINIC_APPOINTMENTS, {
+          keyPath: "id",
+        });
+        s.createIndex("by-date", "startsAt", { unique: false });
+      }
     };
   });
 }
@@ -80,9 +92,98 @@ export function getHealthDb(): Promise<IDBDatabase> {
     );
   }
   if (!dbPromise) {
-    dbPromise = openDb();
+    dbPromise = openDb().catch((e) => {
+      dbPromise = null;
+      throw e;
+    });
   }
   return dbPromise;
+}
+
+/**
+ * ダッシュボード初期表示用。複数ストアを 1 トランザクションで読み（モバイルでの同時トランザクション失敗を避ける）。
+ */
+export async function loadDashboardSnapshot(): Promise<{
+  weight: WeightEntry[];
+  steps: StepsEntry[];
+  dailyReflections: DailyReflectionEntry[];
+  clinicAppointments: ClinicAppointmentEntry[];
+  clinics: ClinicEntry[];
+}> {
+  const db = await getHealthDb();
+  return new Promise((resolve, reject) => {
+    const weight: WeightEntry[] = [];
+    const steps: StepsEntry[] = [];
+    const reflections: DailyReflectionEntry[] = [];
+    let appointments: ClinicAppointmentEntry[] = [];
+    let clinics: ClinicEntry[] = [];
+
+    const tx = db.transaction(
+      [
+        STORE_WEIGHT,
+        STORE_STEPS,
+        STORE_DAILY_REFLECTIONS,
+        STORE_CLINIC_APPOINTMENTS,
+        STORE_CLINICS,
+      ],
+      "readonly",
+    );
+    tx.onerror = () =>
+      reject(
+        tx.error ?? new Error("IndexedDB の読み取りトランザクションに失敗しました"),
+      );
+    tx.onabort = () =>
+      reject(tx.error ?? new Error("IndexedDB の読み取りが中断されました"));
+
+    let remaining = 5;
+    const tryFinish = () => {
+      remaining -= 1;
+      if (remaining === 0) {
+        resolve({
+          weight,
+          steps,
+          dailyReflections: reflections,
+          clinicAppointments: [...appointments].sort((a, b) =>
+            a.startsAt.localeCompare(b.startsAt),
+          ),
+          clinics: [...clinics].sort((a, b) => a.name.localeCompare(b.name, "ja")),
+        });
+      }
+    };
+
+    const openDateDesc = <T,>(storeName: string, out: T[]) => {
+      const idx = tx.objectStore(storeName).index("by-date");
+      const req = idx.openCursor(null, "prev");
+      req.onerror = () => reject(req.error ?? new Error("cursor error"));
+      req.onsuccess = () => {
+        const cursor = req.result;
+        if (cursor) {
+          out.push(cursor.value as T);
+          cursor.continue();
+        } else {
+          tryFinish();
+        }
+      };
+    };
+
+    openDateDesc(STORE_WEIGHT, weight);
+    openDateDesc(STORE_STEPS, steps);
+    openDateDesc(STORE_DAILY_REFLECTIONS, reflections);
+
+    const apReq = tx.objectStore(STORE_CLINIC_APPOINTMENTS).getAll();
+    apReq.onerror = () => reject(apReq.error ?? new Error("getAll error"));
+    apReq.onsuccess = () => {
+      appointments = apReq.result as ClinicAppointmentEntry[];
+      tryFinish();
+    };
+
+    const clReq = tx.objectStore(STORE_CLINICS).getAll();
+    clReq.onerror = () => reject(clReq.error ?? new Error("getAll error"));
+    clReq.onsuccess = () => {
+      clinics = clReq.result as ClinicEntry[];
+      tryFinish();
+    };
+  });
 }
 
 function listByDateDesc<T>(storeName: string): Promise<T[]> {

@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  listClinicAppointments,
-  listClinicEntries,
-  listDailyReflectionEntries,
-  listStepsEntries,
-  listWeightEntries,
-} from "@/lib/db";
+import { loadDashboardSnapshot } from "@/lib/db";
 import type {
   ClinicAppointmentEntry,
   ClinicEntry,
@@ -76,18 +70,12 @@ export function DashboardPageClient() {
   const load = useCallback(async () => {
     try {
       setError(null);
-      const [w, s, r, ap, cl] = await Promise.all([
-        listWeightEntries(),
-        listStepsEntries(),
-        listDailyReflectionEntries(),
-        listClinicAppointments(),
-        listClinicEntries(),
-      ]);
-      setWeightEntries(w);
-      setStepsEntries(s);
-      setReflections(r);
-      setClinicAppointments(ap);
-      setClinicEntries(cl);
+      const snap = await loadDashboardSnapshot();
+      setWeightEntries(snap.weight);
+      setStepsEntries(snap.steps);
+      setReflections(snap.dailyReflections);
+      setClinicAppointments(snap.clinicAppointments);
+      setClinicEntries(snap.clinics);
     } catch (e) {
       setError(e instanceof Error ? e.message : "読み込みに失敗しました");
     }
