@@ -517,7 +517,7 @@ export function DashboardPageClient() {
               <ResponsiveContainer width="100%" height="100%" minHeight={256}>
                 <ComposedChart
                   data={combinedChartData}
-                  margin={{ top: 8, right: 12, left: 4, bottom: 0 }}
+                  margin={{ top: 8, right: 28, left: 28, bottom: 0 }}
                 >
                   <CartesianGrid
                     stroke="var(--hp-border)"
@@ -542,10 +542,12 @@ export function DashboardPageClient() {
                         hasWeight={hasAnyWeightOnChart}
                       />
                     )}
-                    width={52}
+                    width={56}
                     label={{
                       value: "kg（0〜は省略）",
-                      position: "insideLeft",
+                      position: "left",
+                      angle: -90,
+                      dx: -16,
                       fill: "var(--hp-muted)",
                       fontSize: 10,
                     }}
@@ -555,11 +557,13 @@ export function DashboardPageClient() {
                     orientation="right"
                     domain={[0, stepsAxisMax]}
                     tick={{ fill: "var(--hp-muted)", fontSize: 11 }}
-                    width={48}
+                    width={56}
                     tickFormatter={(v) => `${v}`}
                     label={{
                       value: "歩（0〜）",
-                      position: "insideRight",
+                      position: "right",
+                      angle: 90,
+                      dx: 16,
                       fill: "var(--hp-muted)",
                       fontSize: 10,
                     }}
@@ -756,7 +760,7 @@ export function DashboardPageClient() {
               <ResponsiveContainer width="100%" height="100%" minHeight={256}>
                 <LineChart
                   data={bpChartData}
-                  margin={{ top: 8, right: 12, left: 4, bottom: 0 }}
+                  margin={{ top: 8, right: 12, left: 24, bottom: 0 }}
                 >
                   <CartesianGrid
                     stroke="var(--hp-border)"
@@ -770,10 +774,12 @@ export function DashboardPageClient() {
                   <YAxis
                     domain={bpYDomain}
                     tick={{ fill: "var(--hp-muted)", fontSize: 11 }}
-                    width={44}
+                    width={52}
                     label={{
                       value: "mmHg",
-                      position: "insideLeft",
+                      position: "left",
+                      angle: -90,
+                      dx: -12,
                       fill: "var(--hp-muted)",
                       fontSize: 10,
                     }}
