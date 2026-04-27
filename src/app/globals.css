@@ -14,6 +14,8 @@
   --hp-input: #ffffff;
   --hp-accent: #0f172a;
   --hp-accent-fg: #f8fafc;
+  --hp-signup: #2f9e72;
+  --hp-signup-fg: #f8fafc;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -29,6 +31,8 @@
     --hp-input: #1e293b;
     --hp-accent: #c4a574;
     --hp-accent-fg: #0f172a;
+    --hp-signup: #34d399;
+    --hp-signup-fg: #052e16;
   }
 }
 

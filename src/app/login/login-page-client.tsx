@@ -7,14 +7,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 
 export function LoginPageClient() {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const searchParams = useSearchParams();
+  const initialMode = searchParams.get("mode") === "signup" ? "signup" : "signin";
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const { ready, signIn, signUp, user } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") ?? "/backup";
 
   const onSubmit = useCallback(

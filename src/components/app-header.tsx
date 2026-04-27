@@ -142,12 +142,20 @@ export function AppHeader() {
                 </button>
               </span>
             ) : (
-              <Link
-                href="/login?redirect=/"
-                className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
-              >
-                ログイン
-              </Link>
+              <>
+                <Link
+                  href="/login?redirect=/"
+                  className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
+                >
+                  ログイン
+                </Link>
+                <Link
+                  href="/login?redirect=/&mode=signup"
+                  className="rounded-md bg-[color:var(--hp-signup)] px-3 py-1.5 text-sm font-medium text-[color:var(--hp-signup-fg)] transition-opacity hover:opacity-90"
+                >
+                  新規登録
+                </Link>
+              </>
             )}
             <button
               type="button"
