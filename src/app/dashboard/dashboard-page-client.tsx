@@ -58,6 +58,29 @@ const REFLECTION_HEATMAP_DAYS_BACK = 186;
 const LS_WEIGHT_GOAL_MIN = "health-park-weight-goal-min";
 const LS_WEIGHT_GOAL_MAX = "health-park-weight-goal-max";
 
+function floorToStep(value: number, step: number): number {
+  return Math.floor(value / step) * step;
+}
+
+function ceilToStep(value: number, step: number): number {
+  return Math.ceil(value / step) * step;
+}
+
+function chooseWeightTickStep(span: number): number {
+  const targetTickCount = 5;
+  const rough = span / (targetTickCount - 1);
+  if (rough <= 0.5) {
+    return 0.5;
+  }
+  if (rough <= 1) {
+    return 1;
+  }
+  if (rough <= 2) {
+    return 2;
+  }
+  return 5;
+}
+
 function readWeightGoalFromStorage(): { min: string; max: string } {
   if (typeof window === "undefined") {
     return { min: "", max: "" };
@@ -315,20 +338,19 @@ export function DashboardPageClient() {
 
     const span = Math.max(high - low, 0.1);
     const pad = Math.max(span * 0.06, 0.3);
-    const min = Math.round(Math.max(0, low - pad) * 100) / 100;
-    const max = Math.round((high + pad) * 100) / 100;
+    const step = chooseWeightTickStep(span + pad * 2);
+    const min = Math.max(0, floorToStep(low - pad, step));
+    const max = ceilToStep(high + pad, step);
     const domain: [number, number] =
-      min === max ? [min - 0.5, max + 0.5] : [min, max];
+      min === max ? [Math.max(0, min - step), max + step] : [min, max];
     const [d0, d1] = domain;
-    const tickCount = 5;
-    const raw = Array.from({ length: tickCount }, (_, i) => {
-      const t = d0 + ((d1 - d0) * i) / (tickCount - 1);
-      return Math.round(t * 100) / 100;
-    });
-    const ticks = [...new Set(raw)];
+    const ticks: number[] = [];
+    for (let t = d0; t <= d1 + step / 2; t += step) {
+      ticks.push(Math.round(t * 10) / 10);
+    }
     return {
       domain,
-      ticks: ticks.length >= 2 ? ticks : raw,
+      ticks: ticks.length >= 2 ? ticks : [d0, d1],
       hasGoalBand,
       goalMin: hasGoalBand ? gm : 0,
       goalMax: hasGoalBand ? gx : 0,
