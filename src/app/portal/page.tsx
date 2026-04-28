@@ -28,20 +28,6 @@ export default function PortalPage() {
         <p className="mt-3 text-sm leading-relaxed text-[color:var(--hp-muted)]">
           体重・歩数・血圧・食事・振り返りなどを、まずはこの端末だけで手軽に記録できるヘルス記録アプリです。登録なしで始められ、必要になったときだけログインしてクラウド同期を使えます。
         </p>
-        <div className="mt-5 flex flex-wrap gap-3">
-          <Link
-            href={appPath("/dashboard")}
-            className="inline-flex items-center justify-center rounded-lg bg-[color:var(--hp-accent)] px-5 py-2.5 text-sm font-medium text-[color:var(--hp-accent-fg)] transition-opacity hover:opacity-90"
-          >
-            記録アプリを開く
-          </Link>
-          <Link
-            href={appPath("/login")}
-            className="inline-flex items-center justify-center rounded-lg border border-[color:var(--hp-border)] px-5 py-2.5 text-sm font-medium text-[color:var(--hp-foreground)] hover:bg-[color:var(--hp-input)]"
-          >
-            ログイン / 新規登録
-          </Link>
-        </div>
       </section>
 
       <section className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-5">
@@ -65,6 +51,20 @@ export default function PortalPage() {
           <li>2. 体重や歩数など、記録しやすい項目から入力開始</li>
           <li>3. 続けられそうなら、あとでログインして同期を有効化</li>
         </ol>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Link
+            href={appPath("/dashboard")}
+            className="inline-flex items-center justify-center rounded-lg bg-[color:var(--hp-accent)] px-5 py-2.5 text-sm font-medium text-[color:var(--hp-accent-fg)] transition-opacity hover:opacity-90"
+          >
+            記録アプリを開く
+          </Link>
+          <Link
+            href={appPath("/login")}
+            className="inline-flex items-center justify-center rounded-lg border border-[color:var(--hp-border)] px-5 py-2.5 text-sm font-medium text-[color:var(--hp-foreground)] hover:bg-[color:var(--hp-input)]"
+          >
+            ログイン / 新規登録
+          </Link>
+        </div>
       </section>
 
       <section className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-5">

@@ -206,12 +206,6 @@ export function AppHeader() {
             >
               記録アプリへ
             </Link>
-            <Link
-              href="/portal"
-              className="text-sm text-[color:var(--hp-muted)] underline-offset-4 hover:text-[color:var(--hp-accent)] hover:underline"
-            >
-              ご利用案内
-            </Link>
           </nav>
         )}
       </div>
@@ -249,13 +243,6 @@ export function AppHeader() {
                     className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
                   >
                     記録アプリへ
-                  </Link>
-                  <Link
-                    href="/portal"
-                    onClick={() => setMobileOpen(false)}
-                    className="text-sm text-[color:var(--hp-muted)] underline-offset-4 hover:text-[color:var(--hp-accent)] hover:underline"
-                  >
-                    ご利用案内
                   </Link>
                 </nav>
               )}
