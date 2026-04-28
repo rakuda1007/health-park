@@ -66,21 +66,6 @@ function ceilToStep(value: number, step: number): number {
   return Math.ceil(value / step) * step;
 }
 
-function chooseWeightTickStep(span: number): number {
-  const targetTickCount = 5;
-  const rough = span / (targetTickCount - 1);
-  if (rough <= 0.5) {
-    return 0.5;
-  }
-  if (rough <= 1) {
-    return 1;
-  }
-  if (rough <= 2) {
-    return 2;
-  }
-  return 5;
-}
-
 function readWeightGoalFromStorage(): { min: string; max: string } {
   if (typeof window === "undefined") {
     return { min: "", max: "" };
@@ -338,7 +323,7 @@ export function DashboardPageClient() {
 
     const span = Math.max(high - low, 0.1);
     const pad = Math.max(span * 0.06, 0.3);
-    const step = chooseWeightTickStep(span + pad * 2);
+    const step = 0.5;
     const min = Math.max(0, floorToStep(low - pad, step));
     const max = ceilToStep(high + pad, step);
     const domain: [number, number] =
