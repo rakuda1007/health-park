@@ -14,6 +14,15 @@ export function AppFooter() {
         >
           初めての方・ご利用案内（ポータル）
         </Link>
+        <span className="mx-2 opacity-60">/</span>
+        <Link
+          href="https://series.tennis-park-community.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[color:var(--hp-accent)] underline-offset-2 hover:underline"
+        >
+          Parkシリーズ ポータル
+        </Link>
       </p>
     </footer>
   );
