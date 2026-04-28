@@ -85,6 +85,27 @@ function openDb(): Promise<IDBDatabase> {
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
+function prepareDbConnection(db: IDBDatabase): IDBDatabase {
+  db.onversionchange = () => {
+    db.close();
+    dbPromise = null;
+  };
+  db.onclose = () => {
+    dbPromise = null;
+  };
+  return db;
+}
+
+function canStartTransaction(db: IDBDatabase): boolean {
+  try {
+    const tx = db.transaction(STORE_WEIGHT, "readonly");
+    tx.abort();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function getHealthDb(): Promise<IDBDatabase> {
   if (typeof indexedDB === "undefined") {
     return Promise.reject(
@@ -92,12 +113,42 @@ export function getHealthDb(): Promise<IDBDatabase> {
     );
   }
   if (!dbPromise) {
-    dbPromise = openDb().catch((e) => {
-      dbPromise = null;
-      throw e;
-    });
+    dbPromise = openDb()
+      .then((db) => prepareDbConnection(db))
+      .catch((e) => {
+        dbPromise = null;
+        throw e;
+      });
   }
-  return dbPromise;
+  return dbPromise.then((db) => {
+    if (canStartTransaction(db)) {
+      return db;
+    }
+    // モバイル復帰時などに "connection is closing" となるケースを再接続で回避する。
+    dbPromise = openDb()
+      .then((nextDb) => prepareDbConnection(nextDb))
+      .catch((e) => {
+        dbPromise = null;
+        throw e;
+      });
+    return dbPromise;
+  });
+}
+
+async function withRetryOnClosingDb<T>(
+  run: (db: IDBDatabase) => Promise<T>,
+): Promise<T> {
+  const firstDb = await getHealthDb();
+  try {
+    return await run(firstDb);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "InvalidStateError") {
+      dbPromise = null;
+      const reopenedDb = await getHealthDb();
+      return run(reopenedDb);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -192,7 +243,7 @@ export async function loadDashboardSnapshot(): Promise<{
 }
 
 function listByDateDesc<T>(storeName: string): Promise<T[]> {
-  return getHealthDb().then(
+  return withRetryOnClosingDb(
     (db) =>
       new Promise((resolve, reject) => {
         const tx = db.transaction(storeName, "readonly");
@@ -222,7 +273,7 @@ export function setSuppressCloudReplicate(v: boolean): void {
 }
 
 function putEntryRaw(storeName: string, entry: object): Promise<void> {
-  return getHealthDb().then(
+  return withRetryOnClosingDb(
     (db) =>
       new Promise((resolve, reject) => {
         const tx = db.transaction(storeName, "readwrite");
@@ -267,7 +318,7 @@ function putEntry(storeName: string, entry: object): Promise<void> {
 }
 
 function deleteEntry(storeName: string, id: string): Promise<void> {
-  return getHealthDb().then(
+  return withRetryOnClosingDb(
     (db) =>
       new Promise((resolve, reject) => {
         const tx = db.transaction(storeName, "readwrite");
