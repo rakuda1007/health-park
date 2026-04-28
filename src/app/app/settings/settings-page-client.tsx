@@ -4,6 +4,7 @@ import {
   readDashboardDisplayPreferences,
   writeDashboardDisplayPreferences,
 } from "@/lib/dashboard-preferences";
+import { appPath } from "@/lib/app-paths";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -110,7 +111,7 @@ export function SettingsPageClient() {
 
         <p className="text-sm">
           <Link
-            href="/dashboard"
+            href={appPath("/dashboard")}
             className="text-[color:var(--hp-accent)] underline-offset-2 hover:underline"
           >
             ホーム（ダッシュボード）へ
@@ -121,7 +122,7 @@ export function SettingsPageClient() {
       <ul className="mt-8 space-y-2 text-sm">
         <li>
           <Link
-            href="/backup"
+            href={appPath("/backup")}
             className="text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
           >
             バックアップ（JSON の書き出し・読み込み）

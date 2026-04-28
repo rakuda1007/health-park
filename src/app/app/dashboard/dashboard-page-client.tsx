@@ -32,6 +32,7 @@ import {
   weeklyWeightNarrative,
   type WeightGoalBand,
 } from "@/lib/dashboard-series";
+import { appPath } from "@/lib/app-paths";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -373,7 +374,7 @@ export function DashboardPageClient() {
       <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
         表示するレポートは{" "}
         <Link
-          href="/settings"
+          href={appPath("/settings")}
           className="text-[color:var(--hp-accent)] underline-offset-2 hover:underline"
         >
           設定
@@ -385,7 +386,7 @@ export function DashboardPageClient() {
         <p className="mt-4 rounded-lg border border-dashed border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-sm text-[color:var(--hp-muted)]">
           ダッシュボードの項目がすべてオフです。{" "}
           <Link
-            href="/settings"
+            href={appPath("/settings")}
             className="text-[color:var(--hp-accent)] underline"
           >
             設定
@@ -485,7 +486,7 @@ export function DashboardPageClient() {
         )}
         <p className="mt-3 text-xs">
           <Link
-            href="/appointments"
+            href={appPath("/appointments")}
             className="text-[color:var(--hp-accent)] underline"
           >
             通院予定の登録・一覧
@@ -633,11 +634,11 @@ export function DashboardPageClient() {
           )}
           <p className="mt-2 text-xs text-[color:var(--hp-muted)]">
             詳細入力は{" "}
-            <Link href="/weight" className="text-[color:var(--hp-accent)] underline">
+            <Link href={appPath("/weight")} className="text-[color:var(--hp-accent)] underline">
               体重
             </Link>
             ・
-            <Link href="/steps" className="text-[color:var(--hp-accent)] underline">
+            <Link href={appPath("/steps")} className="text-[color:var(--hp-accent)] underline">
               歩数
             </Link>
             へ。
@@ -732,7 +733,7 @@ export function DashboardPageClient() {
           <p className="mt-2 text-xs text-[color:var(--hp-muted)]">
             合計スコア（1日最大6）は週次表を参照。記録は{" "}
             <Link
-              href="/reflection"
+              href={appPath("/reflection")}
               className="text-[color:var(--hp-accent)] underline"
             >
               振り返り
@@ -834,7 +835,7 @@ export function DashboardPageClient() {
           <p className="mt-2 text-xs text-[color:var(--hp-muted)]">
             記録の追加・修正は{" "}
             <Link
-              href="/blood-pressure"
+              href={appPath("/blood-pressure")}
               className="text-[color:var(--hp-accent)] underline"
             >
               血圧

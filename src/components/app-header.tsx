@@ -1,23 +1,24 @@
 "use client";
 
 import { useAuth } from "@/contexts/auth-context";
+import { APP_BASE, appPath } from "@/lib/app-paths";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useState } from "react";
 
 const recordLinks = [
-  { href: "/weight", label: "体重" },
-  { href: "/steps", label: "歩数" },
-  { href: "/blood-pressure", label: "血圧" },
-  { href: "/meals", label: "食事" },
-  { href: "/reflection", label: "振り返り" },
+  { href: appPath("/weight"), label: "体重" },
+  { href: appPath("/steps"), label: "歩数" },
+  { href: appPath("/blood-pressure"), label: "血圧" },
+  { href: appPath("/meals"), label: "食事" },
+  { href: appPath("/reflection"), label: "振り返り" },
 ] as const;
 
 const healthInfoLinks = [
-  { href: "/clinics", label: "病院" },
-  { href: "/appointments", label: "通院予定" },
-  { href: "/prescriptions", label: "処方箋" },
-  { href: "/medical-history", label: "既往歴" },
+  { href: appPath("/clinics"), label: "病院" },
+  { href: appPath("/appointments"), label: "通院予定" },
+  { href: appPath("/prescriptions"), label: "処方箋" },
+  { href: appPath("/medical-history"), label: "既往歴" },
 ] as const;
 
 function NavLink({
@@ -76,7 +77,7 @@ function NavSections({ onNavigate }: { onNavigate?: () => void }) {
           設定
         </p>
         <div className="mt-2 md:mt-1.5">
-          <NavLink href="/settings" onNavigate={onNavigate}>
+          <NavLink href={appPath("/settings")} onNavigate={onNavigate}>
             設定
           </NavLink>
         </div>
@@ -91,6 +92,12 @@ export function AppHeader() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const panelId = useId();
+  const inApp = pathname === APP_BASE || pathname.startsWith(`${APP_BASE}/`);
+  const loginRedirect =
+    inApp && pathname.length > 0 ? pathname : appPath("/dashboard");
+  const loginHref = `${appPath("/login")}?redirect=${encodeURIComponent(loginRedirect)}`;
+  const signupHref = `${appPath("/login")}?redirect=${encodeURIComponent(loginRedirect)}&mode=signup`;
+  const brandHref = inApp ? appPath("/dashboard") : "/";
 
   useEffect(() => {
     setMobileOpen(false);
@@ -119,7 +126,7 @@ export function AppHeader() {
       <div className="mx-auto flex max-w-3xl flex-col gap-3 px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <Link
-            href="/"
+            href={brandHref}
             className="flex min-w-0 flex-1 items-center font-semibold tracking-tight text-[color:var(--hp-foreground)]"
           >
             <span className="truncate">Health Park</span>
@@ -144,13 +151,13 @@ export function AppHeader() {
             ) : (
               <>
                 <Link
-                  href="/login?redirect=/"
+                  href={loginHref}
                   className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
                 >
                   ログイン
                 </Link>
                 <Link
-                  href="/login?redirect=/&mode=signup"
+                  href={signupHref}
                   className="rounded-md bg-[color:var(--hp-signup)] px-3 py-1.5 text-sm font-medium text-[color:var(--hp-signup-fg)] transition-opacity hover:opacity-90"
                 >
                   新規登録
@@ -181,12 +188,32 @@ export function AppHeader() {
           </div>
         </div>
 
-        <nav
-          className="hidden md:block"
-          aria-label="主要ナビゲーション"
-        >
-          <NavSections />
-        </nav>
+        {inApp ? (
+          <nav
+            className="hidden md:block"
+            aria-label="主要ナビゲーション"
+          >
+            <NavSections />
+          </nav>
+        ) : (
+          <nav
+            className="hidden md:flex md:flex-wrap md:items-center md:gap-4"
+            aria-label="案内"
+          >
+            <Link
+              href={appPath("/dashboard")}
+              className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
+            >
+              記録アプリへ
+            </Link>
+            <Link
+              href="/portal"
+              className="text-sm text-[color:var(--hp-muted)] underline-offset-4 hover:text-[color:var(--hp-accent)] hover:underline"
+            >
+              ご利用案内
+            </Link>
+          </nav>
+        )}
       </div>
 
       {mobileOpen ? (
@@ -210,9 +237,28 @@ export function AppHeader() {
               </p>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-              <nav aria-label="主要ナビゲーション">
-                <NavSections onNavigate={() => setMobileOpen(false)} />
-              </nav>
+              {inApp ? (
+                <nav aria-label="主要ナビゲーション">
+                  <NavSections onNavigate={() => setMobileOpen(false)} />
+                </nav>
+              ) : (
+                <nav className="flex flex-col gap-3" aria-label="案内">
+                  <Link
+                    href={appPath("/dashboard")}
+                    onClick={() => setMobileOpen(false)}
+                    className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
+                  >
+                    記録アプリへ
+                  </Link>
+                  <Link
+                    href="/portal"
+                    onClick={() => setMobileOpen(false)}
+                    className="text-sm text-[color:var(--hp-muted)] underline-offset-4 hover:text-[color:var(--hp-accent)] hover:underline"
+                  >
+                    ご利用案内
+                  </Link>
+                </nav>
+              )}
             </div>
           </div>
         </div>

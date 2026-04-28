@@ -12,6 +12,7 @@ import type {
   ClinicEntry,
 } from "@/lib/db/types";
 import { datetimeLocalToIso, isoToDatetimeLocal } from "@/lib/datetime-local";
+import { appPath } from "@/lib/app-paths";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -223,7 +224,7 @@ export function AppointmentsPageClient() {
       </h1>
       <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
         登録済みの病院から通院先を選ぶか、この画面で病院を新規登録してから予定を保存できます。新規の病院は{" "}
-        <Link href="/clinics" className="text-[color:var(--hp-accent)] underline">
+        <Link href={appPath("/clinics")} className="text-[color:var(--hp-accent)] underline">
           病院
         </Link>
         の一覧にも表示されます。
@@ -403,7 +404,7 @@ export function AppointmentsPageClient() {
             <p className="text-sm text-[color:var(--hp-muted)]">
               病院が未登録です。「病院を新規登録する」を選ぶか、
               <Link
-                href="/clinics"
+                href={appPath("/clinics")}
                 className="text-[color:var(--hp-accent)] underline"
               >
                 病院

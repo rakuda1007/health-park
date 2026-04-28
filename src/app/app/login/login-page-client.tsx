@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/auth-context";
+import { appPath } from "@/lib/app-paths";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -16,7 +17,7 @@ export function LoginPageClient() {
   const [busy, setBusy] = useState(false);
   const { ready, signIn, signUp, user } = useAuth();
   const router = useRouter();
-  const redirectTo = searchParams.get("redirect") ?? "/backup";
+  const redirectTo = searchParams.get("redirect") ?? appPath("/dashboard");
 
   const onSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -57,7 +58,7 @@ export function LoginPageClient() {
           href="/"
           className="mt-6 inline-block text-sm text-[color:var(--hp-accent)] underline"
         >
-          ホームへ
+          ポータルへ
         </Link>
       </main>
     );
@@ -190,7 +191,7 @@ export function LoginPageClient() {
 
       <div className="mt-8 border-t border-[color:var(--hp-border)] pt-6">
         <Link
-          href="/backup"
+          href={appPath("/backup")}
           className="text-sm text-[color:var(--hp-muted)] underline-offset-4 hover:text-[color:var(--hp-accent)] hover:underline"
         >
           ← バックアップへ戻る

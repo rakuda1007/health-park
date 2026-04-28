@@ -1,10 +1,7 @@
-import type { Metadata } from "next";
-import { DashboardPageClient } from "./dashboard/dashboard-page-client";
+import { redirect } from "next/navigation";
+import { appPath } from "@/lib/app-paths";
 
-export const metadata: Metadata = {
-  title: "ホーム",
-};
-
-export default function Home() {
-  return <DashboardPageClient />;
+/** 記録利用者はトップからいきなりホーム（ダッシュボード）へ。案内は `/portal`。 */
+export default function RootPage() {
+  redirect(appPath("/dashboard"));
 }

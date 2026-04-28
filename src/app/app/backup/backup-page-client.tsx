@@ -5,6 +5,7 @@ import {
   exportHealthParkJsonPretty,
   replaceAllFromBackup,
 } from "@/lib/db/backup";
+import { appPath } from "@/lib/app-paths";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
 import { pullCloudToLocal, pushLocalToCloud } from "@/lib/sync/cloud-sync";
 import Link from "next/link";
@@ -191,7 +192,7 @@ export function BackupPageClient() {
             <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
               クラウドのバックアップ・復元には、メールアドレスとパスワードでの
               <Link
-                href="/login?redirect=/backup"
+                href={`${appPath("/login")}?redirect=${encodeURIComponent(appPath("/backup"))}`}
                 className="font-medium text-[color:var(--hp-accent)] underline"
               >
                 ログイン
