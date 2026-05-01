@@ -36,13 +36,13 @@ import { appPath } from "@/lib/app-paths";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Area,
   Bar,
   CartesianGrid,
   Cell,
   ComposedChart,
   Legend,
   Line,
-  LineChart,
   ReferenceArea,
   ResponsiveContainer,
   Tooltip,
@@ -764,7 +764,7 @@ export function DashboardPageClient() {
         {showBp ? (
         <div className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
           <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
-            血圧（折れ線）
+            血圧（帯・脈拍）
             <span className="ml-1.5 font-normal text-[color:var(--hp-muted)]">
               {chartGranularity === "day"
                 ? "・日ごと"
@@ -774,7 +774,7 @@ export function DashboardPageClient() {
             </span>
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            収縮期・拡張期は左軸（mmHg）、脈拍は右軸（回/分）。脈拍は記録があるときのみ表示します。週・月は血圧を記録した日のみを平均した値です。医療的な判定ではなく、記録の並びの参考としてください。
+            拡張期〜収縮期の帯は左軸（mmHg）、脈拍は右軸（回/分）の折れ線です。脈拍は記録があるときのみ表示します。週・月は血圧を記録した日のみを平均した値です。医療的な判定ではなく、記録の並びの参考としてください。
           </p>
           {!hasAnyBpOnChart ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
@@ -783,7 +783,7 @@ export function DashboardPageClient() {
           ) : (
             <div className="mt-3 h-64 w-full min-h-[16rem] min-w-0">
               <ResponsiveContainer width="100%" height="100%" minHeight={256}>
-                <LineChart
+                <ComposedChart
                   data={bpChartData}
                   margin={{
                     top: 8,
@@ -838,25 +838,17 @@ export function DashboardPageClient() {
                     }
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line
+                  <Area
                     yAxisId="bp"
                     type="monotone"
-                    dataKey="systolic"
-                    name="収縮期 (mmHg)"
-                    stroke="#dc2626"
-                    strokeWidth={2}
-                    dot={{ r: 2 }}
+                    dataKey={bpBandDataKey}
+                    name="血圧（拡張〜収縮 mmHg）"
+                    stroke="none"
+                    fill="#fdba74"
+                    fillOpacity={0.42}
+                    legendType="rect"
                     connectNulls={false}
-                  />
-                  <Line
-                    yAxisId="bp"
-                    type="monotone"
-                    dataKey="diastolic"
-                    name="拡張期 (mmHg)"
-                    stroke="#2563eb"
-                    strokeWidth={2}
-                    dot={{ r: 2 }}
-                    connectNulls={false}
+                    isAnimationActive={false}
                   />
                   {hasAnyPulseOnChart ? (
                     <Line
@@ -864,14 +856,14 @@ export function DashboardPageClient() {
                       type="monotone"
                       dataKey="pulse"
                       name="脈拍 (回/分)"
-                      stroke="#64748b"
-                      strokeWidth={1.5}
-                      strokeDasharray="4 3"
-                      dot={{ r: 2 }}
+                      stroke="#94a3b8"
+                      strokeWidth={1}
+                      strokeOpacity={0.85}
+                      dot={{ r: 1.5, fill: "#94a3b8", strokeWidth: 0 }}
                       connectNulls={false}
                     />
                   ) : null}
-                </LineChart>
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           )}
@@ -1243,6 +1235,17 @@ function CombinedTooltip({
       </div>
     </div>
   );
+}
+
+/** Recharts の範囲 Area 用。[下限, 上限] = [拡張期, 収縮期] */
+function bpBandDataKey(entry: {
+  systolic: number | null;
+  diastolic: number | null;
+}): [number, number] | [null, null] {
+  if (entry.systolic != null && entry.diastolic != null) {
+    return [entry.diastolic, entry.systolic];
+  }
+  return [null, null];
 }
 
 function BpTooltip({
