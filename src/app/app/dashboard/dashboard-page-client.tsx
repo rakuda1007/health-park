@@ -261,6 +261,23 @@ export function DashboardPageClient() {
     return [Math.max(40, lo - pad), hi + pad];
   }, [bpChartData]);
 
+  /** 脈拍のみ（右軸）。mmHg と単位・スケールが異なるため左軸とは分離する */
+  const pulseYDomain = useMemo((): [number, number] => {
+    const vals: number[] = [];
+    for (const p of bpChartData) {
+      if (p.pulse != null) {
+        vals.push(p.pulse);
+      }
+    }
+    if (vals.length === 0) {
+      return [40, 120];
+    }
+    const lo = Math.min(...vals);
+    const hi = Math.max(...vals);
+    const pad = Math.max(5, Math.round((hi - lo) * 0.15));
+    return [Math.max(30, lo - pad), Math.min(220, hi + pad)];
+  }, [bpChartData]);
+
   const showCore = dashPrefs.showCoreBundle;
   const showBp = dashPrefs.showBloodPressure;
   const showAppt = dashPrefs.showAppointments;
@@ -757,7 +774,7 @@ export function DashboardPageClient() {
             </span>
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            収縮期・拡張期（脈拍は記録があるときのみ表示）の推移です。週・月は血圧を記録した日のみを平均した値です。医療的な判定ではなく、記録の並びの参考としてください。
+            収縮期・拡張期は左軸（mmHg）、脈拍は右軸（回/分）。脈拍は記録があるときのみ表示します。週・月は血圧を記録した日のみを平均した値です。医療的な判定ではなく、記録の並びの参考としてください。
           </p>
           {!hasAnyBpOnChart ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
@@ -768,7 +785,12 @@ export function DashboardPageClient() {
               <ResponsiveContainer width="100%" height="100%" minHeight={256}>
                 <LineChart
                   data={bpChartData}
-                  margin={{ top: 8, right: 12, left: 12, bottom: 0 }}
+                  margin={{
+                    top: 8,
+                    right: hasAnyPulseOnChart ? 48 : 12,
+                    left: 12,
+                    bottom: 0,
+                  }}
                 >
                   <CartesianGrid
                     stroke="var(--hp-border)"
@@ -780,6 +802,7 @@ export function DashboardPageClient() {
                     interval="preserveStartEnd"
                   />
                   <YAxis
+                    yAxisId="bp"
                     domain={bpYDomain}
                     tick={{ fill: "var(--hp-muted)", fontSize: 11 }}
                     width={44}
@@ -792,6 +815,23 @@ export function DashboardPageClient() {
                       fontSize: 10,
                     }}
                   />
+                  {hasAnyPulseOnChart ? (
+                    <YAxis
+                      yAxisId="pulse"
+                      orientation="right"
+                      domain={pulseYDomain}
+                      tick={{ fill: "var(--hp-muted)", fontSize: 11 }}
+                      width={44}
+                      label={{
+                        value: "回/分",
+                        position: "right",
+                        angle: 90,
+                        dx: 4,
+                        fill: "var(--hp-muted)",
+                        fontSize: 10,
+                      }}
+                    />
+                  ) : null}
                   <Tooltip
                     content={
                       <BpTooltip chartGranularity={chartGranularity} />
@@ -799,6 +839,7 @@ export function DashboardPageClient() {
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Line
+                    yAxisId="bp"
                     type="monotone"
                     dataKey="systolic"
                     name="収縮期 (mmHg)"
@@ -808,6 +849,7 @@ export function DashboardPageClient() {
                     connectNulls={false}
                   />
                   <Line
+                    yAxisId="bp"
                     type="monotone"
                     dataKey="diastolic"
                     name="拡張期 (mmHg)"
@@ -818,6 +860,7 @@ export function DashboardPageClient() {
                   />
                   {hasAnyPulseOnChart ? (
                     <Line
+                      yAxisId="pulse"
                       type="monotone"
                       dataKey="pulse"
                       name="脈拍 (回/分)"
