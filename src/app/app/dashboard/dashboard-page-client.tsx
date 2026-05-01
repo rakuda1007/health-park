@@ -952,16 +952,16 @@ export function DashboardPageClient() {
                             </div>
                             <div>
                               <dt className="text-xs text-[color:var(--hp-muted)]">
-                                振り返り（合計の週平均）
+                                振り返り
                               </dt>
                               <dd className="mt-0.5 tabular-nums text-[color:var(--hp-foreground)]">
-                                {row.avgReflectionTotal != null
-                                  ? `${row.avgReflectionTotal} / 6`
-                                  : "—"}
-                                <span className="text-xs text-[color:var(--hp-muted)]">
-                                  {" "}
-                                  （記録 {row.reflectionDays} 日）
-                                </span>
+                                {row.reflectionDays > 0 ? (
+                                  <span className="text-[color:var(--hp-muted)]">
+                                    記録 {row.reflectionDays} 日分
+                                  </span>
+                                ) : (
+                                  "—"
+                                )}
                               </dd>
                               <p className="mt-1.5 text-xs leading-relaxed text-[color:var(--hp-muted)]">
                                 {weeklyReflectionNarrative(row, prev)}
@@ -1021,11 +1021,8 @@ export function DashboardPageClient() {
                           <th className="w-[2.5rem] px-1 py-2 text-center font-medium text-[color:var(--hp-muted)]">
                             日
                           </th>
-                          <th className="w-[4rem] px-1 py-2 text-right font-medium text-[color:var(--hp-muted)]">
+                          <th className="w-[3rem] px-1 py-2 text-center font-medium text-[color:var(--hp-muted)]">
                             振返
-                          </th>
-                          <th className="w-[2.5rem] px-1 py-2 text-center font-medium text-[color:var(--hp-muted)]">
-                            日
                           </th>
                         </>
                       ) : null}
@@ -1074,13 +1071,10 @@ export function DashboardPageClient() {
                               <td className="px-1 py-2 text-center tabular-nums">
                                 {row.stepsRecordedDays}
                               </td>
-                              <td className="px-1 py-2 text-right tabular-nums">
-                                {row.avgReflectionTotal != null
-                                  ? `${row.avgReflectionTotal}/6`
+                              <td className="px-1 py-2 text-center tabular-nums text-[color:var(--hp-muted)]">
+                                {row.reflectionDays > 0
+                                  ? row.reflectionDays
                                   : "—"}
-                              </td>
-                              <td className="px-1 py-2 text-center tabular-nums">
-                                {row.reflectionDays}
                               </td>
                             </>
                           ) : null}
@@ -1134,7 +1128,7 @@ export function DashboardPageClient() {
                 <p className="mt-2 text-[11px] text-[color:var(--hp-muted)]">
                   列見出し：
                   {showCore
-                    ? "体重・歩数・振返は週平均、隣の「日」は記録があった日数です。"
+                    ? "体重・歩数は週平均で、隣の「日」は記録があった日数です。振返の列は振り返りの記録があった日数のみ（各項目の平均は自動コメント欄）。"
                     : ""}
                   {showCore && showBp ? " " : ""}
                   {showBp

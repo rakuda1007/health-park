@@ -684,7 +684,7 @@ export function weeklyReflectionNarrative(
       parts.push(`${label}は未記録`);
       return;
     }
-    let s = `${label}の週平均は ${fmtScore(avg)}（${days}日分）`;
+    let s = `${label}の週平均は 2点満点中${fmtScore(avg)}点（${days}日分）`;
     if (days <= 2) {
       s += "（記録が少なく参考程度）";
     }
