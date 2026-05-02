@@ -6,7 +6,6 @@ import { appPath } from "@/lib/app-paths";
 import {
   buildHealthBlogPostProxyUrl,
   getHealthBlogOrigin,
-  healthBlogCanonicalPostUrl,
   healthBlogEmbedUrl,
   pickPostBodyHtml,
   pickPublishedLabel,
@@ -37,7 +36,6 @@ type LoadState =
       status: "ok";
       post: HealthBlogPostDetail;
       embedSrc: string;
-      canonical: string | null;
     };
 
 export function AnnouncementArticlePageClient({ slug }: { slug: string }) {
@@ -50,7 +48,6 @@ export function AnnouncementArticlePageClient({ slug }: { slug: string }) {
     }
 
     const embedSrc = healthBlogEmbedUrl(slug);
-    const canonical = healthBlogCanonicalPostUrl(slug);
 
     if (!embedSrc) {
       setState({ status: "no_origin" });
@@ -93,7 +90,6 @@ export function AnnouncementArticlePageClient({ slug }: { slug: string }) {
             status: "ok",
             post,
             embedSrc,
-            canonical,
           });
         }
       } catch {
@@ -185,33 +181,12 @@ export function AnnouncementArticlePageClient({ slug }: { slug: string }) {
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-6">
-      <nav className="mb-6 text-sm">
-        <Link
-          href={appPath("/announcements")}
-          className="font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
-        >
-          ← お知らせ一覧
-        </Link>
-      </nav>
-
       <header className="mb-4 border-b border-[color:var(--hp-border)] pb-4">
         <h1 className="text-xl font-semibold tracking-tight text-[color:var(--hp-foreground)]">
           {title}
         </h1>
         {dateLabel ? (
           <p className="mt-2 text-sm text-[color:var(--hp-muted)]">{dateLabel}</p>
-        ) : null}
-        {state.canonical ? (
-          <p className="mt-3">
-            <a
-              href={state.canonical}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
-            >
-              ブラウザで開く（共有・検索用の正規ページ）
-            </a>
-          </p>
         ) : null}
       </header>
 

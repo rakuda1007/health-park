@@ -46,16 +46,6 @@ function NavSections({ onNavigate }: { onNavigate?: () => void }) {
     <div className="flex flex-col gap-5 md:flex-row md:flex-wrap md:items-start md:gap-x-8 md:gap-y-3">
       <div>
         <p className="text-xs font-medium text-[color:var(--hp-muted)]">
-          お知らせ
-        </p>
-        <div className="mt-2 md:mt-1.5">
-          <NavLink href={appPath("/announcements")} onNavigate={onNavigate}>
-            お知らせ
-          </NavLink>
-        </div>
-      </div>
-      <div>
-        <p className="text-xs font-medium text-[color:var(--hp-muted)]">
           記録する
         </p>
         <ul className="mt-2 flex flex-col gap-1.5 border-l border-[color:var(--hp-border)] pl-3 md:mt-1.5 md:flex-row md:flex-wrap md:gap-x-3 md:gap-y-1 md:border-l-0 md:pl-0">
@@ -114,12 +104,6 @@ export function AppHeader() {
   const loginHref = `${appPath("/login")}?redirect=${encodeURIComponent(loginRedirect)}`;
   const signupHref = `${appPath("/login")}?redirect=${encodeURIComponent(loginRedirect)}&mode=signup`;
   const brandHref = usePortalStyleNav ? "/portal" : inApp ? appPath("/dashboard") : "/portal";
-  const inAppAnnouncements =
-    pathname === `${APP_BASE}/announcements` ||
-    pathname.startsWith(`${APP_BASE}/announcements/`);
-  const announcementsNavHref = inAppAnnouncements
-    ? appPath("/announcements")
-    : "/portal#announcements";
 
   useEffect(() => {
     setMobileOpen(false);
@@ -159,20 +143,6 @@ export function AppHeader() {
                 className="hidden min-w-0 md:flex md:items-center md:gap-x-4"
                 aria-label="案内"
               >
-                <Link
-                  href={announcementsNavHref}
-                  className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
-                  onClick={(e) => {
-                    if (pathname === "/portal") {
-                      e.preventDefault();
-                      document
-                        .getElementById("announcements")
-                        ?.scrollIntoView({ behavior: "smooth" });
-                    }
-                  }}
-                >
-                  お知らせ
-                </Link>
                 <Link
                   href={appPath("/dashboard")}
                   className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
@@ -276,21 +246,6 @@ export function AppHeader() {
                 </nav>
               ) : (
                 <nav className="flex flex-col gap-3" aria-label="案内">
-                  <Link
-                    href={announcementsNavHref}
-                    onClick={(e) => {
-                      if (pathname === "/portal") {
-                        e.preventDefault();
-                        document
-                          .getElementById("announcements")
-                          ?.scrollIntoView({ behavior: "smooth" });
-                      }
-                      setMobileOpen(false);
-                    }}
-                    className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
-                  >
-                    お知らせ
-                  </Link>
                   <Link
                     href={appPath("/dashboard")}
                     onClick={() => setMobileOpen(false)}
