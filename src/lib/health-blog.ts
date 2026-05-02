@@ -167,8 +167,27 @@ export function buildHealthBlogListProxyUrl(options: {
   return `/api/health-blog?${params.toString()}`;
 }
 
+/**
+ * 単票プロキシ URL。一覧 API と同じ tag / category / publicationTarget を付与する。
+ * 未付与だと一覧には出るが GET /api/blog/[slug] だけ 404 になるブログ実装がある。
+ */
 export function buildHealthBlogPostProxyUrl(slug: string): string {
-  return `/api/health-blog/${encodeURIComponent(slug)}`;
+  const params = new URLSearchParams();
+  const tag = getHealthBlogListTag();
+  if (tag) {
+    params.set("tag", tag);
+  }
+  const category = getHealthBlogListCategory();
+  if (category) {
+    params.set("category", category);
+  }
+  const publicationTarget = getHealthBlogPublicationTarget();
+  if (publicationTarget) {
+    params.set("publicationTarget", publicationTarget);
+  }
+  const qs = params.toString();
+  const path = `/api/health-blog/${encodeURIComponent(slug)}`;
+  return qs ? `${path}?${qs}` : path;
 }
 
 export async function fetchHealthBlogPosts(options: {

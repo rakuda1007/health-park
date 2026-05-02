@@ -103,11 +103,23 @@ export function AppHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const panelId = useId();
   const inApp = pathname === APP_BASE || pathname.startsWith(`${APP_BASE}/`);
+  /** お知らせ一覧・記事はポータルと同じコンパクト案内（記録アプリの巨大メニューは出さない） */
+  const usePortalStyleNav =
+    pathname === "/portal" ||
+    pathname.startsWith("/portal/") ||
+    pathname === `${APP_BASE}/announcements` ||
+    pathname.startsWith(`${APP_BASE}/announcements/`);
   const loginRedirect =
     inApp && pathname.length > 0 ? pathname : appPath("/dashboard");
   const loginHref = `${appPath("/login")}?redirect=${encodeURIComponent(loginRedirect)}`;
   const signupHref = `${appPath("/login")}?redirect=${encodeURIComponent(loginRedirect)}&mode=signup`;
-  const brandHref = inApp ? appPath("/dashboard") : "/portal";
+  const brandHref = usePortalStyleNav ? "/portal" : inApp ? appPath("/dashboard") : "/portal";
+  const inAppAnnouncements =
+    pathname === `${APP_BASE}/announcements` ||
+    pathname.startsWith(`${APP_BASE}/announcements/`);
+  const announcementsNavHref = inAppAnnouncements
+    ? appPath("/announcements")
+    : "/portal#announcements";
 
   useEffect(() => {
     setMobileOpen(false);
@@ -142,13 +154,13 @@ export function AppHeader() {
             >
               <span className="truncate">Health Park</span>
             </Link>
-            {!inApp ? (
+            {usePortalStyleNav ? (
               <nav
                 className="hidden min-w-0 md:flex md:items-center md:gap-x-4"
                 aria-label="案内"
               >
                 <Link
-                  href="/portal#announcements"
+                  href={announcementsNavHref}
                   className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
                   onClick={(e) => {
                     if (pathname === "/portal") {
@@ -227,7 +239,7 @@ export function AppHeader() {
           </div>
         </div>
 
-        {inApp ? (
+        {inApp && !usePortalStyleNav ? (
           <nav
             className="hidden md:block"
             aria-label="主要ナビゲーション"
@@ -258,14 +270,14 @@ export function AppHeader() {
               </p>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-              {inApp ? (
+              {inApp && !usePortalStyleNav ? (
                 <nav aria-label="主要ナビゲーション">
                   <NavSections onNavigate={() => setMobileOpen(false)} />
                 </nav>
               ) : (
                 <nav className="flex flex-col gap-3" aria-label="案内">
                   <Link
-                    href="/portal#announcements"
+                    href={announcementsNavHref}
                     onClick={(e) => {
                       if (pathname === "/portal") {
                         e.preventDefault();

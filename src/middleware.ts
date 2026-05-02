@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 /** 移行前のブックマーク用: 旧トップレベル → `/app` 配下へ */
 const LEGACY_APP_SEGMENTS = new Set([
+  "announcements",
   "appointments",
   "backup",
   "blood-pressure",
