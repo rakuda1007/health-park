@@ -107,7 +107,7 @@ export function AppHeader() {
     inApp && pathname.length > 0 ? pathname : appPath("/dashboard");
   const loginHref = `${appPath("/login")}?redirect=${encodeURIComponent(loginRedirect)}`;
   const signupHref = `${appPath("/login")}?redirect=${encodeURIComponent(loginRedirect)}&mode=signup`;
-  const brandHref = inApp ? appPath("/dashboard") : "/";
+  const brandHref = inApp ? appPath("/dashboard") : "/portal";
 
   useEffect(() => {
     setMobileOpen(false);
@@ -148,12 +148,6 @@ export function AppHeader() {
                 aria-label="案内"
               >
                 <Link
-                  href={appPath("/dashboard")}
-                  className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
-                >
-                  記録アプリへ
-                </Link>
-                <Link
                   href="/portal#announcements"
                   className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
                   onClick={(e) => {
@@ -166,6 +160,12 @@ export function AppHeader() {
                   }}
                 >
                   お知らせ
+                </Link>
+                <Link
+                  href={appPath("/dashboard")}
+                  className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
+                >
+                  記録アプリへ
                 </Link>
               </nav>
             ) : null}
@@ -265,13 +265,6 @@ export function AppHeader() {
               ) : (
                 <nav className="flex flex-col gap-3" aria-label="案内">
                   <Link
-                    href={appPath("/dashboard")}
-                    onClick={() => setMobileOpen(false)}
-                    className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
-                  >
-                    記録アプリへ
-                  </Link>
-                  <Link
                     href="/portal#announcements"
                     onClick={(e) => {
                       if (pathname === "/portal") {
@@ -285,6 +278,13 @@ export function AppHeader() {
                     className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
                   >
                     お知らせ
+                  </Link>
+                  <Link
+                    href={appPath("/dashboard")}
+                    onClick={() => setMobileOpen(false)}
+                    className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
+                  >
+                    記録アプリへ
                   </Link>
                 </nav>
               )}
