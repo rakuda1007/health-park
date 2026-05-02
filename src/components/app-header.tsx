@@ -131,7 +131,15 @@ export function AppHeader() {
           >
             <span className="truncate">Health Park</span>
           </Link>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2 md:gap-3">
+            {!inApp ? (
+              <Link
+                href={appPath("/dashboard")}
+                className="max-md:hidden text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
+              >
+                記録アプリへ
+              </Link>
+            ) : null}
             {signedInWithEmail ? (
               <span className="flex flex-wrap items-center justify-end gap-2 text-xs text-[color:var(--hp-muted)]">
                 <span
@@ -195,19 +203,7 @@ export function AppHeader() {
           >
             <NavSections />
           </nav>
-        ) : (
-          <nav
-            className="hidden md:flex md:flex-wrap md:items-center md:gap-4"
-            aria-label="案内"
-          >
-            <Link
-              href={appPath("/dashboard")}
-              className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
-            >
-              記録アプリへ
-            </Link>
-          </nav>
-        )}
+        ) : null}
       </div>
 
       {mobileOpen ? (
