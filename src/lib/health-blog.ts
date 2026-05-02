@@ -81,6 +81,39 @@ export function pickExcerpt(post: HealthBlogPostListItem): string | undefined {
   return typeof x === "string" && x.trim() ? x.trim() : undefined;
 }
 
+/** ブラウザから直接叩く用の一覧 URL（サーバー fetch がブロックされる環境向け） */
+export function buildHealthBlogListUrl(options: {
+  page?: number;
+  limit?: number;
+  tag?: string;
+}): string | null {
+  const origin = getHealthBlogOrigin();
+  if (!origin) {
+    return null;
+  }
+  const base = origin.replace(/\/$/, "");
+  const params = new URLSearchParams();
+  const page = options.page ?? 1;
+  params.set("page", String(page));
+  params.set("limit", String(options.limit ?? DEFAULT_LIST_LIMIT));
+  if (options.tag) {
+    params.set("tag", options.tag);
+  }
+  params.set("sortBy", "publishedAt");
+  params.set("sortOrder", "desc");
+  return `${base}/api/blog?${params.toString()}`;
+}
+
+/** 単票 API の URL（クライアント fetch 用） */
+export function buildHealthBlogPostApiUrl(slug: string): string | null {
+  const origin = getHealthBlogOrigin();
+  if (!origin) {
+    return null;
+  }
+  const base = origin.replace(/\/$/, "");
+  return `${base}/api/blog/${encodeURIComponent(slug)}`;
+}
+
 export async function fetchHealthBlogPosts(options: {
   page?: number;
   limit?: number;
