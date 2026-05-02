@@ -1,7 +1,6 @@
-"use client";
-
 /**
  * ブログ CMS が API で返す HTML を表示する（同一オリジン iframe の embed ページが 404 でも閲覧可能にする）。
+ * サーバーコンポーネントで描画し、初期 HTML に本文を含める（SEO 向け）。
  */
 export function AnnouncementArticleBody({ html }: { html: string }) {
   return (

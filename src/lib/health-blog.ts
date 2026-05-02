@@ -3,6 +3,8 @@
  * GET /api/blog … 一覧、GET /api/blog/[slug] … 単票（メタデータ用）
  */
 
+import { cache } from "react";
+
 const DEFAULT_LIST_LIMIT = 10;
 
 export type HealthBlogPagination = {
@@ -35,6 +37,9 @@ export type HealthBlogPostDetail = {
   title?: string;
   publishedAt?: string;
   published_at?: string;
+  excerpt?: string;
+  summary?: string;
+  description?: string;
   /** ブログ API が返す記事本文（HTML 文字列、または { html: string }） */
   content?: string | { html?: string };
   body?: string;
@@ -58,6 +63,39 @@ export function pickPostBodyHtml(post: HealthBlogPostDetail): string | null {
   }
   if (typeof post.html === "string" && post.html.trim()) {
     return post.html.trim();
+  }
+  return null;
+}
+
+const META_DESCRIPTION_MAX = 160;
+
+/** OGP / meta description 用（抜粋フィールドが無ければ本文 HTML からプレーンテキストを切り出し） */
+export function pickPostMetaDescription(
+  post: HealthBlogPostDetail,
+): string | null {
+  const fromFields =
+    (typeof post.excerpt === "string" && post.excerpt.trim()) ||
+    (typeof post.summary === "string" && post.summary.trim()) ||
+    (typeof post.description === "string" && post.description.trim()) ||
+    "";
+  if (fromFields) {
+    const t = fromFields.replace(/\s+/g, " ").trim();
+    return t.length > META_DESCRIPTION_MAX
+      ? `${t.slice(0, META_DESCRIPTION_MAX - 1)}…`
+      : t;
+  }
+  const html = pickPostBodyHtml(post);
+  if (html) {
+    const text = html
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!text) {
+      return null;
+    }
+    return text.length > META_DESCRIPTION_MAX
+      ? `${text.slice(0, META_DESCRIPTION_MAX - 1)}…`
+      : text;
   }
   return null;
 }
@@ -255,30 +293,53 @@ export async function fetchHealthBlogPosts(options: {
   return (await res.json()) as HealthBlogListResponse;
 }
 
-export async function fetchHealthBlogPost(
-  slug: string,
-): Promise<HealthBlogPostDetail | null> {
-  const origin = getHealthBlogOrigin();
-  if (!origin) {
-    return null;
-  }
-  const base = origin.replace(/\/$/, "");
-  const url = `${base}/api/blog/${encodeURIComponent(slug)}`;
-  const res = await fetch(url, { next: { revalidate: 60 } });
-  if (!res.ok) {
-    return null;
-  }
-  const json: unknown = await res.json();
-  if (json && typeof json === "object") {
-    if ("post" in json && json.post && typeof json.post === "object") {
-      return json.post as HealthBlogPostDetail;
+/**
+ * サーバー（generateMetadata / RSC）から単票を取得。React cache で同一リクエスト内は1回。
+ * クエリはプロキシ・クライアントと揃える（単票だけ 404 になるブログ実装への対策）。
+ */
+export const fetchHealthBlogPost = cache(
+  async (slug: string): Promise<HealthBlogPostDetail | null> => {
+    const origin = getHealthBlogOrigin();
+    if (!origin) {
+      return null;
     }
-    if ("data" in json && json.data && typeof json.data === "object") {
-      return json.data as HealthBlogPostDetail;
+    const base = origin.replace(/\/$/, "");
+    const params = new URLSearchParams();
+    const tag = getHealthBlogListTag();
+    if (tag) {
+      params.set("tag", tag);
     }
-  }
-  return json as HealthBlogPostDetail;
-}
+    const category = getHealthBlogListCategory();
+    if (category) {
+      params.set("category", category);
+    }
+    const publicationTarget = getHealthBlogPublicationTarget();
+    if (publicationTarget) {
+      params.set("publicationTarget", publicationTarget);
+    }
+    const qs = params.toString();
+    const url = `${base}/api/blog/${encodeURIComponent(slug)}${qs ? `?${qs}` : ""}`;
+    try {
+      const res = await fetch(url, { next: { revalidate: 120 } });
+      if (!res.ok) {
+        return null;
+      }
+      const json: unknown = await res.json();
+      if (json && typeof json === "object") {
+        if ("post" in json && json.post && typeof json.post === "object") {
+          return json.post as HealthBlogPostDetail;
+        }
+        if ("data" in json && json.data && typeof json.data === "object") {
+          return json.data as HealthBlogPostDetail;
+        }
+      }
+      return json as HealthBlogPostDetail;
+    } catch (e) {
+      console.error("[fetchHealthBlogPost] upstream error", e);
+      return null;
+    }
+  },
+);
 
 export function healthBlogEmbedUrl(slug: string): string | null {
   const origin = getHealthBlogOrigin();
