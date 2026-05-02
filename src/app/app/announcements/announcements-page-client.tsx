@@ -44,33 +44,49 @@ export function AnnouncementsPageClient() {
           credentials: "same-origin",
           cache: "no-store",
         });
-        if (res.status === 503) {
-          throw new Error("not_configured");
-        }
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-        const data = (await res.json()) as HealthBlogListResponse;
+        const raw = await res.text();
         if (cancelled) {
           return;
         }
+
+        if (res.status === 503) {
+          setPosts([]);
+          setPagination(normalizeBlogPagination(undefined, currentPage));
+          setErrorMessage(
+            "ブログ API の起点が未設定です。NEXT_PUBLIC_HEALTH_BLOG_ORIGIN を環境変数に設定して再デプロイしてください。",
+          );
+          return;
+        }
+
+        if (!res.ok) {
+          let detail: string | null = null;
+          try {
+            const j = JSON.parse(raw) as { message?: string };
+            detail = typeof j.message === "string" ? j.message : null;
+          } catch {
+            /* 本文が JSON でない場合 */
+          }
+          setPosts([]);
+          setPagination(normalizeBlogPagination(undefined, currentPage));
+          setErrorMessage(
+            detail ??
+              `お知らせ一覧を取得できませんでした（HTTP ${res.status}）。`,
+          );
+          return;
+        }
+
+        const data = JSON.parse(raw) as HealthBlogListResponse;
         setPosts(data.posts ?? []);
         setPagination(normalizeBlogPagination(data.pagination, currentPage));
-      } catch (e) {
+      } catch {
         if (cancelled) {
           return;
         }
         setPosts([]);
         setPagination(normalizeBlogPagination(undefined, currentPage));
-        if (e instanceof Error && e.message === "not_configured") {
-          setErrorMessage(
-            "ブログ API の起点が未設定です。NEXT_PUBLIC_HEALTH_BLOG_ORIGIN を環境変数に設定して再デプロイしてください。",
-          );
-        } else {
-          setErrorMessage(
-            "お知らせ一覧を取得できませんでした。しばらくしてから再度お試しください。",
-          );
-        }
+        setErrorMessage(
+          "お知らせ一覧を取得できませんでした。しばらくしてから再度お試しください。",
+        );
       } finally {
         if (!cancelled) {
           setLoading(false);
