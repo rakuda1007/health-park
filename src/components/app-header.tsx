@@ -74,6 +74,16 @@ function NavSections({ onNavigate }: { onNavigate?: () => void }) {
       </div>
       <div>
         <p className="text-xs font-medium text-[color:var(--hp-muted)]">
+          お知らせ
+        </p>
+        <div className="mt-2 md:mt-1.5">
+          <NavLink href={appPath("/announcements")} onNavigate={onNavigate}>
+            お知らせ
+          </NavLink>
+        </div>
+      </div>
+      <div>
+        <p className="text-xs font-medium text-[color:var(--hp-muted)]">
           設定
         </p>
         <div className="mt-2 md:mt-1.5">
@@ -142,6 +152,12 @@ export function AppHeader() {
                   className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
                 >
                   記録アプリへ
+                </Link>
+                <Link
+                  href={appPath("/announcements")}
+                  className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
+                >
+                  お知らせ
                 </Link>
               </nav>
             ) : null}
@@ -246,6 +262,13 @@ export function AppHeader() {
                     className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
                   >
                     記録アプリへ
+                  </Link>
+                  <Link
+                    href={appPath("/announcements")}
+                    onClick={() => setMobileOpen(false)}
+                    className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
+                  >
+                    お知らせ
                   </Link>
                 </nav>
               )}
