@@ -35,8 +35,32 @@ export type HealthBlogPostDetail = {
   title?: string;
   publishedAt?: string;
   published_at?: string;
-  content?: string;
+  /** ブログ API が返す記事本文（HTML 文字列、または { html: string }） */
+  content?: string | { html?: string };
+  body?: string;
+  html?: string;
 };
+
+/** 単票 JSON から本文 HTML を取り出す（フィールド名の実装差を吸収） */
+export function pickPostBodyHtml(post: HealthBlogPostDetail): string | null {
+  const c = post.content;
+  if (typeof c === "string" && c.trim()) {
+    return c.trim();
+  }
+  if (c && typeof c === "object" && c !== null && "html" in c) {
+    const h = (c as { html: unknown }).html;
+    if (typeof h === "string" && h.trim()) {
+      return h.trim();
+    }
+  }
+  if (typeof post.body === "string" && post.body.trim()) {
+    return post.body.trim();
+  }
+  if (typeof post.html === "string" && post.html.trim()) {
+    return post.html.trim();
+  }
+  return null;
+}
 
 export function getHealthBlogOrigin(): string | null {
   const o = process.env.NEXT_PUBLIC_HEALTH_BLOG_ORIGIN?.trim();

@@ -1,5 +1,6 @@
 "use client";
 
+import { AnnouncementArticleBody } from "@/app/app/announcements/[slug]/announcement-article-body";
 import { AnnouncementArticleEmbed } from "@/app/app/announcements/[slug]/announcement-article-embed";
 import { appPath } from "@/lib/app-paths";
 import {
@@ -7,6 +8,7 @@ import {
   getHealthBlogOrigin,
   healthBlogCanonicalPostUrl,
   healthBlogEmbedUrl,
+  pickPostBodyHtml,
   pickPublishedLabel,
   type HealthBlogPostDetail,
   type HealthBlogPostListItem,
@@ -179,6 +181,7 @@ export function AnnouncementArticlePageClient({ slug }: { slug: string }) {
 
   const title = state.post.title?.trim() || slug;
   const dateLabel = pickPublishedLabel(state.post as HealthBlogPostListItem);
+  const bodyHtml = pickPostBodyHtml(state.post);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-6">
@@ -212,7 +215,11 @@ export function AnnouncementArticlePageClient({ slug }: { slug: string }) {
         ) : null}
       </header>
 
-      <AnnouncementArticleEmbed src={state.embedSrc} title={title} />
+      {bodyHtml ? (
+        <AnnouncementArticleBody html={bodyHtml} />
+      ) : (
+        <AnnouncementArticleEmbed src={state.embedSrc} title={title} />
+      )}
     </main>
   );
 }
