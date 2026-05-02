@@ -46,6 +46,16 @@ function NavSections({ onNavigate }: { onNavigate?: () => void }) {
     <div className="flex flex-col gap-5 md:flex-row md:flex-wrap md:items-start md:gap-x-8 md:gap-y-3">
       <div>
         <p className="text-xs font-medium text-[color:var(--hp-muted)]">
+          お知らせ
+        </p>
+        <div className="mt-2 md:mt-1.5">
+          <NavLink href={appPath("/announcements")} onNavigate={onNavigate}>
+            お知らせ
+          </NavLink>
+        </div>
+      </div>
+      <div>
+        <p className="text-xs font-medium text-[color:var(--hp-muted)]">
           記録する
         </p>
         <ul className="mt-2 flex flex-col gap-1.5 border-l border-[color:var(--hp-border)] pl-3 md:mt-1.5 md:flex-row md:flex-wrap md:gap-x-3 md:gap-y-1 md:border-l-0 md:pl-0">
@@ -71,16 +81,6 @@ function NavSections({ onNavigate }: { onNavigate?: () => void }) {
             </li>
           ))}
         </ul>
-      </div>
-      <div>
-        <p className="text-xs font-medium text-[color:var(--hp-muted)]">
-          お知らせ
-        </p>
-        <div className="mt-2 md:mt-1.5">
-          <NavLink href={appPath("/announcements")} onNavigate={onNavigate}>
-            お知らせ
-          </NavLink>
-        </div>
       </div>
       <div>
         <p className="text-xs font-medium text-[color:var(--hp-muted)]">
