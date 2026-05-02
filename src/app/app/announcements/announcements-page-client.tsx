@@ -2,9 +2,8 @@
 
 import { AnnouncementsList } from "@/app/app/announcements/announcements-list";
 import {
-  buildHealthBlogListUrl,
+  buildHealthBlogListProxyUrl,
   getHealthBlogListTag,
-  getHealthBlogOrigin,
   normalizeBlogPagination,
   type HealthBlogListResponse,
   type HealthBlogPostListItem,
@@ -29,27 +28,10 @@ export function AnnouncementsPageClient() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const originConfigured = Boolean(getHealthBlogOrigin());
-    if (!originConfigured) {
-      setLoading(false);
-      setErrorMessage(
-        "ブログ API の起点が未設定です。NEXT_PUBLIC_HEALTH_BLOG_ORIGIN を環境変数に設定して再デプロイしてください。",
-      );
-      setPosts([]);
-      return;
-    }
-
-    const url = buildHealthBlogListUrl({
+    const url = buildHealthBlogListProxyUrl({
       page: currentPage,
       tag: listTag,
     });
-    if (!url) {
-      setLoading(false);
-      setErrorMessage(
-        "ブログ API の起点が未設定です。NEXT_PUBLIC_HEALTH_BLOG_ORIGIN を環境変数に設定して再デプロイしてください。",
-      );
-      return;
-    }
 
     let cancelled = false;
     setLoading(true);
@@ -59,9 +41,12 @@ export function AnnouncementsPageClient() {
       try {
         const res = await fetch(url, {
           method: "GET",
-          credentials: "omit",
+          credentials: "same-origin",
           cache: "no-store",
         });
+        if (res.status === 503) {
+          throw new Error("not_configured");
+        }
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
         }
@@ -71,15 +56,21 @@ export function AnnouncementsPageClient() {
         }
         setPosts(data.posts ?? []);
         setPagination(normalizeBlogPagination(data.pagination, currentPage));
-      } catch {
+      } catch (e) {
         if (cancelled) {
           return;
         }
         setPosts([]);
         setPagination(normalizeBlogPagination(undefined, currentPage));
-        setErrorMessage(
-          "お知らせ一覧を取得できませんでした。ネットワークかブログ側の CORS 設定（このサイトのオリジンを許可）を確認してください。",
-        );
+        if (e instanceof Error && e.message === "not_configured") {
+          setErrorMessage(
+            "ブログ API の起点が未設定です。NEXT_PUBLIC_HEALTH_BLOG_ORIGIN を環境変数に設定して再デプロイしてください。",
+          );
+        } else {
+          setErrorMessage(
+            "お知らせ一覧を取得できませんでした。しばらくしてから再度お試しください。",
+          );
+        }
       } finally {
         if (!cancelled) {
           setLoading(false);

@@ -114,6 +114,28 @@ export function buildHealthBlogPostApiUrl(slug: string): string | null {
   return `${base}/api/blog/${encodeURIComponent(slug)}`;
 }
 
+/** Health Park 同一オリジンのプロキシ（CORS 不要）。`/api/health-blog` → ブログ `/api/blog` */
+export function buildHealthBlogListProxyUrl(options: {
+  page?: number;
+  limit?: number;
+  tag?: string;
+}): string {
+  const params = new URLSearchParams();
+  const page = options.page ?? 1;
+  params.set("page", String(page));
+  params.set("limit", String(options.limit ?? DEFAULT_LIST_LIMIT));
+  if (options.tag) {
+    params.set("tag", options.tag);
+  }
+  params.set("sortBy", "publishedAt");
+  params.set("sortOrder", "desc");
+  return `/api/health-blog?${params.toString()}`;
+}
+
+export function buildHealthBlogPostProxyUrl(slug: string): string {
+  return `/api/health-blog/${encodeURIComponent(slug)}`;
+}
+
 export async function fetchHealthBlogPosts(options: {
   page?: number;
   limit?: number;

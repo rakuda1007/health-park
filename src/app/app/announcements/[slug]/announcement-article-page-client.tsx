@@ -3,7 +3,7 @@
 import { AnnouncementArticleEmbed } from "@/app/app/announcements/[slug]/announcement-article-embed";
 import { appPath } from "@/lib/app-paths";
 import {
-  buildHealthBlogPostApiUrl,
+  buildHealthBlogPostProxyUrl,
   getHealthBlogOrigin,
   healthBlogCanonicalPostUrl,
   healthBlogEmbedUrl,
@@ -47,24 +47,30 @@ export function AnnouncementArticlePageClient({ slug }: { slug: string }) {
       return;
     }
 
-    const apiUrl = buildHealthBlogPostApiUrl(slug);
     const embedSrc = healthBlogEmbedUrl(slug);
     const canonical = healthBlogCanonicalPostUrl(slug);
 
-    if (!apiUrl || !embedSrc) {
+    if (!embedSrc) {
       setState({ status: "no_origin" });
       return;
     }
 
+    const apiUrl = buildHealthBlogPostProxyUrl(slug);
     let cancelled = false;
 
     void (async () => {
       try {
         const res = await fetch(apiUrl, {
           method: "GET",
-          credentials: "omit",
+          credentials: "same-origin",
           cache: "no-store",
         });
+        if (res.status === 503) {
+          if (!cancelled) {
+            setState({ status: "no_origin" });
+          }
+          return;
+        }
         if (res.status === 404) {
           if (!cancelled) {
             setState({ status: "missing" });
@@ -136,7 +142,7 @@ export function AnnouncementArticlePageClient({ slug }: { slug: string }) {
           className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-4 py-6 text-sm text-[color:var(--hp-muted)]"
           role="alert"
         >
-          記事を取得できませんでした。ネットワークかブログ側の CORS 設定を確認してください。
+          記事を取得できませんでした。しばらくしてから再度お試しください。
         </p>
         <p className="mt-4">
           <Link
