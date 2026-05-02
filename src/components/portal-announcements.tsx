@@ -13,6 +13,32 @@ import { useEffect, useState } from "react";
 
 const PORTAL_PREVIEW_LIMIT = 5;
 
+/** 一覧 JSON を正規化（{ posts } / { data: { posts } } 双方） */
+function parseHealthBlogListResponse(raw: string): HealthBlogListResponse {
+  const parsed: unknown = JSON.parse(raw);
+  if (!parsed || typeof parsed !== "object") {
+    return { posts: [] };
+  }
+  const o = parsed as Record<string, unknown>;
+  if (Array.isArray(o.posts)) {
+    return {
+      posts: o.posts as HealthBlogPostListItem[],
+      pagination: o.pagination as HealthBlogListResponse["pagination"],
+    };
+  }
+  const data = o.data;
+  if (data && typeof data === "object") {
+    const d = data as Record<string, unknown>;
+    if (Array.isArray(d.posts)) {
+      return {
+        posts: d.posts as HealthBlogPostListItem[],
+        pagination: d.pagination as HealthBlogListResponse["pagination"],
+      };
+    }
+  }
+  return { posts: [] };
+}
+
 /** ポータルページ先頭用：お知らせ一覧のプレビュー（同一ヘッダ配下） */
 export function PortalAnnouncements() {
   const [posts, setPosts] = useState<HealthBlogPostListItem[]>([]);
@@ -23,12 +49,10 @@ export function PortalAnnouncements() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const url = buildHealthBlogListProxyUrl({
-      page: 1,
-      limit: PORTAL_PREVIEW_LIMIT,
-    });
+    /** /app/announcements の1ページ目と同一クエリ（limit 別指定は API によって 0 件になる例があったため、取得後に件数制限） */
+    const url = buildHealthBlogListProxyUrl({ page: 1 });
 
-    let cancelled = false;
+    const ac = new AbortController();
     setLoading(true);
     setErrorMessage(null);
 
@@ -38,11 +62,9 @@ export function PortalAnnouncements() {
           method: "GET",
           credentials: "same-origin",
           cache: "no-store",
+          signal: ac.signal,
         });
         const raw = await res.text();
-        if (cancelled) {
-          return;
-        }
 
         if (res.status === 503) {
           setPosts([]);
@@ -70,11 +92,12 @@ export function PortalAnnouncements() {
           return;
         }
 
-        const data = JSON.parse(raw) as HealthBlogListResponse;
-        setPosts(data.posts ?? []);
+        const data = parseHealthBlogListResponse(raw);
+        const list = data.posts ?? [];
+        setPosts(list.slice(0, PORTAL_PREVIEW_LIMIT));
         setPagination(normalizeBlogPagination(data.pagination, 1));
-      } catch {
-        if (cancelled) {
+      } catch (e) {
+        if (e instanceof Error && e.name === "AbortError") {
           return;
         }
         setPosts([]);
@@ -83,15 +106,11 @@ export function PortalAnnouncements() {
           "お知らせ一覧を取得できませんでした。しばらくしてから再度お試しください。",
         );
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     })();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => ac.abort();
   }, []);
 
   return (
