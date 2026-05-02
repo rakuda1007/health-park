@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PortalAnnouncements } from "@/components/portal-announcements";
 import Image from "next/image";
 import Link from "next/link";
 import { appPath } from "@/lib/app-paths";
@@ -15,6 +16,8 @@ export default function PortalPage() {
       className="mx-auto max-w-6xl space-y-20 px-4 py-10 text-[color:var(--hp-foreground)] sm:px-6 lg:px-8"
       style={{ fontFamily: '"Noto Sans JP", "Yu Gothic", sans-serif' }}
     >
+      <PortalAnnouncements />
+
       <section className="relative overflow-hidden rounded-3xl shadow-xl">
         <Image
           src="/top_s.jpg"

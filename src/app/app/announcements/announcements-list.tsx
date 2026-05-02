@@ -12,6 +12,8 @@ type AnnouncementsListProps = {
   pagination: ReturnType<typeof normalizeBlogPagination>;
   currentPage: number;
   errorMessage?: string | null;
+  /** ポータルプレビューなどでページ送りを出さない */
+  hidePagination?: boolean;
 };
 
 export function AnnouncementsList({
@@ -19,6 +21,7 @@ export function AnnouncementsList({
   pagination,
   currentPage,
   errorMessage,
+  hidePagination = false,
 }: AnnouncementsListProps) {
   if (errorMessage) {
     return (
@@ -84,7 +87,7 @@ export function AnnouncementsList({
         })}
       </ul>
 
-      {pagination.totalPages > 1 ? (
+      {!hidePagination && pagination.totalPages > 1 ? (
         <nav
           className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--hp-border)] pt-4 text-sm"
           aria-label="ページ送り"

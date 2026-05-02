@@ -154,8 +154,16 @@ export function AppHeader() {
                   記録アプリへ
                 </Link>
                 <Link
-                  href={appPath("/announcements")}
+                  href="/portal#announcements"
                   className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
+                  onClick={(e) => {
+                    if (pathname === "/portal") {
+                      e.preventDefault();
+                      document
+                        .getElementById("announcements")
+                        ?.scrollIntoView({ behavior: "smooth" });
+                    }
+                  }}
                 >
                   お知らせ
                 </Link>
@@ -264,8 +272,16 @@ export function AppHeader() {
                     記録アプリへ
                   </Link>
                   <Link
-                    href={appPath("/announcements")}
-                    onClick={() => setMobileOpen(false)}
+                    href="/portal#announcements"
+                    onClick={(e) => {
+                      if (pathname === "/portal") {
+                        e.preventDefault();
+                        document
+                          .getElementById("announcements")
+                          ?.scrollIntoView({ behavior: "smooth" });
+                      }
+                      setMobileOpen(false);
+                    }}
                     className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
                   >
                     お知らせ
