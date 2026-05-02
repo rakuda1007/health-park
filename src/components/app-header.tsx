@@ -125,21 +125,28 @@ export function AppHeader() {
     <header className="sticky top-0 z-50 border-b border-[color:var(--hp-border)] bg-[color:var(--hp-surface)] shadow-sm">
       <div className="mx-auto flex max-w-3xl flex-col gap-3 px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <Link
-            href={brandHref}
-            className="flex min-w-0 flex-1 items-center font-semibold tracking-tight text-[color:var(--hp-foreground)]"
-          >
-            <span className="truncate">Health Park</span>
-          </Link>
-          <div className="flex shrink-0 items-center gap-2 md:gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-x-4 md:gap-x-6">
+            <Link
+              href={brandHref}
+              className="shrink-0 font-semibold tracking-tight text-[color:var(--hp-foreground)]"
+            >
+              <span className="truncate">Health Park</span>
+            </Link>
             {!inApp ? (
-              <Link
-                href={appPath("/dashboard")}
-                className="max-md:hidden text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
+              <nav
+                className="hidden min-w-0 md:flex md:items-center md:gap-x-4"
+                aria-label="案内"
               >
-                記録アプリへ
-              </Link>
+                <Link
+                  href={appPath("/dashboard")}
+                  className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
+                >
+                  記録アプリへ
+                </Link>
+              </nav>
             ) : null}
+          </div>
+          <div className="flex shrink-0 items-center gap-2 md:gap-3">
             {signedInWithEmail ? (
               <span className="flex flex-wrap items-center justify-end gap-2 text-xs text-[color:var(--hp-muted)]">
                 <span
