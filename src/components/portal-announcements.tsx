@@ -3,20 +3,18 @@
 import { AnnouncementsList } from "@/app/app/announcements/announcements-list";
 import {
   buildHealthBlogListProxyUrl,
-  getHealthBlogListTag,
   normalizeBlogPagination,
   type HealthBlogListResponse,
   type HealthBlogPostListItem,
 } from "@/lib/health-blog";
 import { appPath } from "@/lib/app-paths";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 const PORTAL_PREVIEW_LIMIT = 5;
 
 /** ポータルページ先頭用：お知らせ一覧のプレビュー（同一ヘッダ配下） */
 export function PortalAnnouncements() {
-  const listTag = useMemo(() => getHealthBlogListTag(), []);
   const [posts, setPosts] = useState<HealthBlogPostListItem[]>([]);
   const [pagination, setPagination] = useState(() =>
     normalizeBlogPagination(undefined, 1),
@@ -27,7 +25,6 @@ export function PortalAnnouncements() {
   useEffect(() => {
     const url = buildHealthBlogListProxyUrl({
       page: 1,
-      tag: listTag,
       limit: PORTAL_PREVIEW_LIMIT,
     });
 
@@ -95,7 +92,7 @@ export function PortalAnnouncements() {
     return () => {
       cancelled = true;
     };
-  }, [listTag]);
+  }, []);
 
   return (
     <section

@@ -49,6 +49,12 @@ export function getHealthBlogListTag(): string | undefined {
   return t || undefined;
 }
 
+/** 一覧の category クエリ用（未設定ならフィルタなし）。ブログが「公開先」をカテゴリで表す場合に使用。 */
+export function getHealthBlogListCategory(): string | undefined {
+  const c = process.env.NEXT_PUBLIC_HEALTH_BLOG_CATEGORY?.trim();
+  return c || undefined;
+}
+
 export function normalizeBlogPagination(
   raw: HealthBlogPagination | undefined,
   fallbackPage: number,
@@ -86,6 +92,7 @@ export function buildHealthBlogListUrl(options: {
   page?: number;
   limit?: number;
   tag?: string;
+  category?: string;
 }): string | null {
   const origin = getHealthBlogOrigin();
   if (!origin) {
@@ -96,8 +103,13 @@ export function buildHealthBlogListUrl(options: {
   const page = options.page ?? 1;
   params.set("page", String(page));
   params.set("limit", String(options.limit ?? DEFAULT_LIST_LIMIT));
-  if (options.tag) {
-    params.set("tag", options.tag);
+  const tag = options.tag ?? getHealthBlogListTag();
+  if (tag) {
+    params.set("tag", tag);
+  }
+  const category = options.category ?? getHealthBlogListCategory();
+  if (category) {
+    params.set("category", category);
   }
   params.set("sortBy", "publishedAt");
   params.set("sortOrder", "desc");
@@ -114,18 +126,25 @@ export function buildHealthBlogPostApiUrl(slug: string): string | null {
   return `${base}/api/blog/${encodeURIComponent(slug)}`;
 }
 
-/** Health Park 同一オリジンのプロキシ（CORS 不要）。`/api/health-blog` → ブログ `/api/blog` */
+/**
+ * Health Park 同一オリジンのプロキシ（CORS 不要）。`/api/health-blog` → ブログ `/api/blog`
+ * `tag` / `category` は未指定なら `.env` の `NEXT_PUBLIC_HEALTH_BLOG_*` を付与。
+ */
 export function buildHealthBlogListProxyUrl(options: {
   page?: number;
   limit?: number;
-  tag?: string;
-}): string {
+} = {}): string {
   const params = new URLSearchParams();
   const page = options.page ?? 1;
   params.set("page", String(page));
   params.set("limit", String(options.limit ?? DEFAULT_LIST_LIMIT));
-  if (options.tag) {
-    params.set("tag", options.tag);
+  const tag = getHealthBlogListTag();
+  if (tag) {
+    params.set("tag", tag);
+  }
+  const category = getHealthBlogListCategory();
+  if (category) {
+    params.set("category", category);
   }
   params.set("sortBy", "publishedAt");
   params.set("sortOrder", "desc");
@@ -140,6 +159,7 @@ export async function fetchHealthBlogPosts(options: {
   page?: number;
   limit?: number;
   tag?: string;
+  category?: string;
 }): Promise<HealthBlogListResponse | null> {
   const origin = getHealthBlogOrigin();
   if (!origin) {
@@ -151,8 +171,13 @@ export async function fetchHealthBlogPosts(options: {
   const page = options.page ?? 1;
   params.set("page", String(page));
   params.set("limit", String(options.limit ?? DEFAULT_LIST_LIMIT));
-  if (options.tag) {
-    params.set("tag", options.tag);
+  const tag = options.tag ?? getHealthBlogListTag();
+  if (tag) {
+    params.set("tag", tag);
+  }
+  const category = options.category ?? getHealthBlogListCategory();
+  if (category) {
+    params.set("category", category);
   }
   params.set("sortBy", "publishedAt");
   params.set("sortOrder", "desc");

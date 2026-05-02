@@ -3,7 +3,6 @@
 import { AnnouncementsList } from "@/app/app/announcements/announcements-list";
 import {
   buildHealthBlogListProxyUrl,
-  getHealthBlogListTag,
   normalizeBlogPagination,
   type HealthBlogListResponse,
   type HealthBlogPostListItem,
@@ -18,8 +17,6 @@ export function AnnouncementsPageClient() {
     return Math.max(1, Number.parseInt(raw ?? "1", 10) || 1);
   }, [searchParams]);
 
-  const listTag = useMemo(() => getHealthBlogListTag(), []);
-
   const [posts, setPosts] = useState<HealthBlogPostListItem[]>([]);
   const [pagination, setPagination] = useState(() =>
     normalizeBlogPagination(undefined, currentPage),
@@ -30,7 +27,6 @@ export function AnnouncementsPageClient() {
   useEffect(() => {
     const url = buildHealthBlogListProxyUrl({
       page: currentPage,
-      tag: listTag,
     });
 
     let cancelled = false;
@@ -97,7 +93,7 @@ export function AnnouncementsPageClient() {
     return () => {
       cancelled = true;
     };
-  }, [currentPage, listTag]);
+  }, [currentPage]);
 
   if (loading) {
     return (
