@@ -55,6 +55,12 @@ export function getHealthBlogListCategory(): string | undefined {
   return c || undefined;
 }
 
+/** 一覧の publicationTarget クエリ（ブログ API が対応している場合）。記事 JSON の公開先と対応。 */
+export function getHealthBlogPublicationTarget(): string | undefined {
+  const p = process.env.NEXT_PUBLIC_HEALTH_BLOG_PUBLICATION_TARGET?.trim();
+  return p || undefined;
+}
+
 export function normalizeBlogPagination(
   raw: HealthBlogPagination | undefined,
   fallbackPage: number,
@@ -93,6 +99,7 @@ export function buildHealthBlogListUrl(options: {
   limit?: number;
   tag?: string;
   category?: string;
+  publicationTarget?: string;
 }): string | null {
   const origin = getHealthBlogOrigin();
   if (!origin) {
@@ -111,6 +118,11 @@ export function buildHealthBlogListUrl(options: {
   if (category) {
     params.set("category", category);
   }
+  const publicationTarget =
+    options.publicationTarget ?? getHealthBlogPublicationTarget();
+  if (publicationTarget) {
+    params.set("publicationTarget", publicationTarget);
+  }
   params.set("sortBy", "publishedAt");
   params.set("sortOrder", "desc");
   return `${base}/api/blog?${params.toString()}`;
@@ -128,7 +140,7 @@ export function buildHealthBlogPostApiUrl(slug: string): string | null {
 
 /**
  * Health Park 同一オリジンのプロキシ（CORS 不要）。`/api/health-blog` → ブログ `/api/blog`
- * `tag` / `category` は未指定なら `.env` の `NEXT_PUBLIC_HEALTH_BLOG_*` を付与。
+ * `tag` / `category` / `publicationTarget` は未指定なら `.env` の `NEXT_PUBLIC_HEALTH_BLOG_*` を付与。
  */
 export function buildHealthBlogListProxyUrl(options: {
   page?: number;
@@ -146,6 +158,10 @@ export function buildHealthBlogListProxyUrl(options: {
   if (category) {
     params.set("category", category);
   }
+  const publicationTarget = getHealthBlogPublicationTarget();
+  if (publicationTarget) {
+    params.set("publicationTarget", publicationTarget);
+  }
   params.set("sortBy", "publishedAt");
   params.set("sortOrder", "desc");
   return `/api/health-blog?${params.toString()}`;
@@ -160,6 +176,7 @@ export async function fetchHealthBlogPosts(options: {
   limit?: number;
   tag?: string;
   category?: string;
+  publicationTarget?: string;
 }): Promise<HealthBlogListResponse | null> {
   const origin = getHealthBlogOrigin();
   if (!origin) {
@@ -178,6 +195,11 @@ export async function fetchHealthBlogPosts(options: {
   const category = options.category ?? getHealthBlogListCategory();
   if (category) {
     params.set("category", category);
+  }
+  const publicationTarget =
+    options.publicationTarget ?? getHealthBlogPublicationTarget();
+  if (publicationTarget) {
+    params.set("publicationTarget", publicationTarget);
   }
   params.set("sortBy", "publishedAt");
   params.set("sortOrder", "desc");
