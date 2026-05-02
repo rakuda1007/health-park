@@ -1,5 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { blogOrigin, forwardToBlog } from "@/app/api/health-blog/_proxy";
+import {
+  blogOrigin,
+  forwardToBlog,
+  misconfiguredSelfOriginResponse,
+} from "@/app/api/health-blog/_proxy";
 
 /** GET /api/health-blog → ブログ GET /api/blog（一覧） */
 export async function GET(request: NextRequest) {
@@ -9,6 +13,11 @@ export async function GET(request: NextRequest) {
       { error: "NEXT_PUBLIC_HEALTH_BLOG_ORIGIN is not set" },
       { status: 503 },
     );
+  }
+
+  const selfCheck = misconfiguredSelfOriginResponse(request, origin);
+  if (selfCheck) {
+    return selfCheck;
   }
 
   const target = new URL(`${origin}/api/blog`);
