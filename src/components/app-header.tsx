@@ -41,14 +41,15 @@ function NavLink({
   );
 }
 
+/** ドロワー内などモバイル向け：カテゴリ＋一覧をそのまま表示 */
 function NavSections({ onNavigate }: { onNavigate?: () => void }) {
   return (
-    <div className="flex flex-col gap-5 md:flex-row md:flex-wrap md:items-start md:gap-x-8 md:gap-y-3">
+    <div className="flex flex-col gap-5">
       <div>
         <p className="text-xs font-medium text-[color:var(--hp-muted)]">
           記録する
         </p>
-        <ul className="mt-2 flex flex-col gap-1.5 border-l border-[color:var(--hp-border)] pl-3 md:mt-1.5 md:flex-row md:flex-wrap md:gap-x-3 md:gap-y-1 md:border-l-0 md:pl-0">
+        <ul className="mt-2 flex flex-col gap-1.5 border-l border-[color:var(--hp-border)] pl-3">
           {recordLinks.map((item) => (
             <li key={item.href}>
               <NavLink href={item.href} onNavigate={onNavigate}>
@@ -62,7 +63,7 @@ function NavSections({ onNavigate }: { onNavigate?: () => void }) {
         <p className="text-xs font-medium text-[color:var(--hp-muted)]">
           健康情報
         </p>
-        <ul className="mt-2 flex flex-col gap-1.5 border-l border-[color:var(--hp-border)] pl-3 md:mt-1.5 md:flex-row md:flex-wrap md:gap-x-3 md:gap-y-1 md:border-l-0 md:pl-0">
+        <ul className="mt-2 flex flex-col gap-1.5 border-l border-[color:var(--hp-border)] pl-3">
           {healthInfoLinks.map((item) => (
             <li key={item.href}>
               <NavLink href={item.href} onNavigate={onNavigate}>
@@ -76,13 +77,111 @@ function NavSections({ onNavigate }: { onNavigate?: () => void }) {
         <p className="text-xs font-medium text-[color:var(--hp-muted)]">
           設定
         </p>
-        <div className="mt-2 md:mt-1.5">
+        <div className="mt-2">
           <NavLink href={appPath("/settings")} onNavigate={onNavigate}>
             設定
           </NavLink>
         </div>
       </div>
     </div>
+  );
+}
+
+function DesktopDropdownLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="block rounded-md px-3 py-2 text-sm text-[color:var(--hp-foreground)] underline-offset-4 hover:bg-[color:var(--hp-card)] hover:underline"
+    >
+      {children}
+    </Link>
+  );
+}
+
+/** PC向け：トップは3カテゴリのみ、サブはホバー／フォーカス内で表示 */
+function DesktopNavSections() {
+  return (
+    <ul className="flex flex-wrap items-center gap-x-1 gap-y-1">
+      <li className="group relative">
+        <button
+          type="button"
+          className="inline-flex cursor-pointer items-center rounded-md border-0 bg-transparent px-2.5 py-1.5 text-sm font-medium text-[color:var(--hp-foreground)] outline-none ring-[color:var(--hp-border)] hover:bg-[color:var(--hp-card)] group-focus-within:ring-2"
+          aria-haspopup="menu"
+          aria-label="記録する、サブメニューを表示"
+        >
+          記録する
+        </button>
+        <div
+          className="invisible absolute left-0 top-full z-50 min-w-[11rem] pt-1 opacity-0 transition-[opacity,visibility] duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
+          role="menu"
+          aria-label="記録する"
+        >
+          <ul className="rounded-md border border-[color:var(--hp-border)] bg-[color:var(--hp-surface)] py-1 shadow-md">
+            {recordLinks.map((item) => (
+              <li key={item.href} role="presentation">
+                <DesktopDropdownLink href={item.href}>
+                  {item.label}
+                </DesktopDropdownLink>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </li>
+      <li className="group relative">
+        <button
+          type="button"
+          className="inline-flex cursor-pointer items-center rounded-md border-0 bg-transparent px-2.5 py-1.5 text-sm font-medium text-[color:var(--hp-foreground)] outline-none ring-[color:var(--hp-border)] hover:bg-[color:var(--hp-card)] group-focus-within:ring-2"
+          aria-haspopup="menu"
+          aria-label="健康情報、サブメニューを表示"
+        >
+          健康情報
+        </button>
+        <div
+          className="invisible absolute left-0 top-full z-50 min-w-[11rem] pt-1 opacity-0 transition-[opacity,visibility] duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
+          role="menu"
+          aria-label="健康情報"
+        >
+          <ul className="rounded-md border border-[color:var(--hp-border)] bg-[color:var(--hp-surface)] py-1 shadow-md">
+            {healthInfoLinks.map((item) => (
+              <li key={item.href} role="presentation">
+                <DesktopDropdownLink href={item.href}>
+                  {item.label}
+                </DesktopDropdownLink>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </li>
+      <li className="group relative">
+        <button
+          type="button"
+          className="inline-flex cursor-pointer items-center rounded-md border-0 bg-transparent px-2.5 py-1.5 text-sm font-medium text-[color:var(--hp-foreground)] outline-none ring-[color:var(--hp-border)] hover:bg-[color:var(--hp-card)] group-focus-within:ring-2"
+          aria-haspopup="menu"
+          aria-label="設定、サブメニューを表示"
+        >
+          設定
+        </button>
+        <div
+          className="invisible absolute left-0 top-full z-50 min-w-[11rem] pt-1 opacity-0 transition-[opacity,visibility] duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
+          role="menu"
+          aria-label="設定"
+        >
+          <ul className="rounded-md border border-[color:var(--hp-border)] bg-[color:var(--hp-surface)] py-1 shadow-md">
+            <li role="presentation">
+              <DesktopDropdownLink href={appPath("/settings")}>
+                設定
+              </DesktopDropdownLink>
+            </li>
+          </ul>
+        </div>
+      </li>
+    </ul>
   );
 }
 
@@ -210,11 +309,8 @@ export function AppHeader() {
         </div>
 
         {inApp && !usePortalStyleNav ? (
-          <nav
-            className="hidden md:block"
-            aria-label="主要ナビゲーション"
-          >
-            <NavSections />
+          <nav className="hidden md:block" aria-label="主要ナビゲーション">
+            <DesktopNavSections />
           </nav>
         ) : null}
       </div>
