@@ -81,6 +81,11 @@ function NavSections({ onNavigate }: { onNavigate?: () => void }) {
           <NavLink href={appPath("/settings")} onNavigate={onNavigate}>
             設定
           </NavLink>
+          <div className="mt-1">
+            <NavLink href={appPath("/settings/profile")} onNavigate={onNavigate}>
+              プロフィール
+            </NavLink>
+          </div>
         </div>
       </div>
     </div>
@@ -178,6 +183,11 @@ function DesktopNavSections() {
                 設定
               </DesktopDropdownLink>
             </li>
+            <li role="presentation">
+              <DesktopDropdownLink href={appPath("/settings/profile")}>
+                プロフィール
+              </DesktopDropdownLink>
+            </li>
           </ul>
         </div>
       </li>
@@ -202,7 +212,29 @@ export function AppHeader() {
     inApp && pathname.length > 0 ? pathname : appPath("/dashboard");
   const loginHref = `${appPath("/login")}?redirect=${encodeURIComponent(loginRedirect)}`;
   const signupHref = `${appPath("/login")}?redirect=${encodeURIComponent(loginRedirect)}&mode=signup`;
+  const profileHref = `${appPath("/settings/profile")}?redirect=${encodeURIComponent(loginRedirect)}`;
   const brandHref = usePortalStyleNav ? "/portal" : inApp ? appPath("/dashboard") : "/portal";
+  const [hasKnownAccount, setHasKnownAccount] = useState(false);
+
+  useEffect(() => {
+    try {
+      setHasKnownAccount(localStorage.getItem("hp-known-account") === "1");
+    } catch {
+      setHasKnownAccount(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!signedInWithEmail) {
+      return;
+    }
+    try {
+      localStorage.setItem("hp-known-account", "1");
+      setHasKnownAccount(true);
+    } catch {
+      // ignore storage errors
+    }
+  }, [signedInWithEmail]);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -254,12 +286,12 @@ export function AppHeader() {
           <div className="flex shrink-0 items-center gap-2 md:gap-3">
             {signedInWithEmail ? (
               <span className="flex flex-wrap items-center justify-end gap-2 text-xs text-[color:var(--hp-muted)]">
-                <span
-                  className="max-w-[10rem] truncate sm:max-w-[14rem]"
-                  title={user?.email ?? ""}
+                <Link
+                  href={profileHref}
+                  className="rounded-md border border-[color:var(--hp-border)] px-2 py-1 text-[color:var(--hp-foreground)] hover:bg-[color:var(--hp-card)]"
                 >
-                  {user?.email ?? ""}
-                </span>
+                  プロフィール
+                </Link>
                 <button
                   type="button"
                   onClick={() => void signOut()}
@@ -270,18 +302,21 @@ export function AppHeader() {
               </span>
             ) : (
               <>
-                <Link
-                  href={loginHref}
-                  className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
-                >
-                  ログイン
-                </Link>
-                <Link
-                  href={signupHref}
-                  className="rounded-md bg-[color:var(--hp-signup)] px-3 py-1.5 text-sm font-medium text-[color:var(--hp-signup-fg)] transition-opacity hover:opacity-90"
-                >
-                  新規登録
-                </Link>
+                {hasKnownAccount ? (
+                  <Link
+                    href={loginHref}
+                    className="rounded-md border border-[color:var(--hp-border)] px-3 py-1.5 text-sm font-medium text-[color:var(--hp-foreground)] hover:bg-[color:var(--hp-card)]"
+                  >
+                    未ログイン
+                  </Link>
+                ) : (
+                  <Link
+                    href={signupHref}
+                    className="rounded-md bg-[color:var(--hp-signup)] px-3 py-1.5 text-sm font-medium text-[color:var(--hp-signup-fg)] transition-opacity hover:opacity-90"
+                  >
+                    新規登録
+                  </Link>
+                )}
               </>
             )}
             <button

@@ -122,6 +122,14 @@ export function SettingsPageClient() {
       <ul className="mt-8 space-y-2 text-sm">
         <li>
           <Link
+            href={appPath("/settings/profile")}
+            className="text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
+          >
+            プロフィール（ログイン中アカウントの確認）
+          </Link>
+        </li>
+        <li>
+          <Link
             href={appPath("/backup")}
             className="text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
           >
