@@ -79,7 +79,7 @@ function NavSections({ onNavigate }: { onNavigate?: () => void }) {
         </p>
         <div className="mt-2">
           <NavLink href={appPath("/settings")} onNavigate={onNavigate}>
-            設定
+            ダッシュボード設定
           </NavLink>
           <div className="mt-1">
             <NavLink href={appPath("/settings/profile")} onNavigate={onNavigate}>
@@ -180,7 +180,7 @@ function DesktopNavSections() {
           <ul className="rounded-md border border-[color:var(--hp-border)] bg-[color:var(--hp-surface)] py-1 shadow-md">
             <li role="presentation">
               <DesktopDropdownLink href={appPath("/settings")}>
-                設定
+                ダッシュボード設定
               </DesktopDropdownLink>
             </li>
             <li role="presentation">
@@ -211,8 +211,6 @@ export function AppHeader() {
   const loginRedirect =
     inApp && pathname.length > 0 ? pathname : appPath("/dashboard");
   const loginHref = `${appPath("/login")}?redirect=${encodeURIComponent(loginRedirect)}`;
-  const signupHref = `${appPath("/login")}?redirect=${encodeURIComponent(loginRedirect)}&mode=signup`;
-  const profileHref = `${appPath("/settings/profile")}?redirect=${encodeURIComponent(loginRedirect)}`;
   const brandHref = usePortalStyleNav ? "/portal" : inApp ? appPath("/dashboard") : "/portal";
   const [hasKnownAccount, setHasKnownAccount] = useState(false);
 
@@ -286,12 +284,6 @@ export function AppHeader() {
           <div className="flex shrink-0 items-center gap-2 md:gap-3">
             {signedInWithEmail ? (
               <span className="flex flex-wrap items-center justify-end gap-2 text-xs text-[color:var(--hp-muted)]">
-                <Link
-                  href={profileHref}
-                  className="rounded-md border border-[color:var(--hp-border)] px-2 py-1 text-[color:var(--hp-foreground)] hover:bg-[color:var(--hp-card)]"
-                >
-                  プロフィール
-                </Link>
                 <button
                   type="button"
                   onClick={() => void signOut()}
@@ -303,20 +295,16 @@ export function AppHeader() {
             ) : (
               <>
                 {hasKnownAccount ? (
-                  <Link
-                    href={loginHref}
-                    className="rounded-md border border-[color:var(--hp-border)] px-3 py-1.5 text-sm font-medium text-[color:var(--hp-foreground)] hover:bg-[color:var(--hp-card)]"
-                  >
+                  <span className="px-1 text-sm font-medium text-[color:var(--hp-muted)]">
                     未ログイン
-                  </Link>
-                ) : (
-                  <Link
-                    href={signupHref}
-                    className="rounded-md bg-[color:var(--hp-signup)] px-3 py-1.5 text-sm font-medium text-[color:var(--hp-signup-fg)] transition-opacity hover:opacity-90"
-                  >
-                    新規登録
-                  </Link>
+                  </span>
                 )}
+                <Link
+                  href={loginHref}
+                  className="rounded-md border border-[color:var(--hp-border)] px-3 py-1.5 text-sm font-medium text-[color:var(--hp-foreground)] hover:bg-[color:var(--hp-card)]"
+                >
+                  ログイン
+                </Link>
               </>
             )}
             <button
