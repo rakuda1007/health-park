@@ -298,7 +298,7 @@ export function AppHeader() {
                   <span className="px-1 text-sm font-medium text-[color:var(--hp-muted)]">
                     未ログイン
                   </span>
-                )}
+                ) : null}
                 <Link
                   href={loginHref}
                   className="rounded-md border border-[color:var(--hp-border)] px-3 py-1.5 text-sm font-medium text-[color:var(--hp-foreground)] hover:bg-[color:var(--hp-card)]"
