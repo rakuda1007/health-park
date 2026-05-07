@@ -12,6 +12,12 @@ export function getAdsenseSlotId(): string | null {
   return v || null;
 }
 
+/** 任意。モバイル向けに分ける data-ad-slot */
+export function getAdsenseMobileSlotId(): string | null {
+  const v = process.env.NEXT_PUBLIC_ADSENSE_SLOT_MOBILE?.trim();
+  return v || null;
+}
+
 export type AdsenseUnitIds = {
   client: string;
   slot: string;
@@ -27,6 +33,39 @@ export function getAdsenseUnitIds(): AdsenseUnitIds | null {
 }
 
 export type AdsenseFixedSize = { width: number; height: number };
+
+/** 固定サイズ（320×100 等）か、レスポンシブ（data-ad-format=auto）か */
+export type AdsenseLayoutMode = "fixed" | "responsive";
+
+/**
+ * 広告枠のレイアウト。
+ * - fixed（既定）: 固定 width/height・data-full-width-responsive="false"
+ * - responsive: Google 推奨の表示広告スニペットに近い指定（モバイル配信の切り分け用）
+ */
+export function getAdsenseLayoutMode(): AdsenseLayoutMode {
+  const raw = process.env.NEXT_PUBLIC_ADSENSE_LAYOUT?.trim().toLowerCase();
+  if (raw === "responsive") {
+    return "responsive";
+  }
+  return "fixed";
+}
+
+/** responsive 時の ins の min-height（px）。未設定または不正時は 100 */
+export function getAdsenseResponsiveMinHeightPx(): number {
+  const v = process.env.NEXT_PUBLIC_ADSENSE_RESPONSIVE_MIN_HEIGHT?.trim();
+  if (v) {
+    const n = Number.parseInt(v, 10);
+    if (!Number.isNaN(n) && n > 0) {
+      return n;
+    }
+  }
+  return 100;
+}
+
+/** AdSense のテスト広告（data-adtest=on）を有効化するか */
+export function isAdsenseAdtestEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_ADSENSE_ADTEST === "on";
+}
 
 /** 既定 320×100。環境変数 NEXT_PUBLIC_ADSENSE_UNIT_SIZE で 300x250 に切替 */
 export function getAdsenseFixedSize(): AdsenseFixedSize {
