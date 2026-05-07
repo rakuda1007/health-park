@@ -11,7 +11,13 @@ import {
   resolveRecordingPageAdLayout,
   shouldShowRecordingPageAds,
 } from "@/lib/adsense-config";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 declare global {
   interface Window {
@@ -31,8 +37,7 @@ function isAdsenseScriptMarkedLoaded(): boolean {
 
 /**
  * 記録フォーム直下（保存ボタン直下）用の AdSense スロット。
- * PC は NEXT_PUBLIC_ADSENSE_LAYOUT に従う（responsive で大きめ表示しやすい）。
- * モバイルは既定で fixed（全体が responsive のときも PC のみ responsive）。
+ * ビューポート確定後にのみ slot／レイアウトを確定し push する（初回の誤レイアウト push を避ける）。
  */
 export function RecordingPageAd() {
   const { user, ready } = useAuth();
@@ -46,29 +51,35 @@ export function RecordingPageAd() {
   );
   const adtest = useMemo(() => isAdsenseAdtestEnabled(), []);
   const [isMobile, setIsMobile] = useState(false);
+  const [viewportReady, setViewportReady] = useState(false);
   const show =
     ids != null && shouldShowRecordingPageAds(user ?? null, ready);
   const pushedRef = useRef(false);
-  const slot = isMobile && mobileSlot ? mobileSlot : ids?.slot ?? "";
 
-  const effectiveLayout = resolveRecordingPageAdLayout(isMobile, layoutMode);
-
-  useEffect(() => {
+  useLayoutEffect(() => {
     const query = window.matchMedia("(max-width: 767px)");
+    setIsMobile(query.matches);
+    setViewportReady(true);
     const sync = () => setIsMobile(query.matches);
-    sync();
     query.addEventListener("change", sync);
     return () => {
       query.removeEventListener("change", sync);
     };
   }, []);
 
-  useEffect(() => {
-    pushedRef.current = false;
-  }, [slot, layoutMode, isMobile]);
+  const slot =
+    viewportReady && isMobile && mobileSlot ? mobileSlot : (ids?.slot ?? "");
+
+  const effectiveLayout = viewportReady
+    ? resolveRecordingPageAdLayout(isMobile, layoutMode)
+    : layoutMode;
 
   useEffect(() => {
-    if (!show || !ids || !slot) {
+    pushedRef.current = false;
+  }, [viewportReady, slot, layoutMode, isMobile]);
+
+  useEffect(() => {
+    if (!viewportReady || !show || !ids || !slot) {
       return;
     }
 
@@ -126,11 +137,27 @@ export function RecordingPageAd() {
       );
       window.clearTimeout(t);
     };
-  }, [show, ids, slot, effectiveLayout]);
+  }, [viewportReady, show, ids, slot, effectiveLayout]);
 
-  if (!show || !ids || !slot) {
+  if (!show || !ids) {
     return null;
   }
+
+  if (!viewportReady) {
+    return (
+      <aside
+        className="mt-4 flex min-h-[100px] w-full max-w-full min-w-0 justify-center"
+        aria-label="広告"
+        aria-busy="true"
+      />
+    );
+  }
+
+  if (!slot) {
+    return null;
+  }
+
+  const insKey = `${slot}-${effectiveLayout}-${adtest ? "t" : "p"}`;
 
   return (
     <aside
@@ -139,6 +166,7 @@ export function RecordingPageAd() {
     >
       {effectiveLayout === "responsive" ? (
         <ins
+          key={insKey}
           className="adsbygoogle w-full max-w-full"
           style={{
             display: "block",
@@ -152,6 +180,7 @@ export function RecordingPageAd() {
         />
       ) : (
         <ins
+          key={insKey}
           className="adsbygoogle max-w-full"
           style={{
             display: "inline-block",

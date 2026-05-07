@@ -52,7 +52,8 @@ export function getAdsenseLayoutMode(): AdsenseLayoutMode {
 
 /**
  * モバイル幅でのレイアウト上書き。
- * - 未設定かつ全体が responsive のときは固定枠（既定）— PC は responsive、狭い画面はバナー向け fixed で埋まりやすいことがある。
+ * - 未設定のときは全体（NEXT_PUBLIC_ADSENSE_LAYOUT）と同じ（レスポンシブ作成ユニットと整合しやすい）。
+ * - fixed にしたい検証時だけ NEXT_PUBLIC_ADSENSE_MOBILE_LAYOUT=fixed。
  */
 export function getAdsenseMobileLayoutOverride(): AdsenseLayoutMode | null {
   const raw = process.env.NEXT_PUBLIC_ADSENSE_MOBILE_LAYOUT?.trim().toLowerCase();
@@ -76,9 +77,6 @@ export function resolveRecordingPageAdLayout(
   const mobileOverride = getAdsenseMobileLayoutOverride();
   if (mobileOverride != null) {
     return mobileOverride;
-  }
-  if (globalLayout === "responsive") {
-    return "fixed";
   }
   return globalLayout;
 }
