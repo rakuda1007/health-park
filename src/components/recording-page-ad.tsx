@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/auth-context";
 import {
   getAdsenseFixedSizeForViewport,
   isAdsenseAdtestEnabled,
+  isAdsenseDebugEnabled,
   getAdsenseMobileSlotId,
   getAdsenseUnitIds,
   shouldShowRecordingPageAds,
@@ -29,6 +30,9 @@ export function RecordingPageAd() {
   const mobileSlot = useMemo(() => getAdsenseMobileSlotId(), []);
   const [isMobile, setIsMobile] = useState(false);
   const adtest = useMemo(() => isAdsenseAdtestEnabled(), []);
+  const debugEnabled = useMemo(() => isAdsenseDebugEnabled(), []);
+  const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [pushStatus, setPushStatus] = useState<"idle" | "ok" | "error">("idle");
   const { width, height } = useMemo(
     () => getAdsenseFixedSizeForViewport(isMobile),
     [isMobile],
@@ -51,6 +55,7 @@ export function RecordingPageAd() {
 
   useEffect(() => {
     pushedRef.current = false;
+    setPushStatus("idle");
   }, [slot, width, height]);
 
   useEffect(() => {
@@ -68,14 +73,19 @@ export function RecordingPageAd() {
       try {
         window.adsbygoogle = window.adsbygoogle ?? [];
         window.adsbygoogle.push({});
+        setPushStatus("ok");
       } catch (e) {
         pushedRef.current = false;
+        setPushStatus("error");
         console.error("[Health Park] AdSense の初期化に失敗しました", e);
       }
     };
 
     // スクリプト onLoad イベントを待つ（最大 4 秒フォールバック）。
-    const onScriptLoaded = () => doPush();
+    const onScriptLoaded = () => {
+      setScriptLoaded(true);
+      doPush();
+    };
     window.addEventListener("hp-adsense-loaded", onScriptLoaded as EventListener);
     const t = window.setTimeout(() => doPush(), 4000);
 
@@ -99,21 +109,38 @@ export function RecordingPageAd() {
       className="mt-4 flex w-full max-w-full min-w-0 justify-center"
       aria-label="広告"
     >
-      <ins
-        className="adsbygoogle max-w-full"
-        style={{
-          display: "inline-block",
-          width,
-          height,
-          maxWidth: "100%",
-          boxSizing: "border-box",
-          verticalAlign: "bottom",
-        }}
-        data-ad-client={ids.client}
-        data-ad-slot={slot}
-        data-full-width-responsive="false"
-        data-adtest={adtest ? "on" : undefined}
-      />
+      <div className="flex w-full flex-col items-center gap-2">
+        <ins
+          className="adsbygoogle max-w-full"
+          style={{
+            display: "inline-block",
+            width,
+            height,
+            maxWidth: "100%",
+            boxSizing: "border-box",
+            verticalAlign: "bottom",
+          }}
+          data-ad-client={ids.client}
+          data-ad-slot={slot}
+          data-full-width-responsive="false"
+          data-adtest={adtest ? "on" : undefined}
+        />
+        {debugEnabled ? (
+          <div className="w-full max-w-[22rem] rounded-md border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[11px] leading-5 text-[color:var(--hp-muted)]">
+            <div>ads-debug: on</div>
+            <div>isMobile: {String(isMobile)}</div>
+            <div>slot: {slot || "(empty)"}</div>
+            <div>
+              size: {width}x{height}
+            </div>
+            <div>adtest: {adtest ? "on" : "off"}</div>
+            <div>scriptLoadedEvent: {scriptLoaded ? "yes" : "no"}</div>
+            <div>pushStatus: {pushStatus}</div>
+            <div>authReady: {String(ready)}</div>
+            <div>showAd: {String(show)}</div>
+          </div>
+        ) : null}
+      </div>
     </aside>
   );
 }

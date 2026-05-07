@@ -74,6 +74,11 @@ export function isAdsenseAdtestEnabled(): boolean {
   return process.env.NEXT_PUBLIC_ADSENSE_ADTEST === "on";
 }
 
+/** 検証用。広告デバッグ情報を UI に表示するか */
+export function isAdsenseDebugEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_ADSENSE_DEBUG === "on";
+}
+
 /**
  * 記録ページに広告を出すか。
  *
