@@ -30,16 +30,24 @@ export function RecordingPageAd() {
     if (!show || !ids) {
       return;
     }
-    if (pushedRef.current) {
-      return;
-    }
-    pushedRef.current = true;
-    try {
-      window.adsbygoogle = window.adsbygoogle ?? [];
-      window.adsbygoogle.push({});
-    } catch (e) {
-      console.error("[Health Park] AdSense の初期化に失敗しました", e);
-    }
+    let cancelled = false;
+    const frame = requestAnimationFrame(() => {
+      if (cancelled || pushedRef.current) {
+        return;
+      }
+      pushedRef.current = true;
+      try {
+        window.adsbygoogle = window.adsbygoogle ?? [];
+        window.adsbygoogle.push({});
+      } catch (e) {
+        pushedRef.current = false;
+        console.error("[Health Park] AdSense の初期化に失敗しました", e);
+      }
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
   }, [show, ids]);
 
   if (!show || !ids) {
@@ -48,15 +56,18 @@ export function RecordingPageAd() {
 
   return (
     <aside
-      className="mt-4 flex w-full justify-center overflow-x-auto"
+      className="mt-4 flex w-full max-w-full min-w-0 justify-center"
       aria-label="広告"
     >
       <ins
-        className="adsbygoogle"
+        className="adsbygoogle max-w-full"
         style={{
           display: "inline-block",
           width,
           height,
+          maxWidth: "100%",
+          boxSizing: "border-box",
+          verticalAlign: "bottom",
         }}
         data-ad-client={ids.client}
         data-ad-slot={ids.slot}
