@@ -2,12 +2,13 @@
 
 import { useAuth } from "@/contexts/auth-context";
 import {
-  getAdsenseMobileSlotId,
   getAdsenseFixedSize,
   getAdsenseLayoutMode,
+  getAdsenseMobileSlotId,
   getAdsenseResponsiveMinHeightPx,
   getAdsenseUnitIds,
   isAdsenseAdtestEnabled,
+  resolveRecordingPageAdLayout,
   shouldShowRecordingPageAds,
 } from "@/lib/adsense-config";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -18,9 +19,20 @@ declare global {
   }
 }
 
+const ADSENSE_SCRIPT_ATTR = "data-hp-adsense-loaded";
+
+function isAdsenseScriptMarkedLoaded(): boolean {
+  return Boolean(
+    document.querySelector(
+      `script[src*="pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"][${ADSENSE_SCRIPT_ATTR}="1"]`,
+    ),
+  );
+}
+
 /**
  * 記録フォーム直下（保存ボタン直下）用の AdSense スロット。
- * client/slot・サイズは環境変数（詳細は .env.local.example）。
+ * PC は NEXT_PUBLIC_ADSENSE_LAYOUT に従う（responsive で大きめ表示しやすい）。
+ * モバイルは既定で fixed（全体が responsive のときも PC のみ responsive）。
  */
 export function RecordingPageAd() {
   const { user, ready } = useAuth();
@@ -39,6 +51,8 @@ export function RecordingPageAd() {
   const pushedRef = useRef(false);
   const slot = isMobile && mobileSlot ? mobileSlot : ids?.slot ?? "";
 
+  const effectiveLayout = resolveRecordingPageAdLayout(isMobile, layoutMode);
+
   useEffect(() => {
     const query = window.matchMedia("(max-width: 767px)");
     const sync = () => setIsMobile(query.matches);
@@ -51,31 +65,68 @@ export function RecordingPageAd() {
 
   useEffect(() => {
     pushedRef.current = false;
-  }, [slot, layoutMode]);
+  }, [slot, layoutMode, isMobile]);
 
   useEffect(() => {
     if (!show || !ids || !slot) {
       return;
     }
+
     let cancelled = false;
-    const frame = requestAnimationFrame(() => {
+
+    const tryPush = () => {
       if (cancelled || pushedRef.current) {
         return;
       }
       pushedRef.current = true;
-      try {
-        window.adsbygoogle = window.adsbygoogle ?? [];
-        window.adsbygoogle.push({});
-      } catch (e) {
-        pushedRef.current = false;
-        console.error("[Health Park] AdSense の初期化に失敗しました", e);
+      requestAnimationFrame(() => {
+        if (cancelled) {
+          return;
+        }
+        try {
+          window.adsbygoogle = window.adsbygoogle ?? [];
+          window.adsbygoogle.push({});
+        } catch (e) {
+          pushedRef.current = false;
+          console.error("[Health Park] AdSense の初期化に失敗しました", e);
+        }
+      });
+    };
+
+    const onScriptLoaded = () => {
+      if (!cancelled) {
+        tryPush();
       }
-    });
+    };
+
+    if (isAdsenseScriptMarkedLoaded()) {
+      onScriptLoaded();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    window.addEventListener(
+      "hp-adsense-loaded",
+      onScriptLoaded as EventListener,
+    );
+
+    const fallbackMs = 4000;
+    const t = window.setTimeout(() => {
+      if (!cancelled && !pushedRef.current) {
+        tryPush();
+      }
+    }, fallbackMs);
+
     return () => {
       cancelled = true;
-      cancelAnimationFrame(frame);
+      window.removeEventListener(
+        "hp-adsense-loaded",
+        onScriptLoaded as EventListener,
+      );
+      window.clearTimeout(t);
     };
-  }, [show, ids, slot, layoutMode]);
+  }, [show, ids, slot, effectiveLayout]);
 
   if (!show || !ids || !slot) {
     return null;
@@ -86,7 +137,7 @@ export function RecordingPageAd() {
       className="mt-4 flex w-full max-w-full min-w-0 justify-center"
       aria-label="広告"
     >
-      {layoutMode === "responsive" ? (
+      {effectiveLayout === "responsive" ? (
         <ins
           className="adsbygoogle w-full max-w-full"
           style={{

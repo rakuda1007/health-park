@@ -50,6 +50,39 @@ export function getAdsenseLayoutMode(): AdsenseLayoutMode {
   return "fixed";
 }
 
+/**
+ * モバイル幅でのレイアウト上書き。
+ * - 未設定かつ全体が responsive のときは固定枠（既定）— PC は responsive、狭い画面はバナー向け fixed で埋まりやすいことがある。
+ */
+export function getAdsenseMobileLayoutOverride(): AdsenseLayoutMode | null {
+  const raw = process.env.NEXT_PUBLIC_ADSENSE_MOBILE_LAYOUT?.trim().toLowerCase();
+  if (raw === "responsive") {
+    return "responsive";
+  }
+  if (raw === "fixed") {
+    return "fixed";
+  }
+  return null;
+}
+
+/** 記録ページ広告の実効レイアウト（ビューポート別） */
+export function resolveRecordingPageAdLayout(
+  isMobileViewport: boolean,
+  globalLayout: AdsenseLayoutMode,
+): AdsenseLayoutMode {
+  if (!isMobileViewport) {
+    return globalLayout;
+  }
+  const mobileOverride = getAdsenseMobileLayoutOverride();
+  if (mobileOverride != null) {
+    return mobileOverride;
+  }
+  if (globalLayout === "responsive") {
+    return "fixed";
+  }
+  return globalLayout;
+}
+
 /** responsive 時の ins の min-height（px）。未設定または不正時は 100 */
 export function getAdsenseResponsiveMinHeightPx(): number {
   const v = process.env.NEXT_PUBLIC_ADSENSE_RESPONSIVE_MIN_HEIGHT?.trim();

@@ -3,7 +3,7 @@ import { AppHeader } from "@/components/app-header";
 import { AuthProvider } from "@/contexts/auth-context";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
+import { AdsenseScript } from "@/components/adsense-script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -58,14 +58,7 @@ export default function RootLayout({
     >
       <body className="flex min-h-full min-w-0 flex-col bg-[color:var(--hp-background)]">
         {adsenseEnabled && adsenseClient ? (
-          <Script
-            id="google-adsense"
-            strategy="afterInteractive"
-            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(
-              adsenseClient,
-            )}`}
-            crossOrigin="anonymous"
-          />
+          <AdsenseScript clientId={adsenseClient} />
         ) : null}
         <AuthProvider>
           <AppHeader />
