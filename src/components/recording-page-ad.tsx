@@ -3,6 +3,7 @@
 import { useAuth } from "@/contexts/auth-context";
 import {
   getAdsenseFixedSizeForViewport,
+  isAdsenseAdtestEnabled,
   getAdsenseMobileSlotId,
   getAdsenseUnitIds,
   shouldShowRecordingPageAds,
@@ -27,6 +28,7 @@ export function RecordingPageAd() {
   const ids = useMemo(() => getAdsenseUnitIds(), []);
   const mobileSlot = useMemo(() => getAdsenseMobileSlotId(), []);
   const [isMobile, setIsMobile] = useState(false);
+  const adtest = useMemo(() => isAdsenseAdtestEnabled(), []);
   const { width, height } = useMemo(
     () => getAdsenseFixedSizeForViewport(isMobile),
     [isMobile],
@@ -110,6 +112,7 @@ export function RecordingPageAd() {
         data-ad-client={ids.client}
         data-ad-slot={slot}
         data-full-width-responsive="false"
+        data-adtest={adtest ? "on" : undefined}
       />
     </aside>
   );

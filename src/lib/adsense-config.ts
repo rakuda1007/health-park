@@ -69,6 +69,11 @@ export function getAdsenseFixedSizeForViewport(
   return parseAdsenseUnitSize(specific ?? common);
 }
 
+/** 検証用。data-adtest=on を有効化するか（本番運用では未設定） */
+export function isAdsenseAdtestEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_ADSENSE_ADTEST === "on";
+}
+
 /**
  * 記録ページに広告を出すか。
  *
