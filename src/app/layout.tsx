@@ -3,6 +3,7 @@ import { AppHeader } from "@/components/app-header";
 import { AuthProvider } from "@/contexts/auth-context";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,6 +19,10 @@ const geistMono = Geist_Mono({
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null);
+
+const adsenseClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT?.trim();
+const adsenseSlot = process.env.NEXT_PUBLIC_ADSENSE_SLOT?.trim();
+const adsenseEnabled = Boolean(adsenseClient && adsenseSlot);
 
 export const metadata: Metadata = {
   ...(siteUrl ? { metadataBase: new URL(siteUrl) } : {}),
@@ -52,6 +57,16 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full min-w-0 flex-col bg-[color:var(--hp-background)]">
+        {adsenseEnabled && adsenseClient ? (
+          <Script
+            id="google-adsense"
+            strategy="afterInteractive"
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(
+              adsenseClient,
+            )}`}
+            crossOrigin="anonymous"
+          />
+        ) : null}
         <AuthProvider>
           <AppHeader />
           <div className="min-h-0 flex-1">{children}</div>

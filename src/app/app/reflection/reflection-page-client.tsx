@@ -7,6 +7,7 @@ import {
   putDailyReflectionEntry,
 } from "@/lib/db";
 import type { DailyReflectionEntry, ReflectionRating } from "@/lib/db/types";
+import { RecordingPageAd } from "@/components/recording-page-ad";
 import { ratingSymbol } from "@/lib/reflection-display";
 import { todayIso } from "@/lib/date";
 import { useCallback, useEffect, useState } from "react";
@@ -199,6 +200,8 @@ export function ReflectionPageClient() {
           ) : null}
         </div>
       </form>
+
+      <RecordingPageAd />
 
       {loadError ? (
         <p className="mt-4 text-sm text-red-600 dark:text-red-400" role="alert">

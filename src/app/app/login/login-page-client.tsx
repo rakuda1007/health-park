@@ -17,7 +17,7 @@ export function LoginPageClient() {
   const [busy, setBusy] = useState(false);
   const { ready, signIn, signUp, user } = useAuth();
   const router = useRouter();
-  const redirectTo = searchParams.get("redirect") ?? appPath("/dashboard");
+  const dashboardPath = appPath("/dashboard");
 
   const onSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -30,7 +30,7 @@ export function LoginPageClient() {
         } else {
           await signUp(email, password);
         }
-        router.push(redirectTo);
+        router.push(dashboardPath);
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "エラーが発生しました");
@@ -38,7 +38,7 @@ export function LoginPageClient() {
         setBusy(false);
       }
     },
-    [email, password, mode, signIn, signUp, router, redirectTo],
+    [email, password, mode, signIn, signUp, router, dashboardPath],
   );
 
   if (!isFirebaseConfigured()) {
@@ -82,10 +82,10 @@ export function LoginPageClient() {
           {user.email ?? user.uid} としてサインインしています。
         </p>
         <Link
-          href={redirectTo}
+          href={dashboardPath}
           className="mt-6 inline-block rounded-lg bg-[color:var(--hp-accent)] px-4 py-2 text-sm font-medium text-[color:var(--hp-accent-fg)]"
         >
-          バックアップへ進む
+          ダッシュボードへ進む
         </Link>
       </main>
     );

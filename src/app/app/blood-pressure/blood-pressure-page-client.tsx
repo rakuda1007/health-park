@@ -5,6 +5,7 @@ import {
   listBloodPressureEntries,
   putBloodPressureEntry,
 } from "@/lib/db";
+import { RecordingPageAd } from "@/components/recording-page-ad";
 import type { BloodPressureEntry } from "@/lib/db/types";
 import { todayIso } from "@/lib/date";
 import { useCallback, useEffect, useState } from "react";
@@ -159,6 +160,8 @@ export function BloodPressurePageClient() {
           {saving ? "保存中…" : "保存"}
         </button>
       </form>
+
+      <RecordingPageAd />
 
       {loadError ? (
         <p className="mt-4 text-sm text-red-600 dark:text-red-400" role="alert">
