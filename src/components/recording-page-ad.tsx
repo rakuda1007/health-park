@@ -2,12 +2,12 @@
 
 import { useAuth } from "@/contexts/auth-context";
 import {
-  getAdsenseFixedSize,
+  getAdsenseFixedSizeForViewport,
   getAdsenseMobileSlotId,
   getAdsenseUnitIds,
   shouldShowRecordingPageAds,
 } from "@/lib/adsense-config";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 declare global {
   interface Window {
@@ -26,12 +26,30 @@ export function RecordingPageAd() {
   const { user, ready } = useAuth();
   const ids = useMemo(() => getAdsenseUnitIds(), []);
   const mobileSlot = useMemo(() => getAdsenseMobileSlotId(), []);
-  const { width, height } = useMemo(() => getAdsenseFixedSize(), []);
+  const [isMobile, setIsMobile] = useState(false);
+  const { width, height } = useMemo(
+    () => getAdsenseFixedSizeForViewport(isMobile),
+    [isMobile],
+  );
   const show =
     ids != null && shouldShowRecordingPageAds(user ?? null, ready);
   const pushedRef = useRef(false);
 
-  const slot = mobileSlot || ids?.slot || "";
+  const slot = isMobile && mobileSlot ? mobileSlot : (ids?.slot ?? "");
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 767px)");
+    const sync = () => setIsMobile(query.matches);
+    sync();
+    query.addEventListener("change", sync);
+    return () => {
+      query.removeEventListener("change", sync);
+    };
+  }, []);
+
+  useEffect(() => {
+    pushedRef.current = false;
+  }, [slot, width, height]);
 
   useEffect(() => {
     if (!show || !ids || !slot) {
@@ -64,7 +82,7 @@ export function RecordingPageAd() {
       window.removeEventListener("hp-adsense-loaded", onScriptLoaded as EventListener);
       window.clearTimeout(t);
     };
-  }, [show, ids, slot]);
+  }, [show, ids, slot, width, height]);
 
   if (!show || !ids) {
     return null;

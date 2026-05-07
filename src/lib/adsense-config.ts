@@ -34,13 +34,39 @@ export function getAdsenseUnitIds(): AdsenseUnitIds | null {
 
 export type AdsenseFixedSize = { width: number; height: number };
 
-/** 既定 320×100。環境変数 NEXT_PUBLIC_ADSENSE_UNIT_SIZE で 300x250 に切替 */
-export function getAdsenseFixedSize(): AdsenseFixedSize {
-  const raw = process.env.NEXT_PUBLIC_ADSENSE_UNIT_SIZE?.trim().toLowerCase();
-  if (raw === "300x250") {
+function parseAdsenseUnitSize(raw?: string): AdsenseFixedSize {
+  const v = raw?.trim().toLowerCase();
+  if (v === "300x250") {
     return { width: 300, height: 250 };
   }
   return { width: 320, height: 100 };
+}
+
+/**
+ * 既定 320×100。環境変数 NEXT_PUBLIC_ADSENSE_UNIT_SIZE で 300x250 に切替。
+ * （後方互換のため残す）
+ */
+export function getAdsenseFixedSize(): AdsenseFixedSize {
+  const raw = process.env.NEXT_PUBLIC_ADSENSE_UNIT_SIZE;
+  return parseAdsenseUnitSize(raw);
+}
+
+/**
+ * ビューポート別の固定広告サイズ。
+ * - モバイル: NEXT_PUBLIC_ADSENSE_UNIT_SIZE_MOBILE（未設定なら共通値）
+ * - PC: NEXT_PUBLIC_ADSENSE_UNIT_SIZE_DESKTOP（未設定なら共通値）
+ * - 共通値: NEXT_PUBLIC_ADSENSE_UNIT_SIZE
+ *
+ * 対応値は 320x100 / 300x250。
+ */
+export function getAdsenseFixedSizeForViewport(
+  isMobileViewport: boolean,
+): AdsenseFixedSize {
+  const common = process.env.NEXT_PUBLIC_ADSENSE_UNIT_SIZE;
+  const specific = isMobileViewport
+    ? process.env.NEXT_PUBLIC_ADSENSE_UNIT_SIZE_MOBILE
+    : process.env.NEXT_PUBLIC_ADSENSE_UNIT_SIZE_DESKTOP;
+  return parseAdsenseUnitSize(specific ?? common);
 }
 
 /**
