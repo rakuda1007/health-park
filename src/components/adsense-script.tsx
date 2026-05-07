@@ -4,12 +4,19 @@ import Script from "next/script";
 
 const LOAD_ATTR = "data-hp-adsense-loaded";
 
+declare global {
+  interface Window {
+    __hpAdsenseLoaded?: boolean;
+  }
+}
+
 /** adsbygoogle.js 読み込み完了を RecordingPageAd が検知するためのフラグ */
 export function markAdsenseScriptLoaded(): void {
   const el = document.querySelector<HTMLScriptElement>(
     `script[src*="pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"]`,
   );
   el?.setAttribute(LOAD_ATTR, "1");
+  window.__hpAdsenseLoaded = true;
   window.dispatchEvent(new CustomEvent("hp-adsense-loaded"));
 }
 

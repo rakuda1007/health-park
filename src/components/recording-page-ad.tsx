@@ -14,6 +14,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 declare global {
   interface Window {
     adsbygoogle?: Record<string, unknown>[];
+    __hpAdsenseLoaded?: boolean;
   }
 }
 
@@ -42,6 +43,12 @@ export function RecordingPageAd() {
   const pushedRef = useRef(false);
 
   const slot = isMobile && mobileSlot ? mobileSlot : (ids?.slot ?? "");
+
+  useEffect(() => {
+    if (window.__hpAdsenseLoaded) {
+      setScriptLoaded(true);
+    }
+  }, []);
 
   useEffect(() => {
     const query = window.matchMedia("(max-width: 767px)");
@@ -81,17 +88,28 @@ export function RecordingPageAd() {
       }
     };
 
-    // スクリプト onLoad イベントを待つ（最大 4 秒フォールバック）。
+    // スクリプト onLoad イベントを待つ。取りこぼし対策で loaded フラグをポーリングする。
     const onScriptLoaded = () => {
+      window.__hpAdsenseLoaded = true;
       setScriptLoaded(true);
       doPush();
     };
     window.addEventListener("hp-adsense-loaded", onScriptLoaded as EventListener);
-    const t = window.setTimeout(() => doPush(), 4000);
+    const poll = window.setInterval(() => {
+      if (window.__hpAdsenseLoaded) {
+        onScriptLoaded();
+      }
+    }, 500);
+    const t = window.setTimeout(() => {
+      if (!pushedRef.current) {
+        doPush();
+      }
+    }, 6000);
 
     return () => {
       cancelled = true;
       window.removeEventListener("hp-adsense-loaded", onScriptLoaded as EventListener);
+      window.clearInterval(poll);
       window.clearTimeout(t);
     };
   }, [show, ids, slot, width, height]);
