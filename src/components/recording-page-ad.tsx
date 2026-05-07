@@ -2,11 +2,15 @@
 
 import { useAuth } from "@/contexts/auth-context";
 import {
+  getAdsenseFallbackDelayMs,
+  getAdsenseFallbackSize,
+  getAdsenseFallbackSlotId,
   getAdsenseFixedSizeForViewport,
-  isAdsenseAdtestEnabled,
-  isAdsenseDebugEnabled,
   getAdsenseMobileSlotId,
   getAdsenseUnitIds,
+  isAdsenseAdtestEnabled,
+  isAdsenseDebugEnabled,
+  isAdsenseFallbackEnabled,
   shouldShowRecordingPageAds,
 } from "@/lib/adsense-config";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -32,8 +36,16 @@ export function RecordingPageAd() {
   const [isMobile, setIsMobile] = useState(false);
   const adtest = useMemo(() => isAdsenseAdtestEnabled(), []);
   const debugEnabled = useMemo(() => isAdsenseDebugEnabled(), []);
+  const fallbackEnabled = useMemo(() => isAdsenseFallbackEnabled(), []);
+  const fallbackDelayMs = useMemo(() => getAdsenseFallbackDelayMs(), []);
+  const fallbackSlot = useMemo(() => getAdsenseFallbackSlotId(), []);
+  const fallbackSize = useMemo(() => getAdsenseFallbackSize(), []);
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [pushStatus, setPushStatus] = useState<"idle" | "ok" | "error">("idle");
+  const [adStatus, setAdStatus] = useState<"unknown" | "filled" | "unfilled">(
+    "unknown",
+  );
+  const [variant, setVariant] = useState<"primary" | "fallback">("primary");
   const { width, height } = useMemo(
     () => getAdsenseFixedSizeForViewport(isMobile),
     [isMobile],
@@ -41,8 +53,13 @@ export function RecordingPageAd() {
   const show =
     ids != null && shouldShowRecordingPageAds(user ?? null, ready);
   const pushedRef = useRef(false);
+  const insRef = useRef<HTMLElement | null>(null);
 
-  const slot = isMobile && mobileSlot ? mobileSlot : (ids?.slot ?? "");
+  const primarySlot = isMobile && mobileSlot ? mobileSlot : (ids?.slot ?? "");
+  const slot =
+    variant === "fallback" && fallbackSlot ? fallbackSlot : primarySlot;
+  const size =
+    variant === "fallback" ? fallbackSize : { width, height };
 
   useEffect(() => {
     if (window.__hpAdsenseLoaded) {
@@ -63,7 +80,8 @@ export function RecordingPageAd() {
   useEffect(() => {
     pushedRef.current = false;
     setPushStatus("idle");
-  }, [slot, width, height]);
+    setAdStatus("unknown");
+  }, [slot, size.width, size.height, variant]);
 
   useEffect(() => {
     if (!show || !ids || !slot) {
@@ -112,7 +130,43 @@ export function RecordingPageAd() {
       window.clearInterval(poll);
       window.clearTimeout(t);
     };
-  }, [show, ids, slot, width, height]);
+  }, [show, ids, slot, size.width, size.height]);
+
+  // ins の data-ad-status（filled / unfilled）を監視する。
+  useEffect(() => {
+    if (!show || !slot) {
+      return;
+    }
+    const poll = window.setInterval(() => {
+      const status = insRef.current?.getAttribute("data-ad-status");
+      if (status === "filled") {
+        setAdStatus("filled");
+      } else if (status === "unfilled") {
+        setAdStatus("unfilled");
+      }
+    }, 1000);
+    return () => {
+      window.clearInterval(poll);
+    };
+  }, [show, slot, variant]);
+
+  // モバイルで unfilled のとき、一定時間後にフォールバック枠へ切替。
+  useEffect(() => {
+    if (
+      !isMobile ||
+      !fallbackEnabled ||
+      variant !== "primary" ||
+      adStatus !== "unfilled"
+    ) {
+      return;
+    }
+    const t = window.setTimeout(() => {
+      setVariant("fallback");
+    }, fallbackDelayMs);
+    return () => {
+      window.clearTimeout(t);
+    };
+  }, [isMobile, fallbackEnabled, variant, adStatus, fallbackDelayMs]);
 
   if (!show || !ids) {
     return null;
@@ -129,11 +183,14 @@ export function RecordingPageAd() {
     >
       <div className="flex w-full flex-col items-center gap-2">
         <ins
+          ref={(el) => {
+            insRef.current = el;
+          }}
           className="adsbygoogle max-w-full"
           style={{
             display: "inline-block",
-            width,
-            height,
+            width: size.width,
+            height: size.height,
             maxWidth: "100%",
             boxSizing: "border-box",
             verticalAlign: "bottom",
@@ -149,11 +206,14 @@ export function RecordingPageAd() {
             <div>isMobile: {String(isMobile)}</div>
             <div>slot: {slot || "(empty)"}</div>
             <div>
-              size: {width}x{height}
+              size: {size.width}x{size.height}
             </div>
+            <div>variant: {variant}</div>
             <div>adtest: {adtest ? "on" : "off"}</div>
             <div>scriptLoadedEvent: {scriptLoaded ? "yes" : "no"}</div>
             <div>pushStatus: {pushStatus}</div>
+            <div>data-ad-status: {adStatus}</div>
+            <div>fallbackEnabled: {fallbackEnabled ? "on" : "off"}</div>
             <div>authReady: {String(ready)}</div>
             <div>showAd: {String(show)}</div>
           </div>

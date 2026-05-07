@@ -42,6 +42,39 @@ function parseAdsenseUnitSize(raw?: string): AdsenseFixedSize {
   return { width: 320, height: 100 };
 }
 
+/** data-ad-status が unfilled のときフォールバック枠へ切替するか */
+export function isAdsenseFallbackEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_ADSENSE_FALLBACK === "on";
+}
+
+/** フォールバックまでの待機 ms（既定 9000ms） */
+export function getAdsenseFallbackDelayMs(): number {
+  const raw = process.env.NEXT_PUBLIC_ADSENSE_FALLBACK_DELAY_MS?.trim();
+  if (!raw) {
+    return 9000;
+  }
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isNaN(n) && n >= 1000) {
+    return n;
+  }
+  return 9000;
+}
+
+/** フォールバック先の slot（未設定なら通常 slot を再利用） */
+export function getAdsenseFallbackSlotId(): string | null {
+  const v = process.env.NEXT_PUBLIC_ADSENSE_SLOT_FALLBACK?.trim();
+  return v || null;
+}
+
+/** フォールバック先の固定サイズ（既定 300x250） */
+export function getAdsenseFallbackSize(): AdsenseFixedSize {
+  const raw = process.env.NEXT_PUBLIC_ADSENSE_FALLBACK_UNIT_SIZE;
+  if (!raw) {
+    return { width: 300, height: 250 };
+  }
+  return parseAdsenseUnitSize(raw);
+}
+
 /**
  * 既定 320×100。環境変数 NEXT_PUBLIC_ADSENSE_UNIT_SIZE で 300x250 に切替。
  * （後方互換のため残す）
