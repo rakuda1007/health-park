@@ -3,9 +3,7 @@
 import { useAuth } from "@/contexts/auth-context";
 import {
   getAdsenseFallbackDelayMs,
-  getAdsenseFallbackSize,
   getAdsenseFallbackSlotId,
-  getAdsenseFixedSizeForViewport,
   getAdsenseMobileSlotId,
   getAdsenseUnitIds,
   isAdsenseAdtestEnabled,
@@ -24,9 +22,7 @@ declare global {
 
 /**
  * 記録フォーム直下（保存ボタン直下）用の AdSense スロット。
- * note-park 互換の固定枠（軽め）:
- * - data-full-width-responsive=\"false\"
- * - 固定 width/height（既定 320×100、任意で 300×250）
+ * - data-full-width-responsive="true" / data-ad-format="auto" のレスポンシブ枠
  * - スクリプト読み込み後に 1 回 push
  */
 export function RecordingPageAd() {
@@ -39,17 +35,12 @@ export function RecordingPageAd() {
   const fallbackEnabled = useMemo(() => isAdsenseFallbackEnabled(), []);
   const fallbackDelayMs = useMemo(() => getAdsenseFallbackDelayMs(), []);
   const fallbackSlot = useMemo(() => getAdsenseFallbackSlotId(), []);
-  const fallbackSize = useMemo(() => getAdsenseFallbackSize(), []);
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [pushStatus, setPushStatus] = useState<"idle" | "ok" | "error">("idle");
   const [adStatus, setAdStatus] = useState<"unknown" | "filled" | "unfilled">(
     "unknown",
   );
   const [variant, setVariant] = useState<"primary" | "fallback">("primary");
-  const { width, height } = useMemo(
-    () => getAdsenseFixedSizeForViewport(isMobile),
-    [isMobile],
-  );
   const show =
     ids != null && shouldShowRecordingPageAds(user ?? null, ready);
   const pushedRef = useRef(false);
@@ -58,8 +49,6 @@ export function RecordingPageAd() {
   const primarySlot = isMobile && mobileSlot ? mobileSlot : (ids?.slot ?? "");
   const slot =
     variant === "fallback" && fallbackSlot ? fallbackSlot : primarySlot;
-  const size =
-    variant === "fallback" ? fallbackSize : { width, height };
 
   useEffect(() => {
     if (window.__hpAdsenseLoaded) {
@@ -81,7 +70,7 @@ export function RecordingPageAd() {
     pushedRef.current = false;
     setPushStatus("idle");
     setAdStatus("unknown");
-  }, [slot, size.width, size.height, variant]);
+  }, [slot, variant]);
 
   useEffect(() => {
     if (!show || !ids || !slot) {
@@ -130,7 +119,7 @@ export function RecordingPageAd() {
       window.clearInterval(poll);
       window.clearTimeout(t);
     };
-  }, [show, ids, slot, size.width, size.height]);
+  }, [show, ids, slot, variant]);
 
   // ins の data-ad-status（filled / unfilled）を監視する。
   useEffect(() => {
@@ -168,58 +157,43 @@ export function RecordingPageAd() {
     };
   }, [isMobile, fallbackEnabled, variant, adStatus, fallbackDelayMs]);
 
-  if (!show || !ids) {
-    return null;
-  }
-
-  if (!slot) {
+  if (!show || !ids || !slot) {
     return null;
   }
 
   return (
     <aside
-      className="mt-4 flex w-full max-w-full min-w-0 justify-center"
+      className="mt-4 w-full max-w-full min-w-0"
       aria-label="広告"
     >
-      <div className="flex w-full flex-col items-center gap-2">
-        <ins
-          key={`${slot}-${variant}`}
-          ref={(el) => {
-            insRef.current = el;
-          }}
-          className="adsbygoogle max-w-full"
-          style={{
-            display: "inline-block",
-            width: size.width,
-            height: size.height,
-            maxWidth: "100%",
-            boxSizing: "border-box",
-            verticalAlign: "bottom",
-          }}
-          data-ad-client={ids.client}
-          data-ad-slot={slot}
-          data-full-width-responsive="false"
-          data-adtest={adtest ? "on" : undefined}
-        />
-        {debugEnabled ? (
-          <div className="w-full max-w-[22rem] rounded-md border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[11px] leading-5 text-[color:var(--hp-muted)]">
-            <div>ads-debug: on</div>
-            <div>isMobile: {String(isMobile)}</div>
-            <div>slot: {slot || "(empty)"}</div>
-            <div>
-              size: {size.width}x{size.height}
-            </div>
-            <div>variant: {variant}</div>
-            <div>adtest: {adtest ? "on" : "off"}</div>
-            <div>scriptLoadedEvent: {scriptLoaded ? "yes" : "no"}</div>
-            <div>pushStatus: {pushStatus}</div>
-            <div>data-ad-status: {adStatus}</div>
-            <div>fallbackEnabled: {fallbackEnabled ? "on" : "off"}</div>
-            <div>authReady: {String(ready)}</div>
-            <div>showAd: {String(show)}</div>
-          </div>
-        ) : null}
-      </div>
+      <ins
+        key={`${slot}-${variant}`}
+        ref={(el) => {
+          insRef.current = el;
+        }}
+        className="adsbygoogle"
+        style={{ display: "block" }}
+        data-ad-client={ids.client}
+        data-ad-slot={slot}
+        data-ad-format="auto"
+        data-full-width-responsive="true"
+        data-adtest={adtest ? "on" : undefined}
+      />
+      {debugEnabled ? (
+        <div className="mt-2 w-full max-w-[22rem] rounded-md border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[11px] leading-5 text-[color:var(--hp-muted)]">
+          <div>ads-debug: on</div>
+          <div>isMobile: {String(isMobile)}</div>
+          <div>slot: {slot || "(empty)"}</div>
+          <div>variant: {variant}</div>
+          <div>adtest: {adtest ? "on" : "off"}</div>
+          <div>scriptLoadedEvent: {scriptLoaded ? "yes" : "no"}</div>
+          <div>pushStatus: {pushStatus}</div>
+          <div>data-ad-status: {adStatus}</div>
+          <div>fallbackEnabled: {fallbackEnabled ? "on" : "off"}</div>
+          <div>authReady: {String(ready)}</div>
+          <div>showAd: {String(show)}</div>
+        </div>
+      ) : null}
     </aside>
   );
 }
