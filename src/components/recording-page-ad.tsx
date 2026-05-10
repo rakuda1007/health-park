@@ -161,24 +161,44 @@ export function RecordingPageAd() {
     return null;
   }
 
+  // フォールバック切替前のモバイルでは、しばらく ins を残す必要がある
+  const waitingMobileFallback =
+    fallbackEnabled &&
+    isMobile &&
+    variant === "primary" &&
+    adStatus === "unfilled";
+
+  const adRequestFailed =
+    adStatus === "unfilled" || pushStatus === "error";
+
+  const collapseAdArea =
+    adRequestFailed && !waitingMobileFallback;
+
+  // 本番: 未配信・push 失敗時は余白ごと非表示。デバッグ時は状態確認のため残す
+  if (collapseAdArea && !debugEnabled) {
+    return null;
+  }
+
   return (
     <aside
       className="mt-4 w-full max-w-full min-w-0"
       aria-label="広告"
     >
-      <ins
-        key={`${slot}-${variant}`}
-        ref={(el) => {
-          insRef.current = el;
-        }}
-        className="adsbygoogle"
-        style={{ display: "block" }}
-        data-ad-client={ids.client}
-        data-ad-slot={slot}
-        data-ad-format="auto"
-        data-full-width-responsive="true"
-        data-adtest={adtest ? "on" : undefined}
-      />
+      {!(collapseAdArea && debugEnabled) ? (
+        <ins
+          key={`${slot}-${variant}`}
+          ref={(el) => {
+            insRef.current = el;
+          }}
+          className="adsbygoogle"
+          style={{ display: "block" }}
+          data-ad-client={ids.client}
+          data-ad-slot={slot}
+          data-ad-format="auto"
+          data-full-width-responsive="true"
+          data-adtest={adtest ? "on" : undefined}
+        />
+      ) : null}
       {debugEnabled ? (
         <div className="mt-2 w-full max-w-[22rem] rounded-md border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-[11px] leading-5 text-[color:var(--hp-muted)]">
           <div>ads-debug: on</div>
