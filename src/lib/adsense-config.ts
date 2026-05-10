@@ -39,6 +39,14 @@ function parseAdsenseUnitSize(raw?: string): AdsenseFixedSize {
   if (v === "300x250") {
     return { width: 300, height: 250 };
   }
+  if (v === "320x100") {
+    return { width: 320, height: 100 };
+  }
+  if (v != null && v !== "") {
+    console.warn(
+      `[Health Park] ADSENSE_UNIT_SIZE の値 "${v}" は未対応です。300x250 または 320x100 を指定してください。既定の 320x100 を使用します。`,
+    );
+  }
   return { width: 320, height: 100 };
 }
 

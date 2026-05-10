@@ -183,7 +183,7 @@ export function RecordingPageAd() {
     >
       <div className="flex w-full flex-col items-center gap-2">
         <ins
-          key={slot}
+          key={`${slot}-${variant}`}
           ref={(el) => {
             insRef.current = el;
           }}
