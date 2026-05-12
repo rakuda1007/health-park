@@ -13,6 +13,12 @@ import { useCallback, useEffect, useState } from "react";
 export function SettingsPageClient() {
   const { user, ready } = useAuth();
   const [showDevStatsLink, setShowDevStatsLink] = useState(false);
+  /** probe 完了後、リンク非表示のときだけヒント用 */
+  const [devStatsProbeDone, setDevStatsProbeDone] = useState(false);
+  /** 直近の probe の HTTP ステータス（画面表示用） */
+  const [devStatsProbeHttpStatus, setDevStatsProbeHttpStatus] = useState<
+    number | "network_error" | null
+  >(null);
   const [prefs, setPrefs] = useState(() =>
     readDashboardDisplayPreferences(),
   );
@@ -30,21 +36,30 @@ export function SettingsPageClient() {
   useEffect(() => {
     if (!isFirebaseConfigured() || !ready || !user) {
       setShowDevStatsLink(false);
+      setDevStatsProbeDone(false);
+      setDevStatsProbeHttpStatus(null);
       return;
     }
     let cancelled = false;
+    setDevStatsProbeDone(false);
+    setDevStatsProbeHttpStatus(null);
     void (async () => {
       try {
         const token = await user.getIdToken();
         const res = await fetch("/api/admin/user-stats?probe=1", {
           headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
         });
         if (!cancelled) {
+          setDevStatsProbeHttpStatus(res.status);
           setShowDevStatsLink(res.ok);
+          setDevStatsProbeDone(true);
         }
       } catch {
         if (!cancelled) {
+          setDevStatsProbeHttpStatus("network_error");
           setShowDevStatsLink(false);
+          setDevStatsProbeDone(true);
         }
       }
     })();
@@ -177,6 +192,57 @@ export function SettingsPageClient() {
           </li>
         ) : null}
       </ul>
+      {isFirebaseConfigured() &&
+      user &&
+      devStatsProbeDone &&
+      !showDevStatsLink ? (
+        <div className="mt-4 max-w-xl space-y-2 text-xs leading-relaxed text-[color:var(--hp-muted)]">
+          {devStatsProbeHttpStatus != null ? (
+            <p className="text-[color:var(--hp-foreground)]">
+              利用統計の確認リクエストの結果:{" "}
+              <span className="font-mono tabular-nums">
+                {devStatsProbeHttpStatus === "network_error"
+                  ? "（ネットワークエラー・CORS 等で応答なし）"
+                  : `HTTP ${devStatsProbeHttpStatus}`}
+              </span>
+            </p>
+          ) : null}
+          <p>
+            「利用統計」はサーバーで開発者と判定された場合のみ表示されます。出ないときは
+            <strong className="font-medium text-[color:var(--hp-foreground)]">
+              両方
+            </strong>
+            必要です: ① Vercel 等の{" "}
+            <code className="rounded bg-[color:var(--hp-input)] px-1">
+              DEVELOPER_ADMIN_EMAILS
+            </code>{" "}
+            に<strong>今ログインしているメール</strong>（プロフィールで確認）が含まれること
+            ②{" "}
+            <code className="rounded bg-[color:var(--hp-input)] px-1">
+              FIREBASE_SERVICE_ACCOUNT_JSON
+            </code>{" "}
+            または{" "}
+            <code className="rounded bg-[color:var(--hp-input)] px-1">
+              FIREBASE_SERVICE_ACCOUNT_BASE64
+            </code>{" "}
+            がサーバーに設定され、JSON（特に{" "}
+            <code className="rounded bg-[color:var(--hp-input)] px-1">
+              private_key
+            </code>
+            の改行が{" "}
+            <code className="rounded bg-[color:var(--hp-input)] px-1">\n</code>{" "}
+            エスケープ）が正しいこと。
+          </p>
+          <p>
+            上のステータスが <strong>403</strong> なら①、<strong>503 / 500</strong>{" "}
+            なら②を疑ってください。Network に{" "}
+            <code className="rounded bg-[color:var(--hp-input)] px-1">
+              user-stats
+            </code>{" "}
+            が出ない場合は、<strong>ログインしたまま</strong>設定ページを表示したうえで、Network の左上が<strong>記録中</strong>（丸が赤）であることを確認し、フィルタを「Fetch/XHR」にするか、ページを再読み込み（F5）してから一覧を見直してください。検索パネル（Sources 横の検索）に出る文字列は、ネットワーク一覧とは別です。
+          </p>
+        </div>
+      ) : null}
     </main>
   );
 }
