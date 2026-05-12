@@ -389,14 +389,14 @@ export function DashboardPageClient() {
         ホーム
       </h1>
       <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
-        表示するレポートは{" "}
+        表示するレポートは設定メニューの
         <Link
           href={appPath("/settings")}
           className="text-[color:var(--hp-accent)] underline-offset-2 hover:underline"
         >
-          設定
+          ダッシュボード設定
         </Link>
-        から選べます。体重・歩数・振り返り、血圧、通院予定を組み合わせて表示できます。グラフは日ごと・週平均・月平均に切り替え可能です。因果関係の証明ではなく、記録の並びを眺めるための参考です。
+        から選択できます。
       </p>
 
       {!showCore && !showBp && !showAppt ? (
@@ -413,45 +413,55 @@ export function DashboardPageClient() {
       ) : null}
 
       {showPeriodToolbar ? (
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs text-[color:var(--hp-muted)]">表示期間:</span>
-          {PERIODS.map((d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => setPeriodDays(d)}
-              className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
-                periodDays === d
-                  ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
-                  : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
-              }`}
-            >
-              直近{d}日
-            </button>
-          ))}
-          <span className="ml-1 text-xs text-[color:var(--hp-muted)]">
-            グラフの集計:
-          </span>
-          {(
-            [
-              { id: "day" as const, label: "日ごと" },
-              { id: "week" as const, label: "週ごと" },
-              { id: "month" as const, label: "月ごと" },
-            ] as const
-          ).map(({ id, label }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setChartGranularity(id)}
-              className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
-                chartGranularity === id
-                  ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
-                  : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="mt-4 flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-2">
+          <div className="flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-center md:gap-2">
+            <span className="shrink-0 text-xs text-[color:var(--hp-muted)]">
+              表示期間:
+            </span>
+            <div className="flex flex-col gap-1 md:flex-row md:flex-wrap md:gap-2">
+              {PERIODS.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setPeriodDays(d)}
+                  className={`rounded-md border px-2.5 py-1 text-xs font-medium md:shrink-0 ${
+                    periodDays === d
+                      ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
+                      : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
+                  }`}
+                >
+                  直近{d}日
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-center md:gap-2">
+            <span className="shrink-0 text-xs text-[color:var(--hp-muted)]">
+              集計期間:
+            </span>
+            <div className="flex flex-row flex-wrap gap-2">
+              {(
+                [
+                  { id: "day" as const, label: "日ごと" },
+                  { id: "week" as const, label: "週ごと" },
+                  { id: "month" as const, label: "月ごと" },
+                ] as const
+              ).map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setChartGranularity(id)}
+                  className={`rounded-md border px-2.5 py-1 text-xs font-medium shrink-0 ${
+                    chartGranularity === id
+                      ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
+                      : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -466,12 +476,9 @@ export function DashboardPageClient() {
         <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
           通院予定（7日以内）
         </h2>
-        <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-          今日から1週間以内の予定を表示します。登録・変更は通院予定画面へ。
-        </p>
         {dashboardAppointments.length === 0 ? (
           <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
-            該当する予定はありません。
+            1週間以内の予定はありません
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
@@ -527,18 +534,14 @@ export function DashboardPageClient() {
             </span>
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            折れ線＝体重（kg・左軸）、棒＝歩数（右軸）。週・月を選んだときは、その期間内で記録があった日だけを平均した値です（歩数・体重とも）。歩数は
-            0 から。体重は変化が見えやすいよう記録範囲を拡大表示しており、左軸の最小目盛に
-            ～ が付くときは 0
-            からの区間が省略されています。体重画面で設定した目標帯（緑の薄い帯）があるときは同じ範囲に表示します。日ごと表示では未記録の日は体重は線が途切れ、歩数は棒を出しません（0
-            歩の記録ではありません）。
+            週・月を選んだ場合はその期間内で記録があった日だけを平均した値となります
           </p>
           {!hasCombined ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
               この期間に体重・歩数の記録がありません。
             </p>
           ) : (
-            <div className="mt-3 h-64 w-full min-h-[16rem] min-w-0">
+            <div className="mt-2 h-64 w-full min-h-[16rem] min-w-0">
               <ResponsiveContainer width="100%" height="100%" minHeight={256}>
                 <ComposedChart
                   data={combinedChartData}
@@ -885,16 +888,6 @@ export function DashboardPageClient() {
           <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
             週ごとのサマリー（直近8週）
           </h2>
-          <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            新しい週が上に来ます。その週に記録があった日だけを平均しています。記録日数が少ない週は値がブレやすいです。
-            {showCore
-              ? " 体重・歩数・振り返りの事実ベースの文に続き、目標帯や食事・運動の観点からの短いコメントが付きます。"
-              : ""}
-            {showBp
-              ? " 血圧は週平均と前週との差の事実文、および生活面の補足コメントを含みます。"
-              : ""}
-            （いずれも自動生成・診断や目標設定ではありません。）
-          </p>
           {weeklyRows.length === 0 ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
               データがありません。
@@ -1125,16 +1118,6 @@ export function DashboardPageClient() {
                     })}
                   </tbody>
                 </table>
-                <p className="mt-2 text-[11px] text-[color:var(--hp-muted)]">
-                  列見出し：
-                  {showCore
-                    ? "体重・歩数は週平均で、隣の「日」は記録があった日数です。振返の列は振り返りの記録があった日数のみ（各項目の平均は自動コメント欄）。"
-                    : ""}
-                  {showCore && showBp ? " " : ""}
-                  {showBp
-                    ? "血圧は週平均の収縮期/拡張期、隣の「日」は血圧を記録した日数です。"
-                    : ""}
-                </p>
               </div>
             </>
           )}
