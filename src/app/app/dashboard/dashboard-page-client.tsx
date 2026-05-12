@@ -779,16 +779,11 @@ export function DashboardPageClient() {
               この期間に血圧の記録がありません。
             </p>
           ) : (
-            <div className="mt-3 h-64 w-full min-h-[16rem] min-w-0">
+            <div className="mt-2 h-64 w-full min-h-[16rem] min-w-0">
               <ResponsiveContainer width="100%" height="100%" minHeight={256}>
                 <ComposedChart
                   data={bpChartData}
-                  margin={{
-                    top: 8,
-                    right: hasAnyPulseOnChart ? 48 : 12,
-                    left: 12,
-                    bottom: 0,
-                  }}
+                  margin={{ top: 8, right: 12, left: 12, bottom: 0 }}
                 >
                   <CartesianGrid
                     stroke="var(--hp-border)"
