@@ -1,14 +1,18 @@
 "use client";
 
+import { useAuth } from "@/contexts/auth-context";
 import {
   readDashboardDisplayPreferences,
   writeDashboardDisplayPreferences,
 } from "@/lib/dashboard-preferences";
 import { appPath } from "@/lib/app-paths";
+import { isFirebaseConfigured } from "@/lib/firebase/client";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 export function SettingsPageClient() {
+  const { user, ready } = useAuth();
+  const [showDevStatsLink, setShowDevStatsLink] = useState(false);
   const [prefs, setPrefs] = useState(() =>
     readDashboardDisplayPreferences(),
   );
@@ -22,6 +26,32 @@ export function SettingsPageClient() {
     window.addEventListener("focus", sync);
     return () => window.removeEventListener("focus", sync);
   }, [sync]);
+
+  useEffect(() => {
+    if (!isFirebaseConfigured() || !ready || !user) {
+      setShowDevStatsLink(false);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch("/api/admin/user-stats?probe=1", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!cancelled) {
+          setShowDevStatsLink(res.ok);
+        }
+      } catch {
+        if (!cancelled) {
+          setShowDevStatsLink(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, user]);
 
   function toggleCore(checked: boolean) {
     writeDashboardDisplayPreferences({ showCoreBundle: checked });
@@ -136,6 +166,16 @@ export function SettingsPageClient() {
             バックアップ（JSON の書き出し・読み込み）
           </Link>
         </li>
+        {showDevStatsLink ? (
+          <li>
+            <Link
+              href={appPath("/dev/user-stats")}
+              className="text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
+            >
+              利用統計（開発者向け）
+            </Link>
+          </li>
+        ) : null}
       </ul>
     </main>
   );

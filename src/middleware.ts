@@ -9,6 +9,7 @@ const LEGACY_APP_SEGMENTS = new Set([
   "blood-pressure",
   "clinics",
   "dashboard",
+  "dev",
   "login",
   "meals",
   "medical-history",
