@@ -25,6 +25,7 @@ import {
   buildWeeklyDashboardRows,
   buildWeeklyReflectionHeatmapColumns,
   type CombinedChartGranularity,
+  type DashboardChartPeriodOption,
   weeklyBloodPressureNarrative,
   weeklyDashboardCoachNarrative,
   weeklyReflectionNarrative,
@@ -50,7 +51,7 @@ import {
   YAxis,
 } from "recharts";
 
-const PERIODS = [7, 14, 30] as const;
+const FINITE_PERIOD_DAYS = [7, 14, 30] as const satisfies readonly DashboardChartPeriodOption[];
 
 /** 週／月平均ヒートマップ用（表示期間スイッチと独立・約6か月） */
 const REFLECTION_HEATMAP_DAYS_BACK = 186;
@@ -92,9 +93,17 @@ export function DashboardPageClient() {
     readDashboardDisplayPreferences(),
   );
   const [error, setError] = useState<string | null>(null);
-  const [periodDays, setPeriodDays] = useState<(typeof PERIODS)[number]>(7);
-  const [chartGranularity, setChartGranularity] =
+  const [combinedPeriod, setCombinedPeriod] =
+    useState<DashboardChartPeriodOption>(7);
+  const [combinedGranularity, setCombinedGranularity] =
     useState<CombinedChartGranularity>("day");
+  const [bpPeriod, setBpPeriod] = useState<DashboardChartPeriodOption>(7);
+  const [bpGranularity, setBpGranularity] =
+    useState<CombinedChartGranularity>("day");
+  const [reflectionDayPeriod, setReflectionDayPeriod] =
+    useState<DashboardChartPeriodOption>(7);
+  const [summaryPeriod, setSummaryPeriod] =
+    useState<DashboardChartPeriodOption>(7);
   const [reflectionHeatmapMode, setReflectionHeatmapMode] = useState<
     "day" | "week" | "month"
   >("day");
@@ -160,21 +169,75 @@ export function DashboardPageClient() {
     };
   }, []);
 
-  const dailyPoints = useMemo(
+  const combinedDailyPoints = useMemo(
     () =>
       buildDailyDashboardPoints(
-        periodDays,
+        combinedPeriod,
         weightEntries,
         stepsEntries,
         reflections,
         bloodPressureEntries,
       ),
-    [periodDays, weightEntries, stepsEntries, reflections, bloodPressureEntries],
+    [
+      combinedPeriod,
+      weightEntries,
+      stepsEntries,
+      reflections,
+      bloodPressureEntries,
+    ],
+  );
+
+  const bpDailyPoints = useMemo(
+    () =>
+      buildDailyDashboardPoints(
+        bpPeriod,
+        weightEntries,
+        stepsEntries,
+        reflections,
+        bloodPressureEntries,
+      ),
+    [bpPeriod, weightEntries, stepsEntries, reflections, bloodPressureEntries],
+  );
+
+  const reflectionDayDailyPoints = useMemo(
+    () =>
+      buildDailyDashboardPoints(
+        reflectionDayPeriod,
+        weightEntries,
+        stepsEntries,
+        reflections,
+        bloodPressureEntries,
+      ),
+    [
+      reflectionDayPeriod,
+      weightEntries,
+      stepsEntries,
+      reflections,
+      bloodPressureEntries,
+    ],
+  );
+
+  const weeklySummaryDailyPoints = useMemo(
+    () =>
+      buildDailyDashboardPoints(
+        summaryPeriod,
+        weightEntries,
+        stepsEntries,
+        reflections,
+        bloodPressureEntries,
+      ),
+    [
+      summaryPeriod,
+      weightEntries,
+      stepsEntries,
+      reflections,
+      bloodPressureEntries,
+    ],
   );
 
   const weeklyRows = useMemo(
-    () => buildWeeklyDashboardRows(dailyPoints, 8),
-    [dailyPoints],
+    () => buildWeeklyDashboardRows(weeklySummaryDailyPoints, 8),
+    [weeklySummaryDailyPoints],
   );
 
   const reflectionLongDailyPoints = useMemo(
@@ -199,11 +262,11 @@ export function DashboardPageClient() {
     [reflectionLongDailyPoints],
   );
 
-  const hasAnyWeight = dailyPoints.some((p) => p.weightKg != null);
-  const hasAnySteps = dailyPoints.some((p) => p.steps != null);
+  const hasAnyWeight = combinedDailyPoints.some((p) => p.weightKg != null);
+  const hasAnySteps = combinedDailyPoints.some((p) => p.steps != null);
   const hasCombined = hasAnyWeight || hasAnySteps;
 
-  const hasAnyDailyReflectionScore = dailyPoints.some(
+  const hasAnyDailyReflectionScore = reflectionDayDailyPoints.some(
     (p) =>
       p.mealScore != null ||
       p.stepsSelfScore != null ||
@@ -227,13 +290,14 @@ export function DashboardPageClient() {
 
   /** 棒グラフ用（未記録は 0＋透明セル。ツールチップは元の steps を参照） */
   const combinedChartData = useMemo(
-    () => buildCombinedChartRows(dailyPoints, chartGranularity),
-    [dailyPoints, chartGranularity],
+    () =>
+      buildCombinedChartRows(combinedDailyPoints, combinedGranularity),
+    [combinedDailyPoints, combinedGranularity],
   );
 
   const bpChartData = useMemo(
-    () => buildBpChartRows(dailyPoints, chartGranularity),
-    [dailyPoints, chartGranularity],
+    () => buildBpChartRows(bpDailyPoints, bpGranularity),
+    [bpDailyPoints, bpGranularity],
   );
 
   const hasAnyBpOnChart = bpChartData.some(
@@ -282,7 +346,6 @@ export function DashboardPageClient() {
   const showBp = dashPrefs.showBloodPressure;
   const showAppt = dashPrefs.showAppointments;
   const showWeeklySection = showCore || showBp;
-  const showPeriodToolbar = showCore || showBp;
 
   const goalBand = useMemo((): WeightGoalBand | null => {
     const gm = Number.parseFloat(goalMinStr);
@@ -412,59 +475,6 @@ export function DashboardPageClient() {
         </p>
       ) : null}
 
-      {showPeriodToolbar ? (
-        <div className="mt-4 flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-2">
-          <div className="flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-center md:gap-2">
-            <span className="shrink-0 text-xs text-[color:var(--hp-muted)]">
-              表示期間:
-            </span>
-            <div className="flex flex-col gap-1 md:flex-row md:flex-wrap md:gap-2">
-              {PERIODS.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setPeriodDays(d)}
-                  className={`rounded-md border px-2.5 py-1 text-xs font-medium md:shrink-0 ${
-                    periodDays === d
-                      ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
-                      : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
-                  }`}
-                >
-                  直近{d}日
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-center md:gap-2">
-            <span className="shrink-0 text-xs text-[color:var(--hp-muted)]">
-              集計期間:
-            </span>
-            <div className="flex flex-row flex-wrap gap-2">
-              {(
-                [
-                  { id: "day" as const, label: "日ごと" },
-                  { id: "week" as const, label: "週ごと" },
-                  { id: "month" as const, label: "月ごと" },
-                ] as const
-              ).map(({ id, label }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setChartGranularity(id)}
-                  className={`rounded-md border px-2.5 py-1 text-xs font-medium shrink-0 ${
-                    chartGranularity === id
-                      ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
-                      : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {error ? (
         <p className="mt-4 text-sm text-red-600 dark:text-red-400" role="alert">
           {error}
@@ -526,16 +536,22 @@ export function DashboardPageClient() {
           <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
             体重と歩数（折れ線＋棒）
             <span className="ml-1.5 font-normal text-[color:var(--hp-muted)]">
-              {chartGranularity === "day"
+              {combinedGranularity === "day"
                 ? "・日ごと"
-                : chartGranularity === "week"
+                : combinedGranularity === "week"
                   ? "・週平均"
                   : "・月平均"}
             </span>
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            週・月を選んだ場合はその期間内で記録があった日だけを平均した値となります
+            週・月を選んだ場合はその期間内で記録があった日だけを平均した値となります。
           </p>
+          <ChartPeriodControls
+            period={combinedPeriod}
+            onPeriodChange={setCombinedPeriod}
+            granularity={combinedGranularity}
+            onGranularityChange={setCombinedGranularity}
+          />
           {!hasCombined ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
               この期間に体重・歩数の記録がありません。
@@ -598,7 +614,9 @@ export function DashboardPageClient() {
                   />
                   <Tooltip
                     content={
-                      <CombinedTooltip chartGranularity={chartGranularity} />
+                      <CombinedTooltip
+                        chartGranularity={combinedGranularity}
+                      />
                     }
                   />
                   <Legend
@@ -671,43 +689,14 @@ export function DashboardPageClient() {
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
             食事・歩数・体調を 〇=2、△=1、✕=0
-            にしたヒートマップです。日ごとは上の「直近7/14/30日」に連動し、週・月は直近約6か月を別途集計します。下の「週ごとのサマリー」には週平均と短い示唆文があります。
+            にしたヒートマップです。日ごとは下の表示期間で切り替え、週・月は直近約6か月を別途集計します。
           </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setReflectionHeatmapMode("day")}
-              className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
-                reflectionHeatmapMode === "day"
-                  ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
-                  : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
-              }`}
-            >
-              日ごと
-            </button>
-            <button
-              type="button"
-              onClick={() => setReflectionHeatmapMode("week")}
-              className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
-                reflectionHeatmapMode === "week"
-                  ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
-                  : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
-              }`}
-            >
-              週ごと（週平均）
-            </button>
-            <button
-              type="button"
-              onClick={() => setReflectionHeatmapMode("month")}
-              className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
-                reflectionHeatmapMode === "month"
-                  ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
-                  : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
-              }`}
-            >
-              月ごと（月平均）
-            </button>
-          </div>
+          <ReflectionHeatmapControls
+            dayPeriod={reflectionDayPeriod}
+            onDayPeriodChange={setReflectionDayPeriod}
+            mode={reflectionHeatmapMode}
+            onModeChange={setReflectionHeatmapMode}
+          />
           {reflectionHeatmapMode === "day" ? (
             !hasAnyDailyReflectionScore ? (
               <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
@@ -716,9 +705,9 @@ export function DashboardPageClient() {
             ) : (
               <>
                 <h3 className="mt-3 text-xs font-medium text-[color:var(--hp-foreground)]">
-                  日ごと（表示期間に連動）
+                  日ごと
                 </h3>
-                <ReflectionHeatmap points={dailyPoints} />
+                <ReflectionHeatmap points={reflectionDayDailyPoints} />
               </>
             )
           ) : reflectionHeatmapMode === "week" ? (
@@ -769,9 +758,9 @@ export function DashboardPageClient() {
           <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
             血圧（帯・脈拍）
             <span className="ml-1.5 font-normal text-[color:var(--hp-muted)]">
-              {chartGranularity === "day"
+              {bpGranularity === "day"
                 ? "・日ごと"
-                : chartGranularity === "week"
+                : bpGranularity === "week"
                   ? "・週平均"
                   : "・月平均"}
             </span>
@@ -779,6 +768,12 @@ export function DashboardPageClient() {
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
             拡張期〜収縮期の帯は左軸（mmHg）、脈拍は右軸（回/分）の折れ線です。脈拍は記録があるときのみ表示します。週・月は血圧を記録した日のみを平均した値です。医療的な判定ではなく、記録の並びの参考としてください。
           </p>
+          <ChartPeriodControls
+            period={bpPeriod}
+            onPeriodChange={setBpPeriod}
+            granularity={bpGranularity}
+            onGranularityChange={setBpGranularity}
+          />
           {!hasAnyBpOnChart ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
               この期間に血圧の記録がありません。
@@ -837,7 +832,7 @@ export function DashboardPageClient() {
                   ) : null}
                   <Tooltip
                     content={
-                      <BpTooltip chartGranularity={chartGranularity} />
+                      <BpTooltip chartGranularity={bpGranularity} />
                     }
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
@@ -888,6 +883,10 @@ export function DashboardPageClient() {
           <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
             週ごとのサマリー（直近8週）
           </h2>
+          <DisplayPeriodControls
+            period={summaryPeriod}
+            onPeriodChange={setSummaryPeriod}
+          />
           {weeklyRows.length === 0 ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
               データがありません。
@@ -1125,6 +1124,184 @@ export function DashboardPageClient() {
         ) : null}
       </section>
     </main>
+  );
+}
+
+const GRANULARITY_OPTIONS = [
+  { id: "day" as const, label: "日ごと" },
+  { id: "week" as const, label: "週ごと" },
+  { id: "month" as const, label: "月ごと" },
+] as const;
+
+function chartControlButtonClass(active: boolean): string {
+  return `rounded-md border px-2.5 py-1 text-xs font-medium shrink-0 ${
+    active
+      ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
+      : "border-[color:var(--hp-border)] text-[color:var(--hp-muted)] hover:border-[color:var(--hp-accent)]"
+  }`;
+}
+
+function ChartPeriodControls({
+  period,
+  onPeriodChange,
+  granularity,
+  onGranularityChange,
+}: {
+  period: DashboardChartPeriodOption;
+  onPeriodChange: (p: DashboardChartPeriodOption) => void;
+  granularity: CombinedChartGranularity;
+  onGranularityChange: (g: CombinedChartGranularity) => void;
+}) {
+  return (
+    <div className="mt-3 flex flex-col gap-3">
+      <div className="flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-center md:gap-2">
+        <span className="shrink-0 text-xs text-[color:var(--hp-muted)]">
+          表示期間:
+        </span>
+        <div className="flex flex-row flex-wrap gap-2">
+          {FINITE_PERIOD_DAYS.map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => onPeriodChange(d)}
+              className={chartControlButtonClass(period === d)}
+            >
+              直近{d}日
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => onPeriodChange("all")}
+            className={chartControlButtonClass(period === "all")}
+          >
+            すべて
+          </button>
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-center md:gap-2">
+        <span className="shrink-0 text-xs text-[color:var(--hp-muted)]">
+          集計期間:
+        </span>
+        <div className="flex flex-row flex-wrap gap-2">
+          {GRANULARITY_OPTIONS.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onGranularityChange(id)}
+              className={chartControlButtonClass(granularity === id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DisplayPeriodControls({
+  period,
+  onPeriodChange,
+}: {
+  period: DashboardChartPeriodOption;
+  onPeriodChange: (p: DashboardChartPeriodOption) => void;
+}) {
+  return (
+    <div className="mt-3 flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-center md:gap-2">
+      <span className="shrink-0 text-xs text-[color:var(--hp-muted)]">
+        表示期間:
+      </span>
+      <div className="flex flex-row flex-wrap gap-2">
+        {FINITE_PERIOD_DAYS.map((d) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => onPeriodChange(d)}
+            className={chartControlButtonClass(period === d)}
+          >
+            直近{d}日
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => onPeriodChange("all")}
+          className={chartControlButtonClass(period === "all")}
+        >
+          すべて
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ReflectionHeatmapControls({
+  dayPeriod,
+  onDayPeriodChange,
+  mode,
+  onModeChange,
+}: {
+  dayPeriod: DashboardChartPeriodOption;
+  onDayPeriodChange: (p: DashboardChartPeriodOption) => void;
+  mode: "day" | "week" | "month";
+  onModeChange: (m: "day" | "week" | "month") => void;
+}) {
+  return (
+    <div className="mt-3 flex flex-col gap-3">
+      {mode === "day" ? (
+        <div className="flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-center md:gap-2">
+          <span className="shrink-0 text-xs text-[color:var(--hp-muted)]">
+            表示期間:
+          </span>
+          <div className="flex flex-row flex-wrap gap-2">
+            {FINITE_PERIOD_DAYS.map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => onDayPeriodChange(d)}
+                className={chartControlButtonClass(dayPeriod === d)}
+              >
+                直近{d}日
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => onDayPeriodChange("all")}
+              className={chartControlButtonClass(dayPeriod === "all")}
+            >
+              すべて
+            </button>
+          </div>
+        </div>
+      ) : null}
+      <div className="flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-center md:gap-2">
+        <span className="shrink-0 text-xs text-[color:var(--hp-muted)]">
+          集計期間:
+        </span>
+        <div className="flex flex-row flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => onModeChange("day")}
+            className={chartControlButtonClass(mode === "day")}
+          >
+            日ごと
+          </button>
+          <button
+            type="button"
+            onClick={() => onModeChange("week")}
+            className={chartControlButtonClass(mode === "week")}
+          >
+            週ごと（週平均）
+          </button>
+          <button
+            type="button"
+            onClick={() => onModeChange("month")}
+            className={chartControlButtonClass(mode === "month")}
+          >
+            月ごと（月平均）
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

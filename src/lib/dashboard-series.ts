@@ -10,6 +10,42 @@ import { isoDateDaysAgo } from "@/lib/reflection-display";
 import { aggregateStepsByDate } from "@/lib/steps-stats";
 import { buildDailySeries, weekMondayKey } from "@/lib/weight-stats";
 
+/** ダッシュボード各グラフの表示期間プリセット（数値は今日を含む直近 n 日）。`all` は記録の最古日〜今日。 */
+export type DashboardChartPeriodOption = 7 | 14 | 30 | "all";
+
+/** `buildDailyDashboardPoints` 向け。プリセットに加え、正の整数なら任意の「直近 n 日」も指定可。 */
+export type DashboardDaysBackInput = DashboardChartPeriodOption | number;
+
+function minIsoDate(a: string, b: string): string {
+  return a < b ? a : b;
+}
+
+/** いずれかの記録に存在する最も古い日付。記録が無いときは null。 */
+export function earliestDashboardDataIsoDate(
+  weightEntries: WeightEntry[],
+  stepsEntries: StepsEntry[],
+  reflections: DailyReflectionEntry[],
+  bloodPressureEntries: BloodPressureEntry[],
+): string | null {
+  let min: string | null = null;
+  const touch = (iso: string) => {
+    min = min ? minIsoDate(min, iso) : iso;
+  };
+  for (const e of weightEntries) {
+    touch(e.date);
+  }
+  for (const e of stepsEntries) {
+    touch(e.date);
+  }
+  for (const r of reflections) {
+    touch(r.date);
+  }
+  for (const e of bloodPressureEntries) {
+    touch(e.date);
+  }
+  return min;
+}
+
 /** 〇=2, △=1, ✕=0（同一日の合計は最大6） */
 export function ratingToScore(r: ReflectionRating): number {
   switch (r) {
@@ -323,19 +359,30 @@ function formatShortDateLabel(iso: string): string {
 }
 
 /**
- * 直近 daysBack 日分（今日を含む）の日ごとデータ。
+ * 表示期間に応じた日ごとデータ（今日を含む）。
  * 体重・歩数・振り返り・血圧は未記録の日は null（0 ではない）。
+ * `daysBack === "all"` のときは各記録の最古日から今日まで（記録が無いときは今日のみ）。
+ * 正の整数のときは「直近 n 日」（既存のヒートマップ用186日など）。
  */
 export function buildDailyDashboardPoints(
-  daysBack: number,
+  daysBack: DashboardDaysBackInput,
   weightEntries: WeightEntry[],
   stepsEntries: StepsEntry[],
   reflections: DailyReflectionEntry[],
   bloodPressureEntries: BloodPressureEntry[] = [],
 ): DailyDashboardPoint[] {
-  const since = isoDateDaysAgo(daysBack);
   const end = todayIso();
-  const days = eachIsoDateInclusive(since, end);
+  const since =
+    daysBack === "all"
+      ? (earliestDashboardDataIsoDate(
+          weightEntries,
+          stepsEntries,
+          reflections,
+          bloodPressureEntries,
+        ) ?? end)
+      : isoDateDaysAgo(daysBack);
+  const safeSince = since <= end ? since : end;
+  const days = eachIsoDateInclusive(safeSince, end);
   const weightMap = new Map(
     buildDailySeries(weightEntries).map((p) => [p.date, p.weightKg]),
   );
