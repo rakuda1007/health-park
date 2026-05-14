@@ -341,12 +341,11 @@ export const fetchHealthBlogPost = cache(
   },
 );
 
-export function healthBlogEmbedUrl(slug: string): string | null {
-  const origin = getHealthBlogOrigin();
-  if (!origin) {
-    return null;
-  }
-  const base = origin.replace(/\/$/, "");
+/** 記事詳細の iframe 埋め込み用（公開ブログの embed ページ固定） */
+const HEALTH_BLOG_PUBLIC_EMBED_ORIGIN = "https://health.tennis-park-community.com";
+
+export function healthBlogEmbedUrl(slug: string): string {
+  const base = HEALTH_BLOG_PUBLIC_EMBED_ORIGIN.replace(/\/$/, "");
   return `${base}/blog/embed/${encodeURIComponent(slug)}`;
 }
 

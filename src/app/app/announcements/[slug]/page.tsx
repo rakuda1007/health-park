@@ -1,11 +1,9 @@
-import { AnnouncementArticleBody } from "@/app/app/announcements/[slug]/announcement-article-body";
 import { AnnouncementArticleEmbed } from "@/app/app/announcements/[slug]/announcement-article-embed";
 import { appPath } from "@/lib/app-paths";
 import {
   fetchHealthBlogPost,
   getHealthBlogOrigin,
   healthBlogEmbedUrl,
-  pickPostBodyHtml,
   pickPostMetaDescription,
   pickPublishedLabel,
   type HealthBlogPostDetail,
@@ -96,7 +94,6 @@ export default async function AnnouncementArticlePage({ params }: PageProps) {
 
   const title = post.title?.trim() || slug;
   const dateLabel = pickPublishedLabel(post as HealthBlogPostListItem);
-  const bodyHtml = pickPostBodyHtml(post);
   const embedSrc = healthBlogEmbedUrl(slug);
 
   return (
@@ -110,18 +107,7 @@ export default async function AnnouncementArticlePage({ params }: PageProps) {
         ) : null}
       </header>
 
-      {bodyHtml ? (
-        <AnnouncementArticleBody html={bodyHtml} />
-      ) : embedSrc ? (
-        <AnnouncementArticleEmbed src={embedSrc} title={title} />
-      ) : (
-        <p
-          className="mt-6 text-sm text-[color:var(--hp-muted)]"
-          role="alert"
-        >
-          本文を表示できません。ブログ API の応答を確認してください。
-        </p>
-      )}
+      <AnnouncementArticleEmbed src={embedSrc} title={title} />
     </main>
   );
 }
