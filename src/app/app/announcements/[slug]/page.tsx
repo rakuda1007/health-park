@@ -1,4 +1,5 @@
 import { AnnouncementArticleEmbed } from "@/app/app/announcements/[slug]/announcement-article-embed";
+import { RecordingPageAd } from "@/components/recording-page-ad";
 import { appPath } from "@/lib/app-paths";
 import {
   fetchHealthBlogPost,
@@ -98,11 +99,18 @@ export default async function AnnouncementArticlePage({ params }: PageProps) {
   return (
     <main className="mx-auto min-h-min w-full max-w-4xl px-4 py-6">
       {embedSrc ? (
-        <AnnouncementArticleEmbed
-          src={embedSrc}
-          title={title}
-          trustedOrigin={healthBlogTrustedOrigin(getHealthBlogOrigin()!)}
-        />
+        <>
+          <AnnouncementArticleEmbed
+            src={embedSrc}
+            title={title}
+            trustedOrigin={healthBlogTrustedOrigin(getHealthBlogOrigin()!)}
+          />
+          {/*
+            iframe 内は別オリジンのため広告は埋め込めない。
+            記録ページと同じ AdSense ユニットを本文下に表示する。
+          */}
+          <RecordingPageAd />
+        </>
       ) : (
         <p
           className="mt-6 text-sm text-[color:var(--hp-muted)]"
