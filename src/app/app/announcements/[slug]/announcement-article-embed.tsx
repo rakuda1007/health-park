@@ -4,6 +4,7 @@ import {
   HEALTH_PARK_BLOG_EMBED_HEIGHT_MESSAGE_TYPE,
   HEALTH_PARK_BLOG_EMBED_REQUEST_HEIGHT_MESSAGE_TYPE,
 } from "@/lib/health-blog";
+import type { CSSProperties } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type Props = {
@@ -13,8 +14,29 @@ type Props = {
   trustedOrigin: string;
 };
 
-/** 子ドキュメントの計測誤差・スクロールバー幅ぶんを足して内側スクロールを抑える */
-const HEIGHT_BUFFER_PX = 80;
+/** 子ドキュメントの計測誤差・画像遅延読み込みぶんを足して内側スクロールを抑える */
+const HEIGHT_BUFFER_PX = 160;
+
+function parseHeightFromPayload(payload: unknown): number | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+  const rec = payload as { type?: unknown; height?: unknown };
+  if (rec.type !== HEALTH_PARK_BLOG_EMBED_HEIGHT_MESSAGE_TYPE) {
+    return null;
+  }
+  const h = rec.height;
+  if (typeof h === "number" && Number.isFinite(h)) {
+    return h;
+  }
+  if (typeof h === "string") {
+    const n = Number.parseFloat(h.trim());
+    if (Number.isFinite(n)) {
+      return n;
+    }
+  }
+  return null;
+}
 
 /**
  * postMessage で高さが取れない間の最小高さ。数値のみ（px）。未設定時は長文でも内側スクロールが出にくい大きめの値。
@@ -26,13 +48,13 @@ function fallbackMinHeightCss(): string {
     const px = Math.min(Math.max(Number(raw), 200), 50_000);
     return `min(96vh, ${px}px)`;
   }
-  return "min(96vh, 9600px)";
+  return "min(96vh, 14000px)";
 }
 
 /**
  * クロスオリジン iframe 内のスクロールバーは親の CSS では消せない。
  * ブログ embed が `HEALTH_PARK_BLOG_EMBED_HEIGHT_MESSAGE_TYPE` で高さを送ると iframe の height を合わせる。
- * 親は `HEALTH_PARK_BLOG_EMBED_REQUEST_HEIGHT_MESSAGE_TYPE` で再計測を依頼する（ブログ側の対応が必要）。
+ * 発信元は `e.origin === trustedOrigin` のみ検証（e.source は環境差で不一致になる例があるため使わない）。
  */
 export function AnnouncementArticleEmbed({ src, title, trustedOrigin }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -62,25 +84,27 @@ export function AnnouncementArticleEmbed({ src, title, trustedOrigin }: Props) {
       if (e.origin !== trustedOrigin) {
         return;
       }
-      if (e.source !== iframeRef.current?.contentWindow) {
-        return;
-      }
-      const payload = e.data;
-      if (!payload || typeof payload !== "object") {
-        return;
-      }
-      const rec = payload as { type?: unknown; height?: unknown };
-      if (rec.type !== HEALTH_PARK_BLOG_EMBED_HEIGHT_MESSAGE_TYPE) {
-        return;
-      }
-      if (typeof rec.height !== "number" || !Number.isFinite(rec.height)) {
+      const raw =
+        typeof e.data === "string"
+          ? (() => {
+              try {
+                return JSON.parse(e.data) as unknown;
+              } catch {
+                return null;
+              }
+            })()
+          : e.data;
+      const height = parseHeightFromPayload(raw);
+      if (height == null) {
         return;
       }
       const capped = Math.min(
-        Math.max(Math.ceil(rec.height + HEIGHT_BUFFER_PX), 1),
+        Math.max(Math.ceil(height + HEIGHT_BUFFER_PX), 1),
         200_000,
       );
-      setContentHeightPx(capped);
+      setContentHeightPx((prev) =>
+        prev == null || capped > prev ? capped : prev,
+      );
     }
 
     window.addEventListener("message", onMessage);
@@ -88,7 +112,8 @@ export function AnnouncementArticleEmbed({ src, title, trustedOrigin }: Props) {
   }, [trustedOrigin]);
 
   useEffect(() => {
-    const ids = [500, 1800, 4000].map((ms) =>
+    const delays = [0, 120, 400, 900, 2000, 4500, 8000];
+    const ids = delays.map((ms) =>
       window.setTimeout(requestHeightFromChild, ms),
     );
     return () => ids.forEach((id) => window.clearTimeout(id));
@@ -98,18 +123,23 @@ export function AnnouncementArticleEmbed({ src, title, trustedOrigin }: Props) {
     requestHeightFromChild();
   };
 
+  const iframeStyle: CSSProperties =
+    contentHeightPx != null
+      ? {
+          height: contentHeightPx,
+          minHeight: 0,
+          maxHeight: "none",
+          overflow: "hidden",
+        }
+      : { minHeight: fallbackMinHeightCss() };
+
   return (
     <iframe
       ref={iframeRef}
       src={src}
       title={title}
       className="mt-6 w-full rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-card)]"
-      style={
-        contentHeightPx != null
-          ? { height: contentHeightPx, minHeight: 0 }
-          : { minHeight: fallbackMinHeightCss() }
-      }
-      loading="lazy"
+      style={iframeStyle}
       onLoad={handleIframeLoad}
     />
   );
