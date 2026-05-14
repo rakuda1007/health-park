@@ -273,75 +273,77 @@ export function AppHeader() {
       <div
         className={`mx-auto flex flex-col gap-3 px-4 py-3 ${headerContentMax}`}
       >
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <div className="flex min-w-0 flex-1 items-center gap-x-4 md:gap-x-6">
-            <Link
-              href={brandHref}
-              className="shrink-0 font-semibold tracking-tight text-[color:var(--hp-foreground)]"
-            >
-              <span className="truncate">Health Park</span>
-            </Link>
-            {usePortalStyleNav ? (
-              <nav
-                className="hidden min-w-0 md:flex md:items-center md:gap-x-4"
-                aria-label="案内"
+        <div className="mx-auto w-full max-w-4xl">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <div className="flex min-w-0 flex-1 items-center gap-x-4 md:gap-x-6">
+              <Link
+                href={brandHref}
+                className="shrink-0 text-lg font-semibold tracking-tight text-[color:var(--hp-foreground)] md:text-xl"
               >
-                <Link
-                  href={appPath("/dashboard")}
-                  className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
+                <span className="truncate">Health Park</span>
+              </Link>
+              {usePortalStyleNav ? (
+                <nav
+                  className="hidden min-w-0 md:flex md:items-center md:gap-x-4"
+                  aria-label="案内"
                 >
-                  記録アプリへ
-                </Link>
-              </nav>
-            ) : null}
-          </div>
-          <div className="flex shrink-0 items-center gap-2 md:gap-3">
-            {signedInWithEmail ? (
-              <span className="flex flex-wrap items-center justify-end gap-2 text-xs text-[color:var(--hp-muted)]">
-                <button
-                  type="button"
-                  onClick={() => void signOut()}
-                  className="rounded-md border border-[color:var(--hp-border)] px-2 py-1 text-[color:var(--hp-foreground)] hover:bg-[color:var(--hp-card)]"
-                >
-                  ログアウト
-                </button>
-              </span>
-            ) : (
-              <>
-                {hasKnownAccount ? (
-                  <span className="px-1 text-sm font-medium text-[color:var(--hp-muted)]">
-                    未ログイン
-                  </span>
-                ) : null}
-                <Link
-                  href={loginHref}
-                  className="rounded-md border border-[color:var(--hp-border)] px-3 py-1.5 text-sm font-medium text-[color:var(--hp-foreground)] hover:bg-[color:var(--hp-card)]"
-                >
-                  ログイン
-                </Link>
-              </>
-            )}
-            <button
-              type="button"
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[color:var(--hp-border)] text-[color:var(--hp-foreground)] md:hidden"
-              aria-expanded={mobileOpen}
-              aria-controls={panelId}
-              aria-label={mobileOpen ? "メニューを閉じる" : "メニューを開く"}
-              onClick={() => setMobileOpen((o) => !o)}
-            >
-              <span className="sr-only">メニュー</span>
-              {mobileOpen ? (
-                <span className="text-2xl leading-none" aria-hidden>
-                  ×
+                  <Link
+                    href={appPath("/dashboard")}
+                    className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
+                  >
+                    記録アプリへ
+                  </Link>
+                </nav>
+              ) : null}
+            </div>
+            <div className="flex shrink-0 items-center gap-2 md:gap-3">
+              {signedInWithEmail ? (
+                <span className="flex flex-wrap items-center justify-end gap-2 text-xs text-[color:var(--hp-muted)]">
+                  <button
+                    type="button"
+                    onClick={() => void signOut()}
+                    className="rounded-md border border-[color:var(--hp-border)] px-2 py-1 text-[color:var(--hp-foreground)] hover:bg-[color:var(--hp-card)]"
+                  >
+                    ログアウト
+                  </button>
                 </span>
               ) : (
-                <span className="flex flex-col gap-1.5" aria-hidden>
-                  <span className="block h-0.5 w-5 rounded-sm bg-current" />
-                  <span className="block h-0.5 w-5 rounded-sm bg-current" />
-                  <span className="block h-0.5 w-5 rounded-sm bg-current" />
-                </span>
+                <>
+                  {hasKnownAccount ? (
+                    <span className="px-1 text-sm font-medium text-[color:var(--hp-muted)]">
+                      未ログイン
+                    </span>
+                  ) : null}
+                  <Link
+                    href={loginHref}
+                    className="rounded-md border border-[color:var(--hp-border)] px-3 py-1.5 text-sm font-medium text-[color:var(--hp-foreground)] hover:bg-[color:var(--hp-card)]"
+                  >
+                    ログイン
+                  </Link>
+                </>
               )}
-            </button>
+              <button
+                type="button"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[color:var(--hp-border)] text-[color:var(--hp-foreground)] md:hidden"
+                aria-expanded={mobileOpen}
+                aria-controls={panelId}
+                aria-label={mobileOpen ? "メニューを閉じる" : "メニューを開く"}
+                onClick={() => setMobileOpen((o) => !o)}
+              >
+                <span className="sr-only">メニュー</span>
+                {mobileOpen ? (
+                  <span className="text-2xl leading-none" aria-hidden>
+                    ×
+                  </span>
+                ) : (
+                  <span className="flex flex-col gap-1.5" aria-hidden>
+                    <span className="block h-0.5 w-5 rounded-sm bg-current" />
+                    <span className="block h-0.5 w-5 rounded-sm bg-current" />
+                    <span className="block h-0.5 w-5 rounded-sm bg-current" />
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
