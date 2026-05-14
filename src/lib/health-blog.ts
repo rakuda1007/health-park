@@ -100,6 +100,53 @@ export function pickPostMetaDescription(
   return null;
 }
 
+/**
+ * SNS 用の画像 URL。ブログ API の実装差でフィールド名が様々な場合に対応。
+ * 絶対 URL はそのまま、サイトルート相対は `blogOrigin` で解決する。
+ */
+export function pickPostOgImageUrl(
+  post: HealthBlogPostDetail,
+  blogOrigin: string | null,
+): string | null {
+  const rec = post as Record<string, unknown>;
+  const keys = [
+    "ogImage",
+    "og_image",
+    "image",
+    "thumbnail",
+    "thumbnailUrl",
+    "thumbnail_url",
+    "featuredImage",
+    "featured_image",
+    "coverImage",
+    "cover_image",
+    "heroImage",
+    "hero_image",
+  ];
+  for (const key of keys) {
+    const raw = rec[key];
+    if (typeof raw !== "string") {
+      continue;
+    }
+    const s = raw.trim();
+    if (!s) {
+      continue;
+    }
+    if (/^https?:\/\//i.test(s)) {
+      return s;
+    }
+    if (s.startsWith("/") && blogOrigin) {
+      try {
+        const base = blogOrigin.endsWith("/") ? blogOrigin : `${blogOrigin}/`;
+        return new URL(s, base).href;
+      } catch {
+        continue;
+      }
+    }
+  }
+  return null;
+}
+
 export function getHealthBlogOrigin(): string | null {
   const o = process.env.NEXT_PUBLIC_HEALTH_BLOG_ORIGIN?.trim();
   return o || null;

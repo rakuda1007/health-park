@@ -6,9 +6,11 @@ import {
   healthBlogEmbedUrl,
   healthBlogTrustedOrigin,
   pickPostMetaDescription,
+  pickPostOgImageUrl,
   type HealthBlogPostDetail,
 } from "@/lib/health-blog";
 import {
+  getAnnouncementAbsolutePageUrl,
   getAnnouncementMetadataOrigin,
   toAbsolutePublicUrlFromOrigin,
 } from "@/lib/site-metadata";
@@ -46,6 +48,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const canonicalAbsolute = publicOrigin
     ? toAbsolutePublicUrlFromOrigin(publicOrigin, path)
     : null;
+  const postOgImage = pickPostOgImageUrl(post, getHealthBlogOrigin());
+  const fallbackOgImage =
+    publicOrigin != null ? `${publicOrigin}/top_s.jpg` : null;
+  const ogImageUrl = postOgImage ?? fallbackOgImage;
 
   return {
     ...(publicOrigin ? { metadataBase: new URL(publicOrigin) } : {}),
@@ -61,11 +67,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       type: "article",
       url: canonicalAbsolute ?? path,
       ...(published ? { publishedTime: published } : {}),
+      ...(ogImageUrl
+        ? {
+            images: [
+              {
+                url: ogImageUrl,
+                alt: title.length > 100 ? `${title.slice(0, 99)}…` : title,
+              },
+            ],
+          }
+        : {}),
     },
     twitter: {
       card: "summary_large_image",
       title,
       description: description ?? undefined,
+      ...(ogImageUrl ? { images: [ogImageUrl] } : {}),
     },
     robots: { index: true, follow: true },
   };
@@ -105,6 +122,9 @@ export default async function AnnouncementArticlePage({ params }: PageProps) {
 
   const title = post.title?.trim() || slug;
   const embedSrc = healthBlogEmbedUrl(slug);
+  const headerList = await headers();
+  const articlePath = appPath(`/announcements/${slug}`);
+  const sharePageUrl = getAnnouncementAbsolutePageUrl(headerList, articlePath);
 
   /* 見出し・公開日はブログ embed 側に任せ、ここでは重複表示しない */
   return (
@@ -114,6 +134,7 @@ export default async function AnnouncementArticlePage({ params }: PageProps) {
           embedSrc={embedSrc}
           title={title}
           trustedOrigin={healthBlogTrustedOrigin(getHealthBlogOrigin()!)}
+          sharePageUrl={sharePageUrl}
         />
       ) : (
         <p

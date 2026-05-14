@@ -56,6 +56,18 @@ export function getAnnouncementMetadataOrigin(headerList: Headers): string | nul
   return getPublicSiteOrigin() ?? getRequestDerivedPublicOrigin(headerList);
 }
 
+/** シェアボタン・canonical 用の記事ページ絶対 URL */
+export function getAnnouncementAbsolutePageUrl(
+  headerList: Headers,
+  path: string,
+): string | null {
+  const origin = getAnnouncementMetadataOrigin(headerList);
+  if (!origin) {
+    return null;
+  }
+  return toAbsolutePublicUrlFromOrigin(origin, path);
+}
+
 export function toAbsolutePublicUrlFromOrigin(
   origin: string,
   path: string,

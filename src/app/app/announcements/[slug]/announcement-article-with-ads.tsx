@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { AnnouncementSnsShare } from "./announcement-sns-share";
 import { AdsenseDisplayUnit } from "@/components/adsense-display-unit";
 import { RecordingPageAd } from "@/components/recording-page-ad";
 import {
@@ -35,6 +36,7 @@ type Props = {
   embedSrc: string;
   title: string;
   trustedOrigin: string;
+  sharePageUrl: string | null;
 };
 
 /**
@@ -45,6 +47,7 @@ export function AnnouncementArticleWithAds({
   embedSrc,
   title,
   trustedOrigin,
+  sharePageUrl,
 }: Props) {
   const topSlot = useMemo(() => getAdsenseAnnouncementTopSlotId(), []);
   const leftSlot = useMemo(() => getAdsenseAnnouncementLeftSlotId(), []);
@@ -89,6 +92,7 @@ export function AnnouncementArticleWithAds({
           title={title}
           trustedOrigin={trustedOrigin}
         />
+        <AnnouncementSnsShare shareUrl={sharePageUrl} title={title} />
         {/*
           iframe 内は別オリジンのため広告は埋め込めない。
           記録ページと同じロジックのユニットを本文下に表示する。
