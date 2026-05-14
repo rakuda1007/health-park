@@ -1,6 +1,6 @@
 "use client";
 
-import { AnnouncementArticleEmbed } from "./announcement-article-embed";
+import dynamic from "next/dynamic";
 import { AdsenseDisplayUnit } from "@/components/adsense-display-unit";
 import { RecordingPageAd } from "@/components/recording-page-ad";
 import {
@@ -12,6 +12,24 @@ import { useLayoutEffect, useMemo, useState } from "react";
 
 /** Tailwind `lg` と一致（左右柱が表示される幅） */
 const LG_MIN_PX = 1024;
+
+/** SSR の HTML に iframe（blogproxy 等）を出さない。SNS クローラーが子 URL として拾うのを防ぐ */
+const AnnouncementArticleEmbed = dynamic(
+  () =>
+    import("./announcement-article-embed").then((m) => m.AnnouncementArticleEmbed),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        className="flex min-h-[min(96vh,14000px)] w-full items-center justify-center rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] text-sm text-[color:var(--hp-muted)]"
+        aria-busy="true"
+        aria-live="polite"
+      >
+        記事を読み込んでいます…
+      </div>
+    ),
+  },
+);
 
 type Props = {
   embedSrc: string;

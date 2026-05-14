@@ -8,8 +8,12 @@ import {
   pickPostMetaDescription,
   type HealthBlogPostDetail,
 } from "@/lib/health-blog";
-import { getPublicSiteOrigin, toAbsolutePublicUrl } from "@/lib/site-metadata";
+import {
+  getAnnouncementMetadataOrigin,
+  toAbsolutePublicUrlFromOrigin,
+} from "@/lib/site-metadata";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -37,8 +41,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const description = pickPostMetaDescription(post);
   const path = appPath(`/announcements/${slug}`);
   const published = post.publishedAt ?? post.published_at;
-  const publicOrigin = getPublicSiteOrigin();
-  const canonicalAbsolute = toAbsolutePublicUrl(path);
+  const headerList = await headers();
+  const publicOrigin = getAnnouncementMetadataOrigin(headerList);
+  const canonicalAbsolute = publicOrigin
+    ? toAbsolutePublicUrlFromOrigin(publicOrigin, path)
+    : null;
 
   return {
     ...(publicOrigin ? { metadataBase: new URL(publicOrigin) } : {}),
