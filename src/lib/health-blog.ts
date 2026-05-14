@@ -362,11 +362,18 @@ export function healthBlogTrustedOrigin(rawOrigin: string): string {
 }
 
 /**
- * ブログ `/blog/embed/[slug]` が親へ送る iframe 高さ通知の type。
+ * ブログ `/blog/embed/[slug]` が親へ送る iframe 高さ通知の type（従来）。
  * ブログ側の postMessage とこの文字列を一致させること。
  */
 export const HEALTH_PARK_BLOG_EMBED_HEIGHT_MESSAGE_TYPE =
   "health-park-embed-height" as const;
+
+/**
+ * テニスパーク共通ブログが送る高さ通知の type（ブログリポジトリ側の契約名）。
+ * どちらか一方が来れば iframe 高さを更新する。
+ */
+export const TPC_BLOG_EMBED_HEIGHT_MESSAGE_TYPE =
+  "tpc-blog-embed-height" as const;
 
 /**
  * Health Park 親が iframe 内へ送り、ブログ側で高さの再 post を促すときの type。

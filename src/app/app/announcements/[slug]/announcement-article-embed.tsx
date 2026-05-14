@@ -3,6 +3,7 @@
 import {
   HEALTH_PARK_BLOG_EMBED_HEIGHT_MESSAGE_TYPE,
   HEALTH_PARK_BLOG_EMBED_REQUEST_HEIGHT_MESSAGE_TYPE,
+  TPC_BLOG_EMBED_HEIGHT_MESSAGE_TYPE,
 } from "@/lib/health-blog";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -22,7 +23,10 @@ function parseHeightFromPayload(payload: unknown): number | null {
     return null;
   }
   const rec = payload as { type?: unknown; height?: unknown };
-  if (rec.type !== HEALTH_PARK_BLOG_EMBED_HEIGHT_MESSAGE_TYPE) {
+  if (
+    rec.type !== HEALTH_PARK_BLOG_EMBED_HEIGHT_MESSAGE_TYPE &&
+    rec.type !== TPC_BLOG_EMBED_HEIGHT_MESSAGE_TYPE
+  ) {
     return null;
   }
   const h = rec.height;
@@ -53,7 +57,8 @@ function fallbackMinHeightCss(): string {
 
 /**
  * クロスオリジン iframe 内のスクロールバーは親の CSS では消せない。
- * ブログ embed が `HEALTH_PARK_BLOG_EMBED_HEIGHT_MESSAGE_TYPE` で高さを送ると iframe の height を合わせる。
+ * ブログ embed が `health-park-embed-height` または `tpc-blog-embed-height` で高さを送ると
+ * iframe の height を合わせる（確定後は overflow: hidden）。
  * 発信元は `e.origin === trustedOrigin` のみ検証（e.source は環境差で不一致になる例があるため使わない）。
  */
 export function AnnouncementArticleEmbed({ src, title, trustedOrigin }: Props) {
