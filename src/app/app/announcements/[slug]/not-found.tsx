@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export default function AnnouncementNotFound() {
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-10 text-center">
+    <main className="mx-auto w-full max-w-4xl px-4 py-10 text-center">
       <h1 className="text-lg font-semibold text-[color:var(--hp-foreground)]">
         記事が見つかりません
       </h1>
