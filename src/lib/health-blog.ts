@@ -345,6 +345,7 @@ export const fetchHealthBlogPost = cache(
  * 記事本文 iframe 用。embed ルートはブログ専用ホスト上にある。
  * Health Park 本体（health.tennis-park-community.com）には /blog/embed が無いため、
  * NEXT_PUBLIC_HEALTH_BLOG_ORIGIN（例: blog-health...）と同一オリジンで組み立てる。
+ * NEXT_PUBLIC_HEALTH_BLOG_EMBED_QUERY があれば `?` 以降に付与（ブログ側の embed 分岐用）。
  */
 export function healthBlogEmbedUrl(slug: string): string | null {
   const origin = getHealthBlogOrigin();
@@ -352,7 +353,13 @@ export function healthBlogEmbedUrl(slug: string): string | null {
     return null;
   }
   const base = origin.replace(/\/$/, "");
-  return `${base}/blog/embed/${encodeURIComponent(slug)}`;
+  const path = `${base}/blog/embed/${encodeURIComponent(slug)}`;
+  const raw = process.env.NEXT_PUBLIC_HEALTH_BLOG_EMBED_QUERY?.trim();
+  if (!raw) {
+    return path;
+  }
+  const qs = raw.startsWith("?") ? raw.slice(1) : raw;
+  return `${path}?${qs}`;
 }
 
 /** postMessage の e.origin 検証用（NEXT_PUBLIC_HEALTH_BLOG_ORIGIN から scheme+host+port） */

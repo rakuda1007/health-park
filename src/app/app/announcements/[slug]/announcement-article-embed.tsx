@@ -15,8 +15,8 @@ type Props = {
   trustedOrigin: string;
 };
 
-/** 子ドキュメントの計測誤差・画像遅延読み込みぶんを足して内側スクロールを抑える */
-const HEIGHT_BUFFER_PX = 160;
+/** 子ドキュメントの計測誤差・画像遅延・CTA はみ出し分を足して内側スクロールを抑える */
+const HEIGHT_BUFFER_PX = 240;
 
 function parseHeightFromPayload(payload: unknown): number | null {
   if (!payload || typeof payload !== "object") {
@@ -58,7 +58,8 @@ function fallbackMinHeightCss(): string {
 /**
  * クロスオリジン iframe 内のスクロールバーは親の CSS では消せない。
  * ブログ embed が `health-park-embed-height` または `tpc-blog-embed-height` で高さを送ると
- * iframe の height を合わせる（確定後は overflow: hidden）。
+ * iframe の height を合わせる。iframe に overflow:hidden を付けると子ドキュメントの
+ * CTA 等が欠けて見えることがあるため付与しない。
  * 発信元は `e.origin === trustedOrigin` のみ検証（e.source は環境差で不一致になる例があるため使わない）。
  */
 export function AnnouncementArticleEmbed({ src, title, trustedOrigin }: Props) {
@@ -134,7 +135,6 @@ export function AnnouncementArticleEmbed({ src, title, trustedOrigin }: Props) {
           height: contentHeightPx,
           minHeight: 0,
           maxHeight: "none",
-          overflow: "hidden",
         }
       : { minHeight: fallbackMinHeightCss() };
 
@@ -143,7 +143,7 @@ export function AnnouncementArticleEmbed({ src, title, trustedOrigin }: Props) {
       ref={iframeRef}
       src={src}
       title={title}
-      className="mt-6 w-full rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-card)]"
+      className="mt-6 min-w-0 w-full rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-card)]"
       style={iframeStyle}
       onLoad={handleIframeLoad}
     />
