@@ -355,6 +355,19 @@ export function healthBlogEmbedUrl(slug: string): string | null {
   return `${base}/blog/embed/${encodeURIComponent(slug)}`;
 }
 
+/** postMessage の e.origin 検証用（NEXT_PUBLIC_HEALTH_BLOG_ORIGIN から scheme+host+port） */
+export function healthBlogTrustedOrigin(rawOrigin: string): string {
+  const normalized = rawOrigin.trim().replace(/\/$/, "");
+  return new URL(normalized).origin;
+}
+
+/**
+ * ブログ `/blog/embed/[slug]` が親へ送る iframe 高さ通知の type。
+ * ブログ側の postMessage とこの文字列を一致させること。
+ */
+export const HEALTH_PARK_BLOG_EMBED_HEIGHT_MESSAGE_TYPE =
+  "health-park-embed-height" as const;
+
 export function healthBlogCanonicalPostUrl(slug: string): string | null {
   const origin = getHealthBlogOrigin();
   if (!origin) {

@@ -4,6 +4,7 @@ import {
   fetchHealthBlogPost,
   getHealthBlogOrigin,
   healthBlogEmbedUrl,
+  healthBlogTrustedOrigin,
   pickPostMetaDescription,
   pickPublishedLabel,
   type HealthBlogPostDetail,
@@ -108,7 +109,11 @@ export default async function AnnouncementArticlePage({ params }: PageProps) {
       </header>
 
       {embedSrc ? (
-        <AnnouncementArticleEmbed src={embedSrc} title={title} />
+        <AnnouncementArticleEmbed
+          src={embedSrc}
+          title={title}
+          trustedOrigin={healthBlogTrustedOrigin(getHealthBlogOrigin()!)}
+        />
       ) : (
         <p
           className="mt-6 text-sm text-[color:var(--hp-muted)]"
