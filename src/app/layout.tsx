@@ -62,7 +62,11 @@ export default function RootLayout({
         ) : null}
         <AuthProvider>
           <AppHeader />
-          <div className="min-h-0 flex-1">{children}</div>
+          {/*
+            min-h-0 は子がビューポートより長いときに高さを潰し、内側スクロールや iframe 内スクロールの原因になり得る。
+            min-h-min でコンテンツの最小高さを確保し、長文ページはウィンドウ全体でスクロールさせる。
+          */}
+          <div className="min-h-min flex-1">{children}</div>
           <AppFooter />
         </AuthProvider>
       </body>
