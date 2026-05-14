@@ -107,7 +107,17 @@ export default async function AnnouncementArticlePage({ params }: PageProps) {
         ) : null}
       </header>
 
-      <AnnouncementArticleEmbed src={embedSrc} title={title} />
+      {embedSrc ? (
+        <AnnouncementArticleEmbed src={embedSrc} title={title} />
+      ) : (
+        <p
+          className="mt-6 text-sm text-[color:var(--hp-muted)]"
+          role="alert"
+        >
+          埋め込み用のブログ起点（NEXT_PUBLIC_HEALTH_BLOG_ORIGIN）が未設定のため、本文
+          iframe を表示できません。
+        </p>
+      )}
     </main>
   );
 }
