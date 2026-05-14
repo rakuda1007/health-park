@@ -143,7 +143,7 @@ export function AnnouncementArticleEmbed({ src, title, trustedOrigin }: Props) {
       ref={iframeRef}
       src={src}
       title={title}
-      className="mt-6 min-w-0 w-full rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-card)]"
+      className="min-w-0 w-full rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-card)]"
       style={iframeStyle}
       onLoad={handleIframeLoad}
     />

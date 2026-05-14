@@ -6,9 +6,7 @@ import {
   healthBlogEmbedUrl,
   healthBlogTrustedOrigin,
   pickPostMetaDescription,
-  pickPublishedLabel,
   type HealthBlogPostDetail,
-  type HealthBlogPostListItem,
 } from "@/lib/health-blog";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -94,20 +92,11 @@ export default async function AnnouncementArticlePage({ params }: PageProps) {
   }
 
   const title = post.title?.trim() || slug;
-  const dateLabel = pickPublishedLabel(post as HealthBlogPostListItem);
   const embedSrc = healthBlogEmbedUrl(slug);
 
+  /* 見出し・公開日はブログ embed 側に任せ、ここでは重複表示しない */
   return (
     <main className="mx-auto min-h-min w-full max-w-4xl px-4 py-6">
-      <header className="mb-4 border-b border-[color:var(--hp-border)] pb-4">
-        <h1 className="text-xl font-semibold tracking-tight text-[color:var(--hp-foreground)]">
-          {title}
-        </h1>
-        {dateLabel ? (
-          <p className="mt-2 text-sm text-[color:var(--hp-muted)]">{dateLabel}</p>
-        ) : null}
-      </header>
-
       {embedSrc ? (
         <AnnouncementArticleEmbed
           src={embedSrc}
