@@ -368,6 +368,13 @@ export function healthBlogTrustedOrigin(rawOrigin: string): string {
 export const HEALTH_PARK_BLOG_EMBED_HEIGHT_MESSAGE_TYPE =
   "health-park-embed-height" as const;
 
+/**
+ * Health Park 親が iframe 内へ送り、ブログ側で高さの再 post を促すときの type。
+ * ブログは `message` で受け取り、document の scrollHeight を親へ送る実装にすること。
+ */
+export const HEALTH_PARK_BLOG_EMBED_REQUEST_HEIGHT_MESSAGE_TYPE =
+  "health-park-embed-request-height" as const;
+
 export function healthBlogCanonicalPostUrl(slug: string): string | null {
   const origin = getHealthBlogOrigin();
   if (!origin) {
