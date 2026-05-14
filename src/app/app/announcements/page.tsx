@@ -16,7 +16,7 @@ function AnnouncementsListFallback() {
 
 export default function AnnouncementsPage() {
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6">
+    <main className="mx-auto w-full max-w-4xl px-4 py-6">
       <header className="mb-6">
         <h1 className="text-xl font-semibold tracking-tight text-[color:var(--hp-foreground)]">
           お知らせ

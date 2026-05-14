@@ -67,7 +67,7 @@ export default async function AnnouncementArticlePage({ params }: PageProps) {
 
   if (!getHealthBlogOrigin()) {
     return (
-      <main className="mx-auto min-h-min w-full max-w-6xl px-4 py-6">
+      <main className="mx-auto min-h-min w-full max-w-4xl px-4 py-6">
         <p
           className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-4 py-6 text-sm text-[color:var(--hp-muted)]"
           role="alert"
@@ -98,7 +98,7 @@ export default async function AnnouncementArticlePage({ params }: PageProps) {
   const embedSrc = healthBlogEmbedUrl(slug);
 
   return (
-    <main className="mx-auto min-h-min w-full max-w-6xl px-4 py-6">
+    <main className="mx-auto min-h-min w-full max-w-4xl px-4 py-6">
       <header className="mb-4 border-b border-[color:var(--hp-border)] pb-4">
         <h1 className="text-xl font-semibold tracking-tight text-[color:var(--hp-foreground)]">
           {title}
