@@ -12,6 +12,41 @@ export function getAdsenseSlotId(): string | null {
   return v || null;
 }
 
+/** お知らせ詳細・iframe 直上の横長枠。未設定なら枠なし */
+export function getAdsenseAnnouncementTopSlotId(): string | null {
+  const v = process.env.NEXT_PUBLIC_ADSENSE_SLOT_ANNOUNCEMENTS_TOP?.trim();
+  return v || null;
+}
+
+/** お知らせ詳細・左柱（lg 以上のみ）。未設定なら非表示 */
+export function getAdsenseAnnouncementLeftSlotId(): string | null {
+  const v = process.env.NEXT_PUBLIC_ADSENSE_SLOT_ANNOUNCEMENTS_LEFT?.trim();
+  return v || null;
+}
+
+/** お知らせ詳細・右柱（lg 以上のみ）。未設定なら非表示 */
+export function getAdsenseAnnouncementRightSlotId(): string | null {
+  const v = process.env.NEXT_PUBLIC_ADSENSE_SLOT_ANNOUNCEMENTS_RIGHT?.trim();
+  return v || null;
+}
+
+/**
+ * ルートで adsbygoogle.js を読み込むか。
+ * メイン slot のほか、お知らせ専用 slot のいずれかがあれば有効。
+ */
+export function shouldLoadAdsenseScript(): boolean {
+  const client = getAdsensePublisherId();
+  if (!client) {
+    return false;
+  }
+  return (
+    Boolean(getAdsenseSlotId()) ||
+    Boolean(getAdsenseAnnouncementTopSlotId()) ||
+    Boolean(getAdsenseAnnouncementLeftSlotId()) ||
+    Boolean(getAdsenseAnnouncementRightSlotId())
+  );
+}
+
 /** 任意。モバイル向けに分ける data-ad-slot */
 export function getAdsenseMobileSlotId(): string | null {
   const v = process.env.NEXT_PUBLIC_ADSENSE_SLOT_MOBILE?.trim();

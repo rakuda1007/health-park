@@ -4,6 +4,10 @@ import { AuthProvider } from "@/contexts/auth-context";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AdsenseScript } from "@/components/adsense-script";
+import {
+  getAdsensePublisherId,
+  shouldLoadAdsenseScript,
+} from "@/lib/adsense-config";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,9 +24,8 @@ const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null);
 
-const adsenseClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT?.trim();
-const adsenseSlot = process.env.NEXT_PUBLIC_ADSENSE_SLOT?.trim();
-const adsenseEnabled = Boolean(adsenseClient && adsenseSlot);
+const adsenseClientForScript = getAdsensePublisherId();
+const adsenseScriptEnabled = shouldLoadAdsenseScript();
 
 export const metadata: Metadata = {
   ...(siteUrl ? { metadataBase: new URL(siteUrl) } : {}),
@@ -57,8 +60,8 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full min-w-0 flex-col bg-[color:var(--hp-background)]">
-        {adsenseEnabled && adsenseClient ? (
-          <AdsenseScript clientId={adsenseClient} />
+        {adsenseScriptEnabled && adsenseClientForScript ? (
+          <AdsenseScript clientId={adsenseClientForScript} />
         ) : null}
         <AuthProvider>
           <AppHeader />
