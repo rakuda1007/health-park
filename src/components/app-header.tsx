@@ -208,7 +208,7 @@ export function AppHeader() {
     pathname.startsWith("/portal/") ||
     pathname === `${APP_BASE}/announcements` ||
     pathname.startsWith(`${APP_BASE}/announcements/`);
-  /** ブログ embed（max-w-4xl）と揃え、CTA 横並びが潰れない幅にする */
+  /** シリーズ本番記事に合わせ、ヘッダー内コンテンツ最大幅 1152px（max-w-6xl）にする */
   const announcementsWideLayout =
     pathname === `${APP_BASE}/announcements` ||
     pathname.startsWith(`${APP_BASE}/announcements/`);
@@ -263,7 +263,7 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-[color:var(--hp-border)] bg-[color:var(--hp-surface)] shadow-sm">
       <div
-        className={`mx-auto flex flex-col gap-3 px-4 py-3 ${announcementsWideLayout ? "max-w-4xl" : "max-w-3xl"}`}
+        className={`mx-auto flex flex-col gap-3 px-4 py-3 ${announcementsWideLayout ? "max-w-6xl" : "max-w-3xl"}`}
       >
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <div className="flex min-w-0 flex-1 items-center gap-x-4 md:gap-x-6">
