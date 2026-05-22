@@ -72,37 +72,10 @@ function ceilToStep(value: number, step: number): number {
   return Math.ceil(value / step) * step;
 }
 
-/** 血圧Y軸の最低幅（mmHg）。データ範囲が狭いときの過度な拡大を抑える */
-const BP_Y_AXIS_MIN_SPAN = 40;
-/** 脈拍Y軸の最低幅（回/分） */
-const PULSE_Y_AXIS_MIN_SPAN = 40;
-
-/** データ＋余白を基準にしつつ、軸幅が minSpan 未満なら中央を基準に広げる */
-function yDomainWithMinSpan(
-  lo: number,
-  hi: number,
-  pad: number,
-  minSpan: number,
-  minBound: number,
-  maxBound?: number,
-): [number, number] {
-  let d0 = lo - pad;
-  let d1 = hi + pad;
-  if (d1 - d0 < minSpan) {
-    const mid = (lo + hi) / 2;
-    const half = minSpan / 2;
-    d0 = mid - half;
-    d1 = mid + half;
-  }
-  d0 = Math.max(minBound, d0);
-  if (maxBound != null) {
-    d1 = Math.min(maxBound, d1);
-    if (d1 - d0 < minSpan) {
-      d0 = Math.max(minBound, d1 - minSpan);
-    }
-  }
-  return [d0, d1];
-}
+/** 血圧グラフ左軸（mmHg）の固定レンジ */
+const BP_Y_DOMAIN: [number, number] = [40, 170];
+/** 脈拍グラフ右軸（回/分）の固定レンジ */
+const PULSE_Y_DOMAIN: [number, number] = [40, 120];
 
 function readWeightGoalFromStorage(): { min: string; max: string } {
   if (typeof window === "undefined") {
@@ -363,42 +336,6 @@ export function DashboardPageClient() {
   );
 
   const hasAnyPulseOnChart = bpChartData.some((p) => p.pulse != null);
-
-  const bpYDomain = useMemo((): [number, number] => {
-    const vals: number[] = [];
-    for (const p of bpChartData) {
-      if (p.systolic != null) {
-        vals.push(p.systolic);
-      }
-      if (p.diastolic != null) {
-        vals.push(p.diastolic);
-      }
-    }
-    if (vals.length === 0) {
-      return [60, 140];
-    }
-    const lo = Math.min(...vals);
-    const hi = Math.max(...vals);
-    const pad = Math.max(8, Math.round((hi - lo) * 0.12));
-    return yDomainWithMinSpan(lo, hi, pad, BP_Y_AXIS_MIN_SPAN, 40);
-  }, [bpChartData]);
-
-  /** 脈拍のみ（右軸）。mmHg と単位・スケールが異なるため左軸とは分離する */
-  const pulseYDomain = useMemo((): [number, number] => {
-    const vals: number[] = [];
-    for (const p of bpChartData) {
-      if (p.pulse != null) {
-        vals.push(p.pulse);
-      }
-    }
-    if (vals.length === 0) {
-      return [40, 120];
-    }
-    const lo = Math.min(...vals);
-    const hi = Math.max(...vals);
-    const pad = Math.max(5, Math.round((hi - lo) * 0.15));
-    return yDomainWithMinSpan(lo, hi, pad, PULSE_Y_AXIS_MIN_SPAN, 30, 220);
-  }, [bpChartData]);
 
   const showCore = dashPrefs.showCoreBundle;
   const showBp = dashPrefs.showBloodPressure;
@@ -860,7 +797,7 @@ export function DashboardPageClient() {
                   />
                   <YAxis
                     yAxisId="bp"
-                    domain={bpYDomain}
+                    domain={BP_Y_DOMAIN}
                     tick={{ fill: "var(--hp-muted)", fontSize: 11 }}
                     width={44}
                     label={{
@@ -876,7 +813,7 @@ export function DashboardPageClient() {
                     <YAxis
                       yAxisId="pulse"
                       orientation="right"
-                      domain={pulseYDomain}
+                      domain={PULSE_Y_DOMAIN}
                       tick={{ fill: "var(--hp-muted)", fontSize: 11 }}
                       width={44}
                       label={{
