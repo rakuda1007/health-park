@@ -2,7 +2,14 @@
 
 import { useAuth } from "@/contexts/auth-context";
 import {
+  DEFAULT_BP_AXIS_MAX,
+  DEFAULT_BP_AXIS_MIN,
+  DEFAULT_PULSE_AXIS_MAX,
+  DEFAULT_PULSE_AXIS_MIN,
+  DASHBOARD_PREFS_CHANGED,
   readDashboardDisplayPreferences,
+  resetDashboardChartAxisPreferences,
+  validateAxisRange,
   writeDashboardDisplayPreferences,
 } from "@/lib/dashboard-preferences";
 import { appPath } from "@/lib/app-paths";
@@ -22,15 +29,37 @@ export function SettingsPageClient() {
   const [prefs, setPrefs] = useState(() =>
     readDashboardDisplayPreferences(),
   );
+  const [axisError, setAxisError] = useState<string | null>(null);
+  const [bpMinDraft, setBpMinDraft] = useState(() =>
+    String(readDashboardDisplayPreferences().bpAxisMin),
+  );
+  const [bpMaxDraft, setBpMaxDraft] = useState(() =>
+    String(readDashboardDisplayPreferences().bpAxisMax),
+  );
+  const [pulseMinDraft, setPulseMinDraft] = useState(() =>
+    String(readDashboardDisplayPreferences().pulseAxisMin),
+  );
+  const [pulseMaxDraft, setPulseMaxDraft] = useState(() =>
+    String(readDashboardDisplayPreferences().pulseAxisMax),
+  );
 
   const sync = useCallback(() => {
-    setPrefs(readDashboardDisplayPreferences());
+    const next = readDashboardDisplayPreferences();
+    setPrefs(next);
+    setBpMinDraft(String(next.bpAxisMin));
+    setBpMaxDraft(String(next.bpAxisMax));
+    setPulseMinDraft(String(next.pulseAxisMin));
+    setPulseMaxDraft(String(next.pulseAxisMax));
   }, []);
 
   useEffect(() => {
     sync();
+    window.addEventListener(DASHBOARD_PREFS_CHANGED, sync);
     window.addEventListener("focus", sync);
-    return () => window.removeEventListener("focus", sync);
+    return () => {
+      window.removeEventListener(DASHBOARD_PREFS_CHANGED, sync);
+      window.removeEventListener("focus", sync);
+    };
   }, [sync]);
 
   useEffect(() => {
@@ -82,6 +111,55 @@ export function SettingsPageClient() {
     writeDashboardDisplayPreferences({ showAppointments: checked });
     sync();
   }
+
+  function commitBpAxisFromDraft() {
+    const min = Number.parseInt(bpMinDraft, 10);
+    const max = Number.parseInt(bpMaxDraft, 10);
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      setAxisError("血圧の軸には整数を入力してください。");
+      sync();
+      return;
+    }
+    if (!validateAxisRange(min, max, 0, 300)) {
+      setAxisError(
+        "血圧の軸は、最小 0・最大 300 mmHg の範囲で、最小値より最大値が 10 以上大きくなるように指定してください。",
+      );
+      sync();
+      return;
+    }
+    setAxisError(null);
+    writeDashboardDisplayPreferences({ bpAxisMin: min, bpAxisMax: max });
+    sync();
+  }
+
+  function commitPulseAxisFromDraft() {
+    const min = Number.parseInt(pulseMinDraft, 10);
+    const max = Number.parseInt(pulseMaxDraft, 10);
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      setAxisError("脈拍の軸には整数を入力してください。");
+      sync();
+      return;
+    }
+    if (!validateAxisRange(min, max, 20, 250)) {
+      setAxisError(
+        "脈拍の軸は、最小 20・最大 250 回/分 の範囲で、最小値より最大値が 10 以上大きくなるように指定してください。",
+      );
+      sync();
+      return;
+    }
+    setAxisError(null);
+    writeDashboardDisplayPreferences({ pulseAxisMin: min, pulseAxisMax: max });
+    sync();
+  }
+
+  function resetAxes() {
+    setAxisError(null);
+    resetDashboardChartAxisPreferences();
+    sync();
+  }
+
+  const settingsNumberInputClass =
+    "w-full rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)] tabular-nums";
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
@@ -153,6 +231,100 @@ export function SettingsPageClient() {
             </span>
           </span>
         </label>
+
+        <div className="border-t border-[color:var(--hp-border)] pt-6">
+          <h3 className="text-sm font-medium text-[color:var(--hp-foreground)]">
+            血圧グラフの縦軸（mmHg）
+          </h3>
+          <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
+            ホームの血圧グラフの目盛り範囲です。デフォルトは {DEFAULT_BP_AXIS_MIN}〜
+            {DEFAULT_BP_AXIS_MAX} です。
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-[color:var(--hp-muted)]">最小</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={290}
+                step={1}
+                value={bpMinDraft}
+                className={settingsNumberInputClass}
+                onChange={(e) => setBpMinDraft(e.target.value)}
+                onBlur={commitBpAxisFromDraft}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-[color:var(--hp-muted)]">最大</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={10}
+                max={300}
+                step={1}
+                value={bpMaxDraft}
+                className={settingsNumberInputClass}
+                onChange={(e) => setBpMaxDraft(e.target.value)}
+                onBlur={commitBpAxisFromDraft}
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="border-t border-[color:var(--hp-border)] pt-6">
+          <h3 className="text-sm font-medium text-[color:var(--hp-foreground)]">
+            脈拍グラフの縦軸（回/分）
+          </h3>
+          <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
+            血圧グラフ右側の脈拍の目盛り範囲です。デフォルトは {DEFAULT_PULSE_AXIS_MIN}
+            〜{DEFAULT_PULSE_AXIS_MAX} です。
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-[color:var(--hp-muted)]">最小</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={20}
+                max={240}
+                step={1}
+                value={pulseMinDraft}
+                className={settingsNumberInputClass}
+                onChange={(e) => setPulseMinDraft(e.target.value)}
+                onBlur={commitPulseAxisFromDraft}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-[color:var(--hp-muted)]">最大</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={30}
+                max={250}
+                step={1}
+                value={pulseMaxDraft}
+                className={settingsNumberInputClass}
+                onChange={(e) => setPulseMaxDraft(e.target.value)}
+                onBlur={commitPulseAxisFromDraft}
+              />
+            </label>
+          </div>
+        </div>
+
+        {axisError ? (
+          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+            {axisError}
+          </p>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={resetAxes}
+          className="rounded-lg border border-[color:var(--hp-border)] px-3 py-2 text-sm text-[color:var(--hp-foreground)] hover:border-[color:var(--hp-accent)]"
+        >
+          血圧・脈拍の軸をデフォルトに戻す
+        </button>
 
         <p className="text-sm">
           <Link

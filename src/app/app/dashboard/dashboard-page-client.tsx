@@ -72,11 +72,6 @@ function ceilToStep(value: number, step: number): number {
   return Math.ceil(value / step) * step;
 }
 
-/** 血圧グラフ左軸（mmHg）の固定レンジ */
-const BP_Y_DOMAIN: [number, number] = [40, 170];
-/** 脈拍グラフ右軸（回/分）の固定レンジ */
-const PULSE_Y_DOMAIN: [number, number] = [40, 120];
-
 function readWeightGoalFromStorage(): { min: string; max: string } {
   if (typeof window === "undefined") {
     return { min: "", max: "" };
@@ -797,7 +792,7 @@ export function DashboardPageClient() {
                   />
                   <YAxis
                     yAxisId="bp"
-                    domain={BP_Y_DOMAIN}
+                    domain={[dashPrefs.bpAxisMin, dashPrefs.bpAxisMax]}
                     tick={{ fill: "var(--hp-muted)", fontSize: 11 }}
                     width={44}
                     label={{
@@ -813,7 +808,7 @@ export function DashboardPageClient() {
                     <YAxis
                       yAxisId="pulse"
                       orientation="right"
-                      domain={PULSE_Y_DOMAIN}
+                      domain={[dashPrefs.pulseAxisMin, dashPrefs.pulseAxisMax]}
                       tick={{ fill: "var(--hp-muted)", fontSize: 11 }}
                       width={44}
                       label={{
