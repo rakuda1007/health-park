@@ -24,8 +24,11 @@ import {
   buildMonthlyReflectionHeatmapColumns,
   buildWeeklyDashboardRows,
   buildWeeklyReflectionHeatmapColumns,
+  createDefaultCustomDateRange,
+  resolveDashboardDaysBack,
   type CombinedChartGranularity,
   type DashboardChartPeriodOption,
+  type DashboardCustomDateRange,
   weeklyBloodPressureNarrative,
   weeklyDashboardCoachNarrative,
   weeklyReflectionNarrative,
@@ -34,6 +37,7 @@ import {
   type WeightGoalBand,
 } from "@/lib/dashboard-series";
 import { appPath } from "@/lib/app-paths";
+import { todayIso } from "@/lib/date";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -104,6 +108,18 @@ export function DashboardPageClient() {
     useState<DashboardChartPeriodOption>(7);
   const [summaryPeriod, setSummaryPeriod] =
     useState<DashboardChartPeriodOption>(7);
+  const [combinedCustomRange, setCombinedCustomRange] = useState(
+    createDefaultCustomDateRange,
+  );
+  const [bpCustomRange, setBpCustomRange] = useState(
+    createDefaultCustomDateRange,
+  );
+  const [reflectionCustomRange, setReflectionCustomRange] = useState(
+    createDefaultCustomDateRange,
+  );
+  const [summaryCustomRange, setSummaryCustomRange] = useState(
+    createDefaultCustomDateRange,
+  );
   const [reflectionHeatmapMode, setReflectionHeatmapMode] = useState<
     "day" | "week" | "month"
   >("day");
@@ -172,7 +188,7 @@ export function DashboardPageClient() {
   const combinedDailyPoints = useMemo(
     () =>
       buildDailyDashboardPoints(
-        combinedPeriod,
+        resolveDashboardDaysBack(combinedPeriod, combinedCustomRange),
         weightEntries,
         stepsEntries,
         reflections,
@@ -180,6 +196,7 @@ export function DashboardPageClient() {
       ),
     [
       combinedPeriod,
+      combinedCustomRange,
       weightEntries,
       stepsEntries,
       reflections,
@@ -190,19 +207,26 @@ export function DashboardPageClient() {
   const bpDailyPoints = useMemo(
     () =>
       buildDailyDashboardPoints(
-        bpPeriod,
+        resolveDashboardDaysBack(bpPeriod, bpCustomRange),
         weightEntries,
         stepsEntries,
         reflections,
         bloodPressureEntries,
       ),
-    [bpPeriod, weightEntries, stepsEntries, reflections, bloodPressureEntries],
+    [
+      bpPeriod,
+      bpCustomRange,
+      weightEntries,
+      stepsEntries,
+      reflections,
+      bloodPressureEntries,
+    ],
   );
 
   const reflectionDayDailyPoints = useMemo(
     () =>
       buildDailyDashboardPoints(
-        reflectionDayPeriod,
+        resolveDashboardDaysBack(reflectionDayPeriod, reflectionCustomRange),
         weightEntries,
         stepsEntries,
         reflections,
@@ -210,6 +234,7 @@ export function DashboardPageClient() {
       ),
     [
       reflectionDayPeriod,
+      reflectionCustomRange,
       weightEntries,
       stepsEntries,
       reflections,
@@ -220,7 +245,7 @@ export function DashboardPageClient() {
   const weeklySummaryDailyPoints = useMemo(
     () =>
       buildDailyDashboardPoints(
-        summaryPeriod,
+        resolveDashboardDaysBack(summaryPeriod, summaryCustomRange),
         weightEntries,
         stepsEntries,
         reflections,
@@ -228,6 +253,7 @@ export function DashboardPageClient() {
       ),
     [
       summaryPeriod,
+      summaryCustomRange,
       weightEntries,
       stepsEntries,
       reflections,
@@ -549,6 +575,8 @@ export function DashboardPageClient() {
           <ChartPeriodControls
             period={combinedPeriod}
             onPeriodChange={setCombinedPeriod}
+            customRange={combinedCustomRange}
+            onCustomRangeChange={setCombinedCustomRange}
             granularity={combinedGranularity}
             onGranularityChange={setCombinedGranularity}
           />
@@ -694,6 +722,8 @@ export function DashboardPageClient() {
           <ReflectionHeatmapControls
             dayPeriod={reflectionDayPeriod}
             onDayPeriodChange={setReflectionDayPeriod}
+            customRange={reflectionCustomRange}
+            onCustomRangeChange={setReflectionCustomRange}
             mode={reflectionHeatmapMode}
             onModeChange={setReflectionHeatmapMode}
           />
@@ -771,6 +801,8 @@ export function DashboardPageClient() {
           <ChartPeriodControls
             period={bpPeriod}
             onPeriodChange={setBpPeriod}
+            customRange={bpCustomRange}
+            onCustomRangeChange={setBpCustomRange}
             granularity={bpGranularity}
             onGranularityChange={setBpGranularity}
           />
@@ -881,6 +913,8 @@ export function DashboardPageClient() {
           <DisplayPeriodControls
             period={summaryPeriod}
             onPeriodChange={setSummaryPeriod}
+            customRange={summaryCustomRange}
+            onCustomRangeChange={setSummaryCustomRange}
           />
           {weeklyRows.length === 0 ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
@@ -1136,42 +1170,112 @@ function chartControlButtonClass(active: boolean): string {
   }`;
 }
 
+const dashboardDateInputClass =
+  "rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-2 py-1 text-xs text-[color:var(--hp-foreground)]";
+
+function ChartPeriodRangeButtons({
+  period,
+  onPeriodChange,
+  customRange,
+  onCustomRangeChange,
+}: {
+  period: DashboardChartPeriodOption;
+  onPeriodChange: (p: DashboardChartPeriodOption) => void;
+  customRange: DashboardCustomDateRange;
+  onCustomRangeChange: (r: DashboardCustomDateRange) => void;
+}) {
+  const today = todayIso();
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-row flex-wrap gap-2">
+        {FINITE_PERIOD_DAYS.map((d) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => onPeriodChange(d)}
+            className={chartControlButtonClass(period === d)}
+          >
+            直近{d}日
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => onPeriodChange("all")}
+          className={chartControlButtonClass(period === "all")}
+        >
+          すべて
+        </button>
+        <button
+          type="button"
+          onClick={() => onPeriodChange("custom")}
+          className={chartControlButtonClass(period === "custom")}
+        >
+          カスタム
+        </button>
+      </div>
+      {period === "custom" ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="date"
+            value={customRange.since}
+            max={customRange.until}
+            onChange={(e) =>
+              onCustomRangeChange({
+                ...customRange,
+                since: e.target.value,
+              })
+            }
+            className={dashboardDateInputClass}
+            aria-label="開始日"
+          />
+          <span className="text-xs text-[color:var(--hp-muted)]">〜</span>
+          <input
+            type="date"
+            value={customRange.until}
+            min={customRange.since}
+            max={today}
+            onChange={(e) =>
+              onCustomRangeChange({
+                ...customRange,
+                until: e.target.value,
+              })
+            }
+            className={dashboardDateInputClass}
+            aria-label="終了日"
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ChartPeriodControls({
   period,
   onPeriodChange,
+  customRange,
+  onCustomRangeChange,
   granularity,
   onGranularityChange,
 }: {
   period: DashboardChartPeriodOption;
   onPeriodChange: (p: DashboardChartPeriodOption) => void;
+  customRange: DashboardCustomDateRange;
+  onCustomRangeChange: (r: DashboardCustomDateRange) => void;
   granularity: CombinedChartGranularity;
   onGranularityChange: (g: CombinedChartGranularity) => void;
 }) {
   return (
     <div className="mt-3 flex flex-col gap-3">
-      <div className="flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-center md:gap-2">
-        <span className="shrink-0 text-xs text-[color:var(--hp-muted)]">
+      <div className="flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-start md:gap-2">
+        <span className="shrink-0 text-xs text-[color:var(--hp-muted)] md:pt-1">
           表示期間:
         </span>
-        <div className="flex flex-row flex-wrap gap-2">
-          {FINITE_PERIOD_DAYS.map((d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => onPeriodChange(d)}
-              className={chartControlButtonClass(period === d)}
-            >
-              直近{d}日
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => onPeriodChange("all")}
-            className={chartControlButtonClass(period === "all")}
-          >
-            すべて
-          </button>
-        </div>
+        <ChartPeriodRangeButtons
+          period={period}
+          onPeriodChange={onPeriodChange}
+          customRange={customRange}
+          onCustomRangeChange={onCustomRangeChange}
+        />
       </div>
       <div className="flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-center md:gap-2">
         <span className="shrink-0 text-xs text-[color:var(--hp-muted)]">
@@ -1197,34 +1301,25 @@ function ChartPeriodControls({
 function DisplayPeriodControls({
   period,
   onPeriodChange,
+  customRange,
+  onCustomRangeChange,
 }: {
   period: DashboardChartPeriodOption;
   onPeriodChange: (p: DashboardChartPeriodOption) => void;
+  customRange: DashboardCustomDateRange;
+  onCustomRangeChange: (r: DashboardCustomDateRange) => void;
 }) {
   return (
-    <div className="mt-3 flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-center md:gap-2">
-      <span className="shrink-0 text-xs text-[color:var(--hp-muted)]">
+    <div className="mt-3 flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-start md:gap-2">
+      <span className="shrink-0 text-xs text-[color:var(--hp-muted)] md:pt-1">
         表示期間:
       </span>
-      <div className="flex flex-row flex-wrap gap-2">
-        {FINITE_PERIOD_DAYS.map((d) => (
-          <button
-            key={d}
-            type="button"
-            onClick={() => onPeriodChange(d)}
-            className={chartControlButtonClass(period === d)}
-          >
-            直近{d}日
-          </button>
-        ))}
-        <button
-          type="button"
-          onClick={() => onPeriodChange("all")}
-          className={chartControlButtonClass(period === "all")}
-        >
-          すべて
-        </button>
-      </div>
+      <ChartPeriodRangeButtons
+        period={period}
+        onPeriodChange={onPeriodChange}
+        customRange={customRange}
+        onCustomRangeChange={onCustomRangeChange}
+      />
     </div>
   );
 }
@@ -1232,40 +1327,31 @@ function DisplayPeriodControls({
 function ReflectionHeatmapControls({
   dayPeriod,
   onDayPeriodChange,
+  customRange,
+  onCustomRangeChange,
   mode,
   onModeChange,
 }: {
   dayPeriod: DashboardChartPeriodOption;
   onDayPeriodChange: (p: DashboardChartPeriodOption) => void;
+  customRange: DashboardCustomDateRange;
+  onCustomRangeChange: (r: DashboardCustomDateRange) => void;
   mode: "day" | "week" | "month";
   onModeChange: (m: "day" | "week" | "month") => void;
 }) {
   return (
     <div className="mt-3 flex flex-col gap-3">
       {mode === "day" ? (
-        <div className="flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-center md:gap-2">
-          <span className="shrink-0 text-xs text-[color:var(--hp-muted)]">
+        <div className="flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-start md:gap-2">
+          <span className="shrink-0 text-xs text-[color:var(--hp-muted)] md:pt-1">
             表示期間:
           </span>
-          <div className="flex flex-row flex-wrap gap-2">
-            {FINITE_PERIOD_DAYS.map((d) => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => onDayPeriodChange(d)}
-                className={chartControlButtonClass(dayPeriod === d)}
-              >
-                直近{d}日
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => onDayPeriodChange("all")}
-              className={chartControlButtonClass(dayPeriod === "all")}
-            >
-              すべて
-            </button>
-          </div>
+          <ChartPeriodRangeButtons
+            period={dayPeriod}
+            onPeriodChange={onDayPeriodChange}
+            customRange={customRange}
+            onCustomRangeChange={onCustomRangeChange}
+          />
         </div>
       ) : null}
       <div className="flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-center md:gap-2">
