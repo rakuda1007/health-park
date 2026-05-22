@@ -72,6 +72,38 @@ function ceilToStep(value: number, step: number): number {
   return Math.ceil(value / step) * step;
 }
 
+/** 血圧Y軸の最低幅（mmHg）。データ範囲が狭いときの過度な拡大を抑える */
+const BP_Y_AXIS_MIN_SPAN = 40;
+/** 脈拍Y軸の最低幅（回/分） */
+const PULSE_Y_AXIS_MIN_SPAN = 40;
+
+/** データ＋余白を基準にしつつ、軸幅が minSpan 未満なら中央を基準に広げる */
+function yDomainWithMinSpan(
+  lo: number,
+  hi: number,
+  pad: number,
+  minSpan: number,
+  minBound: number,
+  maxBound?: number,
+): [number, number] {
+  let d0 = lo - pad;
+  let d1 = hi + pad;
+  if (d1 - d0 < minSpan) {
+    const mid = (lo + hi) / 2;
+    const half = minSpan / 2;
+    d0 = mid - half;
+    d1 = mid + half;
+  }
+  d0 = Math.max(minBound, d0);
+  if (maxBound != null) {
+    d1 = Math.min(maxBound, d1);
+    if (d1 - d0 < minSpan) {
+      d0 = Math.max(minBound, d1 - minSpan);
+    }
+  }
+  return [d0, d1];
+}
+
 function readWeightGoalFromStorage(): { min: string; max: string } {
   if (typeof window === "undefined") {
     return { min: "", max: "" };
@@ -348,7 +380,7 @@ export function DashboardPageClient() {
     const lo = Math.min(...vals);
     const hi = Math.max(...vals);
     const pad = Math.max(8, Math.round((hi - lo) * 0.12));
-    return [Math.max(40, lo - pad), hi + pad];
+    return yDomainWithMinSpan(lo, hi, pad, BP_Y_AXIS_MIN_SPAN, 40);
   }, [bpChartData]);
 
   /** 脈拍のみ（右軸）。mmHg と単位・スケールが異なるため左軸とは分離する */
@@ -365,7 +397,7 @@ export function DashboardPageClient() {
     const lo = Math.min(...vals);
     const hi = Math.max(...vals);
     const pad = Math.max(5, Math.round((hi - lo) * 0.15));
-    return [Math.max(30, lo - pad), Math.min(220, hi + pad)];
+    return yDomainWithMinSpan(lo, hi, pad, PULSE_Y_AXIS_MIN_SPAN, 30, 220);
   }, [bpChartData]);
 
   const showCore = dashPrefs.showCoreBundle;
