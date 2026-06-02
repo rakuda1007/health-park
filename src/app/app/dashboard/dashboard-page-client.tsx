@@ -978,6 +978,7 @@ export function DashboardPageClient() {
                       <p className="mt-3 border-t border-[color:var(--hp-border)] pt-3 text-xs leading-relaxed text-[color:var(--hp-foreground)]">
                         {weeklyDashboardCoachNarrative(row, prev, goalBand, {
                           includeBloodPressure: showBp,
+                          priorWeeks: weeklyRows.slice(i + 2, i + 6),
                         })}
                       </p>
                     </li>
@@ -1102,6 +1103,7 @@ export function DashboardPageClient() {
                             <p className="mt-1.5 border-t border-[color:var(--hp-border)] pt-1.5 text-[color:var(--hp-foreground)]">
                               {weeklyDashboardCoachNarrative(row, prev, goalBand, {
                                 includeBloodPressure: showBp,
+                                priorWeeks: weeklyRows.slice(i + 2, i + 6),
                               })}
                             </p>
                           </td>
