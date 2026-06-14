@@ -1,3 +1,4 @@
+import { normalizeDailyReflectionEntry } from "@/lib/reflection-display";
 import {
   BACKUP_SCHEMA_VERSION,
   buildHealthParkBackup,
@@ -231,9 +232,12 @@ export async function pullCloudToLocal(): Promise<void> {
     clinicAppointments.push({ ...(d.data() as ClinicAppointmentEntry), id: d.id }),
   );
   const drSnap = await getDocs(collection(db, "users", uid, "dailyReflections"));
-  drSnap.forEach((d) =>
-    dailyReflections.push({ ...(d.data() as DailyReflectionEntry), id: d.id }),
-  );
+  drSnap.forEach((d) => {
+    const normalized = normalizeDailyReflectionEntry({ ...d.data(), id: d.id });
+    if (normalized) {
+      dailyReflections.push(normalized);
+    }
+  });
   const pmhSnap = await getDocs(collection(db, "users", uid, "pastMedicalHistory"));
   pmhSnap.forEach((d) =>
     pastMedicalHistory.push({ ...(d.data() as PastMedicalHistoryEntry), id: d.id }),

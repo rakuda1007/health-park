@@ -455,8 +455,13 @@ export function buildDailyDashboardPoints(
     const st = stepsMap.get(date);
     const rf = reflMap.get(date);
     const bp = bpMap.get(date);
-    const reflectionComment =
-      rf && rf.comment.trim().length > 0 ? rf.comment.trim() : null;
+    const reflectionComment = (() => {
+      if (!rf) {
+        return null;
+      }
+      const text = typeof rf.comment === "string" ? rf.comment.trim() : "";
+      return text.length > 0 ? text : null;
+    })();
     return {
       date,
       label: formatShortDateLabel(date),

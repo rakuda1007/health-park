@@ -198,7 +198,9 @@ export async function loadDashboardSnapshot(): Promise<{
           weight,
           steps,
           bloodPressure,
-          dailyReflections: reflections,
+          dailyReflections: reflections
+            .map(normalizeDailyReflectionEntry)
+            .filter((r): r is DailyReflectionEntry => r != null),
           clinicAppointments: [...appointments].sort((a, b) =>
             a.startsAt.localeCompare(b.startsAt),
           ),

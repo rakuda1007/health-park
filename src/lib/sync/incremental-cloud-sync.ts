@@ -1,3 +1,4 @@
+import { normalizeDailyReflectionEntry } from "@/lib/reflection-display";
 import {
   applyRemoteEntry,
   deleteBloodPressureEntry,
@@ -33,7 +34,6 @@ import type {
   BloodPressureEntry,
   ClinicAppointmentEntry,
   ClinicEntry,
-  DailyReflectionEntry,
   MealEntry,
   PastMedicalHistoryEntry,
   PrescriptionEntry,
@@ -453,10 +453,11 @@ export function startRemoteSync(uid: string): () => void {
     } as ClinicAppointmentEntry);
   });
   sub(COL_DAILY_REFLECTIONS, STORE_DAILY_REFLECTIONS, async (id, data) => {
-    await applyRemoteEntry(STORE_DAILY_REFLECTIONS, {
-      ...data,
-      id,
-    } as DailyReflectionEntry);
+    const normalized = normalizeDailyReflectionEntry({ ...data, id });
+    if (!normalized) {
+      return;
+    }
+    await applyRemoteEntry(STORE_DAILY_REFLECTIONS, normalized);
   });
   sub(COL_PAST_MEDICAL_HISTORY, STORE_PAST_MEDICAL_HISTORY, async (id, data) => {
     await applyRemoteEntry(STORE_PAST_MEDICAL_HISTORY, {

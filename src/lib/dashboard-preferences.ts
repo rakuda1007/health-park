@@ -85,6 +85,26 @@ function readOptionalFloat(key: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, n));
+}
+
+/** 軸の最小・最大が有効か（最小＋10 ≤ 最大、絶対範囲内） */
+export function validateAxisRange(
+  min: number,
+  max: number,
+  absMin: number,
+  absMax: number,
+  minSpan = AXIS_MIN_SPAN,
+): boolean {
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    return false;
+  }
+  const a = clamp(min, absMin, absMax);
+  const b = clamp(max, absMin, absMax);
+  return b - a >= minSpan;
+}
+
 function readCustomWeightAxis(): { min: number; max: number } | null {
   const min = readOptionalFloat(LS_WEIGHT_AXIS_MIN);
   const max = readOptionalFloat(LS_WEIGHT_AXIS_MAX);
@@ -103,10 +123,6 @@ function readCustomWeightAxis(): { min: number; max: number } | null {
     return null;
   }
   return { min, max };
-}
-
-function clamp(n: number, lo: number, hi: number): number {
-  return Math.min(hi, Math.max(lo, n));
 }
 
 function readAxisPair(
@@ -156,22 +172,6 @@ export function readDashboardDisplayPreferences(): DashboardDisplayPreferences {
     weightAxisMin: weight?.min ?? null,
     weightAxisMax: weight?.max ?? null,
   };
-}
-
-/** 軸の最小・最大が有効か（最小＋10 ≤ 最大、絶対範囲内） */
-export function validateAxisRange(
-  min: number,
-  max: number,
-  absMin: number,
-  absMax: number,
-  minSpan = AXIS_MIN_SPAN,
-): boolean {
-  if (!Number.isFinite(min) || !Number.isFinite(max)) {
-    return false;
-  }
-  const a = clamp(min, absMin, absMax);
-  const b = clamp(max, absMin, absMax);
-  return b - a >= minSpan;
 }
 
 export function writeDashboardDisplayPreferences(
