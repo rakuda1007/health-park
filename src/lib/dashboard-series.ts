@@ -1,7 +1,6 @@
 import type {
   BloodPressureEntry,
   DailyReflectionEntry,
-  ReflectionRating,
   StepsEntry,
   WeightEntry,
 } from "@/lib/db/types";
@@ -97,30 +96,13 @@ export function earliestDashboardDataIsoDate(
   return min;
 }
 
-/** 〇=2, △=1, ✕=0（同一日の合計は最大6） */
-export function ratingToScore(r: ReflectionRating): number {
-  switch (r) {
-    case "good":
-      return 2;
-    case "ok":
-      return 1;
-    case "bad":
-      return 0;
-    default:
-      return 0;
-  }
-}
-
 export type DailyDashboardPoint = {
   date: string;
   label: string;
   weightKg: number | null;
   steps: number | null;
-  mealScore: number | null;
-  stepsSelfScore: number | null;
-  conditionScore: number | null;
-  /** 食事・歩数・体調スコアの合計（0〜6）、振り返り未記録は null */
-  reflectionTotal: number | null;
+  /** 振り返りコメント（未記録は null） */
+  reflectionComment: string | null;
   /** 同日複数件は平均。未記録は null */
   systolic: number | null;
   diastolic: number | null;
@@ -473,22 +455,14 @@ export function buildDailyDashboardPoints(
     const st = stepsMap.get(date);
     const rf = reflMap.get(date);
     const bp = bpMap.get(date);
-    const mealScore = rf ? ratingToScore(rf.mealRating) : null;
-    const stepsSelf = rf ? ratingToScore(rf.stepsRating) : null;
-    const cond = rf ? ratingToScore(rf.conditionRating) : null;
-    const total =
-      mealScore != null && stepsSelf != null && cond != null
-        ? mealScore + stepsSelf + cond
-        : null;
+    const reflectionComment =
+      rf && rf.comment.trim().length > 0 ? rf.comment.trim() : null;
     return {
       date,
       label: formatShortDateLabel(date),
       weightKg: w ?? null,
       steps: st ? st.steps : null,
-      mealScore,
-      stepsSelfScore: stepsSelf,
-      conditionScore: cond,
-      reflectionTotal: total,
+      reflectionComment,
       systolic: bp?.systolic ?? null,
       diastolic: bp?.diastolic ?? null,
       pulse: bp?.pulse ?? null,
@@ -503,16 +477,8 @@ export type WeeklyDashboardRow = {
   weightDays: number;
   avgSteps: number | null;
   stepsRecordedDays: number;
-  /** 振り返り合計スコア（1日あたり0〜6）の週平均 */
-  avgReflectionTotal: number | null;
+  /** 振り返りコメントが記録された日数 */
   reflectionDays: number;
-  /** 次元別：記録があった日だけを平均 */
-  avgMealScore: number | null;
-  mealDays: number;
-  avgStepsSelfScore: number | null;
-  stepsSelfDays: number;
-  avgConditionScore: number | null;
-  conditionDays: number;
   /** 週平均（記録があった日のみ）。脈拍は記録がある日のみ平均 */
   avgSystolic: number | null;
   avgDiastolic: number | null;
@@ -534,18 +500,9 @@ function aggregateWeekRows(
     .map(([weekStart, pts]) => {
       const wVals = pts.filter((p) => p.weightKg != null).map((p) => p.weightKg!);
       const sVals = pts.filter((p) => p.steps != null).map((p) => p.steps!);
-      const rVals = pts
-        .filter((p) => p.reflectionTotal != null)
-        .map((p) => p.reflectionTotal!);
-      const mealVals = pts
-        .filter((p) => p.mealScore != null)
-        .map((p) => p.mealScore!);
-      const stepsSelfVals = pts
-        .filter((p) => p.stepsSelfScore != null)
-        .map((p) => p.stepsSelfScore!);
-      const condVals = pts
-        .filter((p) => p.conditionScore != null)
-        .map((p) => p.conditionScore!);
+      const reflectionDays = pts.filter(
+        (p) => p.reflectionComment != null,
+      ).length;
       const bpPts = pts.filter(
         (p) => p.systolic != null && p.diastolic != null,
       );
@@ -568,34 +525,7 @@ function aggregateWeekRows(
             ? Math.round(sVals.reduce((a, b) => a + b, 0) / sVals.length)
             : null,
         stepsRecordedDays: sVals.length,
-        avgReflectionTotal:
-          rVals.length > 0
-            ? Math.round((rVals.reduce((a, b) => a + b, 0) / rVals.length) * 10) /
-              10
-            : null,
-        reflectionDays: rVals.length,
-        avgMealScore:
-          mealVals.length > 0
-            ? Math.round(
-                (mealVals.reduce((a, b) => a + b, 0) / mealVals.length) * 10,
-              ) / 10
-            : null,
-        mealDays: mealVals.length,
-        avgStepsSelfScore:
-          stepsSelfVals.length > 0
-            ? Math.round(
-                (stepsSelfVals.reduce((a, b) => a + b, 0) / stepsSelfVals.length) *
-                  10,
-              ) / 10
-            : null,
-        stepsSelfDays: stepsSelfVals.length,
-        avgConditionScore:
-          condVals.length > 0
-            ? Math.round(
-                (condVals.reduce((a, b) => a + b, 0) / condVals.length) * 10,
-              ) / 10
-            : null,
-        conditionDays: condVals.length,
+        reflectionDays,
         avgSystolic:
           sysVals.length > 0
             ? Math.round(mean(sysVals))
@@ -625,95 +555,6 @@ export function buildWeeklyDashboardRows(
   return rows
     .slice(-maxWeeks)
     .sort((a, b) => b.weekStart.localeCompare(a.weekStart));
-}
-
-/**
- * 振り返りの期間平均ヒートマップ用（週・月で共通。左から古い期間）。
- * `periodKey` は週なら月曜始まりの ISO 日付、月ならその月1日の ISO。
- */
-export type ReflectionAggHeatmapColumn = {
-  periodKey: string;
-  label: string;
-  avgMealScore: number | null;
-  mealDays: number;
-  avgStepsSelfScore: number | null;
-  stepsSelfDays: number;
-  avgConditionScore: number | null;
-  conditionDays: number;
-};
-
-/** @deprecated `ReflectionAggHeatmapColumn` を使用 */
-export type WeeklyReflectionHeatmapColumn = ReflectionAggHeatmapColumn;
-
-export function buildWeeklyReflectionHeatmapColumns(
-  dailyPoints: DailyDashboardPoint[],
-  maxWeeks = 9,
-): ReflectionAggHeatmapColumn[] {
-  const rows = aggregateWeekRows(dailyPoints);
-  return rows.slice(-maxWeeks).map((r) => ({
-    periodKey: r.weekStart,
-    label: r.label,
-    avgMealScore: r.avgMealScore,
-    mealDays: r.mealDays,
-    avgStepsSelfScore: r.avgStepsSelfScore,
-    stepsSelfDays: r.stepsSelfDays,
-    avgConditionScore: r.avgConditionScore,
-    conditionDays: r.conditionDays,
-  }));
-}
-
-export function buildMonthlyReflectionHeatmapColumns(
-  dailyPoints: DailyDashboardPoint[],
-  maxMonths = 8,
-): ReflectionAggHeatmapColumn[] {
-  const byMonth = new Map<string, DailyDashboardPoint[]>();
-  for (const p of dailyPoints) {
-    const mk = monthKeyFromIso(p.date);
-    const arr = byMonth.get(mk) ?? [];
-    arr.push(p);
-    byMonth.set(mk, arr);
-  }
-  const cols = [...byMonth.entries()]
-    .map(([ym, pts]) => {
-      const mealVals = pts
-        .filter((p) => p.mealScore != null)
-        .map((p) => p.mealScore!);
-      const stepsSelfVals = pts
-        .filter((p) => p.stepsSelfScore != null)
-        .map((p) => p.stepsSelfScore!);
-      const condVals = pts
-        .filter((p) => p.conditionScore != null)
-        .map((p) => p.conditionScore!);
-      return {
-        periodKey: firstDayOfMonthYm(ym),
-        label: formatMonthLabelJa(ym),
-        avgMealScore:
-          mealVals.length > 0
-            ? Math.round(
-                (mealVals.reduce((a, b) => a + b, 0) / mealVals.length) * 10,
-              ) / 10
-            : null,
-        mealDays: mealVals.length,
-        avgStepsSelfScore:
-          stepsSelfVals.length > 0
-            ? Math.round(
-                (stepsSelfVals.reduce((a, b) => a + b, 0) /
-                  stepsSelfVals.length) *
-                  10,
-              ) / 10
-            : null,
-        stepsSelfDays: stepsSelfVals.length,
-        avgConditionScore:
-          condVals.length > 0
-            ? Math.round(
-                (condVals.reduce((a, b) => a + b, 0) / condVals.length) * 10,
-              ) / 10
-            : null,
-        conditionDays: condVals.length,
-      };
-    })
-    .sort((a, b) => a.periodKey.localeCompare(b.periodKey));
-  return cols.slice(-maxMonths);
 }
 
 function formatWeekLabel(weekStartIso: string): string {
@@ -767,127 +608,32 @@ export function weeklyStepsNarrative(
   return `前週の平均より約 ${Math.abs(Math.round(diff)).toLocaleString("ja-JP")} 歩少ないです。`;
 }
 
-function fmtScore(v: number): string {
-  return Number.isInteger(v) ? String(v) : v.toFixed(1);
-}
-
-type ReflectionDimKey = "meal" | "stepsSelf" | "condition";
-
-const REFLECTION_DIMS: {
-  key: ReflectionDimKey;
-  label: string;
-  avg: (r: WeeklyDashboardRow) => number | null;
-  days: (r: WeeklyDashboardRow) => number;
-}[] = [
-  {
-    key: "meal",
-    label: "食事",
-    avg: (r) => r.avgMealScore,
-    days: (r) => r.mealDays,
-  },
-  {
-    key: "stepsSelf",
-    label: "歩数(評価)",
-    avg: (r) => r.avgStepsSelfScore,
-    days: (r) => r.stepsSelfDays,
-  },
-  {
-    key: "condition",
-    label: "体調",
-    avg: (r) => r.avgConditionScore,
-    days: (r) => r.conditionDays,
-  },
-];
-
-function reflectionDimDelta(
-  avg: number,
-  prevAvg: number,
-): "flat" | "up" | "down" {
-  const d = Math.round((avg - prevAvg) * 10) / 10;
-  if (Math.abs(d) < 0.15) {
-    return "flat";
-  }
-  return d > 0 ? "up" : "down";
-}
-
 /**
- * 振り返りスコア（食事・歩数評価・体調）の週次サマリー用。
- * 医療診断ではなく、記録上の前週比の参考。
+ * 振り返り（一言コメント）の週次サマリー用。
  */
 export function weeklyReflectionNarrative(
   row: WeeklyDashboardRow,
   prev: WeeklyDashboardRow | null,
 ): string {
-  const recorded = REFLECTION_DIMS.filter((d) => d.avg(row) != null);
-  if (recorded.length === 0) {
+  if (row.reflectionDays === 0) {
     return "振り返りの記録がありません。";
   }
-
-  const seed = hashSeed([row.weekStart, "refl-v2"]);
-  const lines: string[] = [];
-
-  for (const dim of recorded) {
-    const avg = dim.avg(row)!;
-    const days = dim.days(row);
-    const prevAvg = prev ? dim.avg(prev) : null;
-    let line = `${dim.label}は 2点満点中${fmtScore(avg)}点（${days}日）`;
-    if (prevAvg != null) {
-      const delta = reflectionDimDelta(avg, prevAvg);
-      const deltaWord =
-        delta === "flat"
-          ? "前週と同程度"
-          : delta === "up"
-            ? "前週より上向き"
-            : "前週より下向き";
-      line += `、${deltaWord}`;
+  const parts = [`振り返りを ${row.reflectionDays} 日記録しました`];
+  if (prev) {
+    if (prev.reflectionDays === 0) {
+      parts.push("前週は記録がありませんでした");
+    } else {
+      const diff = row.reflectionDays - prev.reflectionDays;
+      if (diff > 0) {
+        parts.push(`前週より ${diff} 日多いです`);
+      } else if (diff < 0) {
+        parts.push(`前週より ${Math.abs(diff)} 日少ないです`);
+      } else {
+        parts.push("前週と同じ日数です");
+      }
     }
-    lines.push(line);
   }
-
-  const unrecorded = REFLECTION_DIMS.filter((d) => d.avg(row) == null).map(
-    (d) => d.label,
-  );
-  if (unrecorded.length > 0 && unrecorded.length < REFLECTION_DIMS.length) {
-    lines.push(`${unrecorded.join("・")}は未記録`);
-  }
-
-  const ups = recorded.filter(
-    (d) =>
-      prev &&
-      d.avg(prev) != null &&
-      reflectionDimDelta(d.avg(row)!, d.avg(prev)!) === "up",
-  );
-  const downs = recorded.filter(
-    (d) =>
-      prev &&
-      d.avg(prev) != null &&
-      reflectionDimDelta(d.avg(row)!, d.avg(prev)!) === "down",
-  );
-
-  if (ups.length >= 2 && downs.length === 0) {
-    lines.push(
-      pickVariant(seed + 1, [
-        "振り返り全体としては前週より手応えのある週です。",
-        "複数の項目で前週より良い評価が続いています。",
-      ]),
-    );
-  } else if (downs.length >= 2 && ups.length === 0) {
-    lines.push(
-      pickVariant(seed + 2, [
-        "振り返りは全体的に厳しめの週でした。休息を優先しても大丈夫です。",
-        "自己評価が下がった週です。体調と無理のないペースを先に置いてみましょう。",
-      ]),
-    );
-  } else if (ups.length === 1 && downs.length === 1) {
-    lines.push(
-      pickVariant(seed + 3, [
-        "項目ごとにばらつきのある週です。良かった点をひとつだけ拾うのも手です。",
-        "良い面と厳しい面が混在しています。改善できたところに目を向けてみましょう。",
-      ]),
-    );
-  }
-
-  return lines.join("。") + "。";
+  return `${parts.join("。")}。`;
 }
 
 /**
@@ -1100,60 +846,31 @@ function reflectionCoachLine(
   prev: WeeklyDashboardRow | null,
   seed: number,
 ): string | null {
-  const dims = REFLECTION_DIMS.map((d) => ({
-    label: d.label,
-    avg: d.avg(row),
-    prevAvg: prev ? d.avg(prev) : null,
-  })).filter((d) => d.avg != null) as {
-    label: string;
-    avg: number;
-    prevAvg: number | null;
-  }[];
-  if (dims.length === 0) {
+  if (row.reflectionDays === 0) {
     return null;
   }
-
-  const low = dims.filter((d) => d.avg < 1.25);
-  const high = dims.filter((d) => d.avg >= 1.75);
-  const improved = dims.filter(
-    (d) => d.prevAvg != null && reflectionDimDelta(d.avg, d.prevAvg) === "up",
-  );
-  const declined = dims.filter(
-    (d) => d.prevAvg != null && reflectionDimDelta(d.avg, d.prevAvg) === "down",
-  );
-
-  if (high.length >= 2) {
+  if (row.reflectionDays >= 5) {
     return pickVariant(seed, [
-      `振り返りでは${high.map((d) => d.label).join("・")}の評価が高めでした。続けられている習慣を認めてあげてください。`,
-      `食事・体調・歩行の自己評価のうち、好調だった項目があります。この調子を無理なく続けましょう。`,
+      "振り返りがほぼ毎日続いています。短いメモでも習慣になっていれば十分な価値があります。",
+      "ほぼ毎日、一言の振り返りが残せています。続けられている自分を認めてあげてください。",
     ]);
   }
-  if (improved.length >= 2 && low.length === 0) {
+  if (row.reflectionDays >= 3) {
     return pickVariant(seed + 1, [
-      `振り返りは${improved.map((d) => d.label).join("・")}など、前週より良い評価が目立ちました。`,
-      `自己評価が前週より上向きの項目が複数あります。小さな改善の積み重ねです。`,
+      `振り返りを ${row.reflectionDays} 日記録しました。無理のないペースで続けられています。`,
+      "週の半分以上、振り返りが残せています。",
     ]);
   }
-  if (low.length === 1 && declined.length === 0) {
-    const only = low[0]!;
+  if (prev && row.reflectionDays > prev.reflectionDays) {
     return pickVariant(seed + 2, [
-      `${only.label}の振り返りだけ厳しめでした。他の項目は大きな落ち込みはなく、一点集中で見直すのも手です。`,
-      `${only.label}の自己評価が低めです。完璧より「明日も記録できること」を優先してみましょう。`,
+      "振り返りの記録日数が前週より増えました。少しずつ習慣になってきています。",
+      "前週より振り返りが増えています。この調子で続けてみましょう。",
     ]);
   }
-  if (low.length >= 2) {
-    return pickVariant(seed + 3, [
-      `振り返りでは${low.map((d) => d.label).join("・")}が厳しめでした。休息と睡眠を先に置いても大丈夫です。`,
-      `食事・運動・体調の自己評価が低めに偏った週です。無理に全部直そうとせず、ひとつだけ楽にする工夫を。`,
-    ]);
-  }
-  if (declined.length >= 2 && improved.length === 0) {
-    return pickVariant(seed + 4, [
-      `振り返りは前週より下がった項目が複数あります。体調や忙しさの影響もあるので、責めずにペースを整えましょう。`,
-      `自己評価が前週より下向きの週でした。回復と睡眠を最優先にしてみてください。`,
-    ]);
-  }
-  return null;
+  return pickVariant(seed + 3, [
+    `振り返りを ${row.reflectionDays} 日記録しました。短い一言でも続くと振り返りやすくなります。`,
+    "一言メモの振り返りが残っています。完璧さより継続を優先して大丈夫です。",
+  ]);
 }
 
 function bloodPressureCoachLines(
@@ -1246,10 +963,7 @@ export function weeklyDashboardCoachNarrative(
 
   const hasWeight = row.avgWeightKg != null;
   const hasSteps = row.avgSteps != null;
-  const hasRefl =
-    row.avgMealScore != null ||
-    row.avgStepsSelfScore != null ||
-    row.avgConditionScore != null;
+  const hasRefl = row.reflectionDays > 0;
   const hasAnyCore = hasWeight || hasSteps || hasRefl;
 
   if (!hasAnyCore && !hasBpData) {

@@ -1,3 +1,4 @@
+import { normalizeDailyReflectionEntry } from "@/lib/reflection-display";
 import {
   deleteBloodPressureEntry,
   deleteClinicAppointmentEntry,
@@ -36,7 +37,6 @@ import type {
   PastMedicalHistoryEntry,
   PrescriptionEntry,
   PrescriptionMedicine,
-  ReflectionRating,
   StepsEntry,
   WeightEntry,
 } from "./types";
@@ -139,24 +139,10 @@ function isStepsEntry(x: unknown): x is StepsEntry {
   );
 }
 
-function isReflectionRating(x: unknown): x is ReflectionRating {
-  return x === "good" || x === "ok" || x === "bad";
-}
-
-function isDailyReflectionEntry(x: unknown): x is DailyReflectionEntry {
-  if (!isRecord(x)) {
-    return false;
-  }
-  return (
-    typeof x.id === "string" &&
-    typeof x.date === "string" &&
-    isReflectionRating(x.mealRating) &&
-    isReflectionRating(x.stepsRating) &&
-    isReflectionRating(x.conditionRating) &&
-    typeof x.createdAt === "string" &&
-    typeof x.updatedAt === "string" &&
-    (x.comment === undefined || typeof x.comment === "string")
-  );
+function normalizeDailyReflectionFromBackup(
+  x: unknown,
+): DailyReflectionEntry | null {
+  return normalizeDailyReflectionEntry(x);
 }
 
 function isBloodPressureEntry(x: unknown): x is BloodPressureEntry {
@@ -347,7 +333,7 @@ export function validateHealthParkBackupData(data: unknown): HealthParkBackupV1 
     throw new Error("処方箋データの形式が不正です。");
   }
   if (sv === BACKUP_SCHEMA_VERSION) {
-    if (!Array.isArray(dr) || !dr.every(isDailyReflectionEntry)) {
+    if (dr !== undefined && !Array.isArray(dr)) {
       throw new Error("振り返りデータの形式が不正です。");
     }
   }
@@ -364,8 +350,10 @@ export function validateHealthParkBackupData(data: unknown): HealthParkBackupV1 
     throw new Error("通院予定データの形式が不正です。");
   }
   const dailyReflections: DailyReflectionEntry[] =
-    sv === BACKUP_SCHEMA_VERSION && Array.isArray(dr) && dr.every(isDailyReflectionEntry)
+    sv === BACKUP_SCHEMA_VERSION && Array.isArray(dr)
       ? dr
+          .map(normalizeDailyReflectionFromBackup)
+          .filter((r): r is DailyReflectionEntry => r != null)
       : [];
   const pastMedicalHistory: PastMedicalHistoryEntry[] =
     Array.isArray(pmh) && pmh.every(isPastMedicalHistoryEntry) ? pmh : [];

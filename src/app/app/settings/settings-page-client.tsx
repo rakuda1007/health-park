@@ -239,7 +239,7 @@ export function SettingsPageClient() {
               体重・歩数・振り返り（セット）
             </span>
             <span className="mt-0.5 block text-sm text-[color:var(--hp-muted)]">
-              体重と歩数のグラフ、および振り返りのヒートマップをまとめて表示します。個別のオン・オフはできません。
+              体重と歩数のグラフ、および振り返りの一覧をまとめて表示します。個別のオン・オフはできません。
             </span>
           </span>
         </label>

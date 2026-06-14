@@ -1,41 +1,4 @@
-import type { DailyReflectionEntry, ReflectionRating } from "@/lib/db/types";
-
-export function ratingSymbol(r: ReflectionRating): string {
-  switch (r) {
-    case "good":
-      return "〇";
-    case "ok":
-      return "△";
-    case "bad":
-      return "✕";
-    default:
-      return "—";
-  }
-}
-
-export type RatingCounts = { good: number; ok: number; bad: number };
-
-export function emptyRatingCounts(): RatingCounts {
-  return { good: 0, ok: 0, bad: 0 };
-}
-
-export function countRatingsByAxis(
-  entries: DailyReflectionEntry[],
-): {
-  meal: RatingCounts;
-  steps: RatingCounts;
-  condition: RatingCounts;
-} {
-  const meal = emptyRatingCounts();
-  const steps = emptyRatingCounts();
-  const condition = emptyRatingCounts();
-  for (const e of entries) {
-    meal[e.mealRating] += 1;
-    steps[e.stepsRating] += 1;
-    condition[e.conditionRating] += 1;
-  }
-  return { meal, steps, condition };
-}
+import type { DailyReflectionEntry } from "@/lib/db/types";
 
 /** 今日を含む直近 n 日の ISO 開始日（YYYY-MM-DD） */
 export function isoDateDaysAgo(days: number): string {
@@ -46,6 +9,63 @@ export function isoDateDaysAgo(days: number): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+function legacyRatingSymbol(r: unknown): string | null {
+  if (r === "good") return "〇";
+  if (r === "ok") return "△";
+  if (r === "bad") return "✕";
+  return null;
+}
+
+function isRecord(x: unknown): x is Record<string, unknown> {
+  return typeof x === "object" && x !== null;
+}
+
+/** IndexedDB・バックアップから読み込んだ行を現行形式に正規化する */
+export function normalizeDailyReflectionEntry(
+  x: unknown,
+): DailyReflectionEntry | null {
+  if (!isRecord(x)) {
+    return null;
+  }
+  if (
+    typeof x.id !== "string" ||
+    typeof x.date !== "string" ||
+    typeof x.createdAt !== "string" ||
+    typeof x.updatedAt !== "string"
+  ) {
+    return null;
+  }
+
+  let comment = typeof x.comment === "string" ? x.comment.trim() : "";
+  if (!comment) {
+    const legacyParts: string[] = [];
+    const meal = legacyRatingSymbol(x.mealRating);
+    const steps = legacyRatingSymbol(x.stepsRating);
+    const condition = legacyRatingSymbol(x.conditionRating);
+    if (meal) legacyParts.push(`食事${meal}`);
+    if (steps) legacyParts.push(`歩数${steps}`);
+    if (condition) legacyParts.push(`体調${condition}`);
+    if (legacyParts.length > 0) {
+      comment = legacyParts.join(" ");
+    }
+  }
+  if (!comment) {
+    return null;
+  }
+
+  return {
+    id: x.id,
+    date: x.date,
+    comment,
+    createdAt: x.createdAt,
+    updatedAt: x.updatedAt,
+  };
+}
+
+export function hasReflectionComment(entry: DailyReflectionEntry): boolean {
+  return entry.comment.trim().length > 0;
 }
 
 export function filterReflectionsSince(

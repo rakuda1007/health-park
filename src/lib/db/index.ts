@@ -10,6 +10,7 @@ import type {
   StepsEntry,
   WeightEntry,
 } from "./types";
+import { normalizeDailyReflectionEntry } from "@/lib/reflection-display";
 
 const DB_NAME = "health-park";
 const DB_VERSION = 5;
@@ -516,7 +517,10 @@ export function deletePrescriptionEntry(id: string): Promise<void> {
 export async function listDailyReflectionEntries(): Promise<
   DailyReflectionEntry[]
 > {
-  return listByDateDesc<DailyReflectionEntry>(STORE_DAILY_REFLECTIONS);
+  const rows = await listByDateDesc<unknown>(STORE_DAILY_REFLECTIONS);
+  return rows
+    .map(normalizeDailyReflectionEntry)
+    .filter((r): r is DailyReflectionEntry => r != null);
 }
 
 export async function getDailyReflectionByDate(

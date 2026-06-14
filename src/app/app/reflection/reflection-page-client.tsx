@@ -6,31 +6,18 @@ import {
   listDailyReflectionEntries,
   putDailyReflectionEntry,
 } from "@/lib/db";
-import type { DailyReflectionEntry, ReflectionRating } from "@/lib/db/types";
+import type { DailyReflectionEntry } from "@/lib/db/types";
 import { RecordingPageAd } from "@/components/recording-page-ad";
-import { ratingSymbol } from "@/lib/reflection-display";
 import { todayIso } from "@/lib/date";
 import { useCallback, useEffect, useState } from "react";
 
-const RATING_OPTIONS: { value: ReflectionRating; symbol: string }[] = [
-  { value: "good", symbol: "〇" },
-  { value: "ok", symbol: "△" },
-  { value: "bad", symbol: "✕" },
-];
-
-function defaultRatings(): Record<"meal" | "steps" | "condition", ReflectionRating> {
-  return { meal: "ok", steps: "ok", condition: "ok" };
-}
-
 export function ReflectionPageClient() {
   const [date, setDate] = useState(todayIso);
-  const [meal, setMeal] = useState<ReflectionRating>("ok");
-  const [stepsRating, setStepsRating] = useState<ReflectionRating>("ok");
-  const [condition, setCondition] = useState<ReflectionRating>("ok");
   const [comment, setComment] = useState("");
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [allRows, setAllRows] = useState<DailyReflectionEntry[]>([]);
 
@@ -38,7 +25,7 @@ export function ReflectionPageClient() {
     try {
       setListError(null);
       const list = await listDailyReflectionEntries();
-      setAllRows(list);
+      setAllRows(list.filter((r) => r.comment.trim().length > 0));
     } catch (e) {
       setListError(e instanceof Error ? e.message : "一覧の読み込みに失敗しました");
     }
@@ -50,16 +37,9 @@ export function ReflectionPageClient() {
       const r = await getDailyReflectionByDate(d);
       if (r) {
         setLoadedId(r.id);
-        setMeal(r.mealRating);
-        setStepsRating(r.stepsRating);
-        setCondition(r.conditionRating);
-        setComment(r.comment ?? "");
+        setComment(r.comment);
       } else {
         setLoadedId(null);
-        const defs = defaultRatings();
-        setMeal(defs.meal);
-        setStepsRating(defs.steps);
-        setCondition(defs.condition);
         setComment("");
       }
     } catch (e) {
@@ -77,6 +57,12 @@ export function ReflectionPageClient() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const trimmed = comment.trim();
+    if (!trimmed) {
+      setSaveError("一言コメントを入力してください。");
+      return;
+    }
+    setSaveError(null);
     setSaving(true);
     try {
       const now = new Date().toISOString();
@@ -86,12 +72,9 @@ export function ReflectionPageClient() {
       await putDailyReflectionEntry({
         id,
         date,
-        mealRating: meal,
-        stepsRating,
-        conditionRating: condition,
-        comment: comment.trim() || undefined,
+        comment: trimmed,
         createdAt,
-        updatedAt: existing?.updatedAt ?? now,
+        updatedAt: now,
       });
       setLoadedId(id);
       await loadForDate(date);
@@ -110,10 +93,6 @@ export function ReflectionPageClient() {
     }
     await deleteDailyReflectionEntry(loadedId);
     setLoadedId(null);
-    const defs = defaultRatings();
-    setMeal(defs.meal);
-    setStepsRating(defs.steps);
-    setCondition(defs.condition);
     setComment("");
     await loadForDate(date);
     await loadList();
@@ -135,7 +114,7 @@ export function ReflectionPageClient() {
         一日の振り返り
       </h1>
       <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
-        食事・歩数・体調を〇・△・✕で記録します。前日分を翌日に入力する場合は日付を変えてください。
+        その日のことを一言で記録します。前日分を翌日に入力する場合は日付を変えてください。
       </p>
 
       <form
@@ -154,29 +133,14 @@ export function ReflectionPageClient() {
           />
         </label>
 
-        <RatingBlock
-          title="食事（その日の食事全体）"
-          value={meal}
-          onChange={setMeal}
-        />
-        <RatingBlock
-          title="歩数"
-          value={stepsRating}
-          onChange={setStepsRating}
-        />
-        <RatingBlock
-          title="体調"
-          value={condition}
-          onChange={setCondition}
-        />
-
         <label className="flex flex-col gap-1">
-          <span className="text-sm text-[color:var(--hp-muted)]">一言コメント（任意）</span>
+          <span className="text-sm text-[color:var(--hp-muted)]">一言コメント</span>
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            rows={3}
-            placeholder="今日の感想など"
+            rows={4}
+            required
+            placeholder="今日の体調やできごとなど"
             className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
           />
         </label>
@@ -203,6 +167,11 @@ export function ReflectionPageClient() {
 
       <RecordingPageAd />
 
+      {saveError ? (
+        <p className="mt-4 text-sm text-red-600 dark:text-red-400" role="alert">
+          {saveError}
+        </p>
+      ) : null}
       {loadError ? (
         <p className="mt-4 text-sm text-red-600 dark:text-red-400" role="alert">
           {loadError}
@@ -217,7 +186,7 @@ export function ReflectionPageClient() {
           振り返り一覧
         </h2>
         <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-          日付ごとの自己評価（食事・歩数・体調）。行を選ぶと上のフォームで編集できます。
+          日付ごとのコメント。行を選ぶと上のフォームで編集できます。
         </p>
         {listError ? (
           <p className="mt-2 text-sm text-red-600 dark:text-red-400" role="alert">
@@ -229,22 +198,13 @@ export function ReflectionPageClient() {
           </p>
         ) : (
           <div className="mt-3 overflow-x-auto rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)]">
-            <table className="w-full min-w-[28rem] border-collapse text-left text-sm">
+            <table className="w-full min-w-[20rem] border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-[color:var(--hp-border)] bg-[color:var(--hp-input)]">
                   <th className="px-3 py-2 text-xs font-medium text-[color:var(--hp-muted)]">
                     日付
                   </th>
-                  <th className="px-2 py-2 text-center text-xs font-medium text-[color:var(--hp-muted)]">
-                    食事
-                  </th>
-                  <th className="px-2 py-2 text-center text-xs font-medium text-[color:var(--hp-muted)]">
-                    歩数
-                  </th>
-                  <th className="px-2 py-2 text-center text-xs font-medium text-[color:var(--hp-muted)]">
-                    体調
-                  </th>
-                  <th className="min-w-[8rem] px-3 py-2 text-xs font-medium text-[color:var(--hp-muted)]">
+                  <th className="min-w-[12rem] px-3 py-2 text-xs font-medium text-[color:var(--hp-muted)]">
                     コメント
                   </th>
                   <th className="w-[1%] whitespace-nowrap px-2 py-2 text-right text-xs font-medium text-[color:var(--hp-muted)]">
@@ -261,17 +221,8 @@ export function ReflectionPageClient() {
                     <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-[color:var(--hp-foreground)]">
                       {row.date}
                     </td>
-                    <td className="px-2 py-2.5 text-center text-lg">
-                      {ratingSymbol(row.mealRating)}
-                    </td>
-                    <td className="px-2 py-2.5 text-center text-lg">
-                      {ratingSymbol(row.stepsRating)}
-                    </td>
-                    <td className="px-2 py-2.5 text-center text-lg">
-                      {ratingSymbol(row.conditionRating)}
-                    </td>
-                    <td className="max-w-[14rem] truncate px-3 py-2.5 text-xs text-[color:var(--hp-muted)]">
-                      {row.comment ?? "—"}
+                    <td className="whitespace-pre-wrap px-3 py-2.5 text-[color:var(--hp-foreground)]">
+                      {row.comment}
                     </td>
                     <td className="px-2 py-2.5 text-right">
                       <button
@@ -289,46 +240,6 @@ export function ReflectionPageClient() {
           </div>
         )}
       </section>
-
-      <p className="mt-6 text-xs text-[color:var(--hp-muted)]">
-        〇＝よかった／十分　△＝まあまあ　✕＝いまいち（主観の目安です）
-      </p>
     </main>
-  );
-}
-
-function RatingBlock({
-  title,
-  value,
-  onChange,
-}: {
-  title: string;
-  value: ReflectionRating;
-  onChange: (v: ReflectionRating) => void;
-}) {
-  return (
-    <fieldset>
-      <legend className="text-sm font-medium text-[color:var(--hp-foreground)]">
-        {title}
-      </legend>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {RATING_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => onChange(opt.value)}
-            className={`min-w-[3rem] rounded-lg border px-3 py-2 text-center text-lg leading-none ${
-              value === opt.value
-                ? "border-[color:var(--hp-accent)] bg-[color:var(--hp-accent)] text-[color:var(--hp-accent-fg)]"
-                : "border-[color:var(--hp-border)] bg-[color:var(--hp-background)] text-[color:var(--hp-foreground)] hover:border-[color:var(--hp-accent)]"
-            }`}
-            aria-pressed={value === opt.value}
-          >
-            <span className="sr-only">{opt.value}</span>
-            {opt.symbol}
-          </button>
-        ))}
-      </div>
-    </fieldset>
   );
 }

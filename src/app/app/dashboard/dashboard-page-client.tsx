@@ -15,15 +15,12 @@ import {
   readDashboardDisplayPreferences,
   type DashboardDisplayPreferences,
 } from "@/lib/dashboard-preferences";
-import { ReflectionHeatmap } from "@/components/reflection-heatmap";
-import { ReflectionWeeklyAvgHeatmap } from "@/components/reflection-weekly-avg-heatmap";
+import { ReflectionCommentList } from "@/components/reflection-comment-list";
 import {
   buildBpChartRows,
   buildCombinedChartRows,
   buildDailyDashboardPoints,
-  buildMonthlyReflectionHeatmapColumns,
   buildWeeklyDashboardRows,
-  buildWeeklyReflectionHeatmapColumns,
   createDefaultCustomDateRange,
   resolveDashboardDaysBack,
   type CombinedChartGranularity,
@@ -56,9 +53,6 @@ import {
 } from "recharts";
 
 const FINITE_PERIOD_DAYS = [7, 14, 30] as const satisfies readonly DashboardChartPeriodOption[];
-
-/** 週／月平均ヒートマップ用（表示期間スイッチと独立・約6か月） */
-const REFLECTION_HEATMAP_DAYS_BACK = 186;
 
 /** `weight-visualization.tsx` と同じキー（体重画面で設定した目標帯） */
 const LS_WEIGHT_GOAL_MIN = "health-park-weight-goal-min";
@@ -120,9 +114,6 @@ export function DashboardPageClient() {
   const [summaryCustomRange, setSummaryCustomRange] = useState(
     createDefaultCustomDateRange,
   );
-  const [reflectionHeatmapMode, setReflectionHeatmapMode] = useState<
-    "day" | "week" | "month"
-  >("day");
   const [goalMinStr, setGoalMinStr] = useState("");
   const [goalMaxStr, setGoalMaxStr] = useState("");
 
@@ -266,53 +257,13 @@ export function DashboardPageClient() {
     [weeklySummaryDailyPoints],
   );
 
-  const reflectionLongDailyPoints = useMemo(
-    () =>
-      buildDailyDashboardPoints(
-        REFLECTION_HEATMAP_DAYS_BACK,
-        weightEntries,
-        stepsEntries,
-        reflections,
-        bloodPressureEntries,
-      ),
-    [weightEntries, stepsEntries, reflections, bloodPressureEntries],
-  );
-
-  const weeklyReflectionHeatmapColumns = useMemo(
-    () => buildWeeklyReflectionHeatmapColumns(reflectionLongDailyPoints, 9),
-    [reflectionLongDailyPoints],
-  );
-
-  const monthlyReflectionHeatmapColumns = useMemo(
-    () => buildMonthlyReflectionHeatmapColumns(reflectionLongDailyPoints, 8),
-    [reflectionLongDailyPoints],
-  );
-
   const hasAnyWeight = combinedDailyPoints.some((p) => p.weightKg != null);
   const hasAnySteps = combinedDailyPoints.some((p) => p.steps != null);
   const hasCombined = hasAnyWeight || hasAnySteps;
 
-  const hasAnyDailyReflectionScore = reflectionDayDailyPoints.some(
-    (p) =>
-      p.mealScore != null ||
-      p.stepsSelfScore != null ||
-      p.conditionScore != null,
+  const hasAnyReflectionComment = reflectionDayDailyPoints.some(
+    (p) => p.reflectionComment != null,
   );
-
-  const hasWeeklyReflectionHeatmapData = weeklyReflectionHeatmapColumns.some(
-    (c) =>
-      c.avgMealScore != null ||
-      c.avgStepsSelfScore != null ||
-      c.avgConditionScore != null,
-  );
-
-  const hasMonthlyReflectionHeatmapData =
-    monthlyReflectionHeatmapColumns.some(
-      (c) =>
-        c.avgMealScore != null ||
-        c.avgStepsSelfScore != null ||
-        c.avgConditionScore != null,
-    );
 
   /** 棒グラフ用（未記録は 0＋透明セル。ツールチップは元の steps を参照） */
   const combinedChartData = useMemo(
@@ -706,64 +657,26 @@ export function DashboardPageClient() {
 
         <div className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
           <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
-            振り返り（ヒートマップ）
+            振り返り（一覧）
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            食事・歩数・体調を 〇=2、△=1、✕=0
-            にしたヒートマップです。日ごとは下の表示期間で切り替え、週・月は直近約6か月を別途集計します。
+            選択した期間の一言コメントです。新しい順に表示します。
           </p>
-          <ReflectionHeatmapControls
-            dayPeriod={reflectionDayPeriod}
-            onDayPeriodChange={setReflectionDayPeriod}
+          <ReflectionPeriodControls
+            period={reflectionDayPeriod}
+            onPeriodChange={setReflectionDayPeriod}
             customRange={reflectionCustomRange}
             onCustomRangeChange={setReflectionCustomRange}
-            mode={reflectionHeatmapMode}
-            onModeChange={setReflectionHeatmapMode}
           />
-          {reflectionHeatmapMode === "day" ? (
-            !hasAnyDailyReflectionScore ? (
-              <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
-                選択した表示期間に振り返りの記録がありません。
-              </p>
-            ) : (
-              <>
-                <h3 className="mt-3 text-xs font-medium text-[color:var(--hp-foreground)]">
-                  日ごと
-                </h3>
-                <ReflectionHeatmap points={reflectionDayDailyPoints} />
-              </>
-            )
-          ) : reflectionHeatmapMode === "week" ? (
-            !hasWeeklyReflectionHeatmapData ? (
-              <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
-                週平均ヒートマップ用の振り返り記録がありません。
-              </p>
-            ) : (
-              <div className="mt-3">
-                <ReflectionWeeklyAvgHeatmap
-                  columns={weeklyReflectionHeatmapColumns}
-                  heading="週平均（約6か月・表示期間の切り替えと無関係）"
-                  footer="直近約186日を週単位に集計し、最長9週を左から古い順に表示します。セルは0〜2の週平均（記録があった日のみで平均）です。"
-                  periodAvgWord="週"
-                />
-              </div>
-            )
-          ) : !hasMonthlyReflectionHeatmapData ? (
+          {!hasAnyReflectionComment ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
-              月平均ヒートマップ用の振り返り記録がありません。
+              選択した表示期間に振り返りの記録がありません。
             </p>
           ) : (
-            <div className="mt-3">
-              <ReflectionWeeklyAvgHeatmap
-                columns={monthlyReflectionHeatmapColumns}
-                heading="月平均（約6か月・表示期間の切り替えと無関係）"
-                footer="直近約186日を月単位に集計し、最長8か月を左から古い順に表示します。セルは0〜2の月平均（記録があった日のみで平均）です。"
-                periodAvgWord="月"
-              />
-            </div>
+            <ReflectionCommentList points={reflectionDayDailyPoints} />
           )}
           <p className="mt-2 text-xs text-[color:var(--hp-muted)]">
-            合計スコア（1日最大6）は週次表を参照。記録は{" "}
+            記録は{" "}
             <Link
               href={appPath("/reflection")}
               className="text-[color:var(--hp-accent)] underline"
@@ -1319,64 +1232,28 @@ function DisplayPeriodControls({
   );
 }
 
-function ReflectionHeatmapControls({
-  dayPeriod,
-  onDayPeriodChange,
+function ReflectionPeriodControls({
+  period,
+  onPeriodChange,
   customRange,
   onCustomRangeChange,
-  mode,
-  onModeChange,
 }: {
-  dayPeriod: DashboardChartPeriodOption;
-  onDayPeriodChange: (p: DashboardChartPeriodOption) => void;
+  period: DashboardChartPeriodOption;
+  onPeriodChange: (p: DashboardChartPeriodOption) => void;
   customRange: DashboardCustomDateRange;
   onCustomRangeChange: (r: DashboardCustomDateRange) => void;
-  mode: "day" | "week" | "month";
-  onModeChange: (m: "day" | "week" | "month") => void;
 }) {
   return (
-    <div className="mt-3 flex flex-col gap-3">
-      {mode === "day" ? (
-        <div className="flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-start md:gap-2">
-          <span className="shrink-0 text-xs text-[color:var(--hp-muted)] md:pt-1">
-            表示期間:
-          </span>
-          <ChartPeriodRangeButtons
-            period={dayPeriod}
-            onPeriodChange={onDayPeriodChange}
-            customRange={customRange}
-            onCustomRangeChange={onCustomRangeChange}
-          />
-        </div>
-      ) : null}
-      <div className="flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-center md:gap-2">
-        <span className="shrink-0 text-xs text-[color:var(--hp-muted)]">
-          集計期間:
-        </span>
-        <div className="flex flex-row flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => onModeChange("day")}
-            className={chartControlButtonClass(mode === "day")}
-          >
-            日ごと
-          </button>
-          <button
-            type="button"
-            onClick={() => onModeChange("week")}
-            className={chartControlButtonClass(mode === "week")}
-          >
-            週ごと（週平均）
-          </button>
-          <button
-            type="button"
-            onClick={() => onModeChange("month")}
-            className={chartControlButtonClass(mode === "month")}
-          >
-            月ごと（月平均）
-          </button>
-        </div>
-      </div>
+    <div className="mt-3 flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-start md:gap-2">
+      <span className="shrink-0 text-xs text-[color:var(--hp-muted)] md:pt-1">
+        表示期間:
+      </span>
+      <ChartPeriodRangeButtons
+        period={period}
+        onPeriodChange={onPeriodChange}
+        customRange={customRange}
+        onCustomRangeChange={onCustomRangeChange}
+      />
     </div>
   );
 }
