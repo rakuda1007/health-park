@@ -175,10 +175,8 @@ export function SettingsPageClient() {
       return;
     }
     if (minStr === "" || maxStr === "") {
-      setAxisError(
-        "体重の軸は最小・最大の両方を入力するか、両方空にして自動にしてください。",
-      );
-      sync();
+      // もう一方の入力待ち — エラーにせず draft を維持する
+      setAxisError(null);
       return;
     }
     const min = Number.parseFloat(minStr);
@@ -285,7 +283,7 @@ export function SettingsPageClient() {
             体重グラフの縦軸（kg）
           </h3>
           <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
-            ホームの体重・歩数グラフ左側の目盛り範囲です。未入力のときは表示中の記録（と体重画面の目標帯）に合わせて自動で決まります。
+            ホームの体重・歩数グラフ左側の目盛り範囲です。未入力のときは表示中の記録（と体重画面の目標帯）に合わせて自動で決まります。最小・最大を両方入力し、どちらかの欄からフォーカスを外すと保存されます。
           </p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1">
