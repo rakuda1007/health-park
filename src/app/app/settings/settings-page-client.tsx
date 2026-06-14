@@ -42,6 +42,14 @@ export function SettingsPageClient() {
   const [pulseMaxDraft, setPulseMaxDraft] = useState(() =>
     String(readDashboardDisplayPreferences().pulseAxisMax),
   );
+  const [weightMinDraft, setWeightMinDraft] = useState(() => {
+    const w = readDashboardDisplayPreferences().weightAxisMin;
+    return w == null ? "" : String(w);
+  });
+  const [weightMaxDraft, setWeightMaxDraft] = useState(() => {
+    const w = readDashboardDisplayPreferences().weightAxisMax;
+    return w == null ? "" : String(w);
+  });
 
   const sync = useCallback(() => {
     const next = readDashboardDisplayPreferences();
@@ -50,6 +58,8 @@ export function SettingsPageClient() {
     setBpMaxDraft(String(next.bpAxisMax));
     setPulseMinDraft(String(next.pulseAxisMin));
     setPulseMaxDraft(String(next.pulseAxisMax));
+    setWeightMinDraft(next.weightAxisMin == null ? "" : String(next.weightAxisMin));
+    setWeightMaxDraft(next.weightAxisMax == null ? "" : String(next.weightAxisMax));
   }, []);
 
   useEffect(() => {
@@ -152,6 +162,44 @@ export function SettingsPageClient() {
     sync();
   }
 
+  function commitWeightAxisFromDraft() {
+    const minStr = weightMinDraft.trim();
+    const maxStr = weightMaxDraft.trim();
+    if (minStr === "" && maxStr === "") {
+      setAxisError(null);
+      writeDashboardDisplayPreferences({
+        weightAxisMin: null,
+        weightAxisMax: null,
+      });
+      sync();
+      return;
+    }
+    if (minStr === "" || maxStr === "") {
+      setAxisError(
+        "体重の軸は最小・最大の両方を入力するか、両方空にして自動にしてください。",
+      );
+      sync();
+      return;
+    }
+    const min = Number.parseFloat(minStr);
+    const max = Number.parseFloat(maxStr);
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      setAxisError("体重の軸には数値を入力してください。");
+      sync();
+      return;
+    }
+    if (!validateAxisRange(min, max, 0, 500, 1)) {
+      setAxisError(
+        "体重の軸は、0〜500 kg の範囲で、最小値より最大値が 1 kg 以上大きくなるように指定してください。",
+      );
+      sync();
+      return;
+    }
+    setAxisError(null);
+    writeDashboardDisplayPreferences({ weightAxisMin: min, weightAxisMax: max });
+    sync();
+  }
+
   function resetAxes() {
     setAxisError(null);
     resetDashboardChartAxisPreferences();
@@ -231,6 +279,47 @@ export function SettingsPageClient() {
             </span>
           </span>
         </label>
+
+        <div className="border-t border-[color:var(--hp-border)] pt-6">
+          <h3 className="text-sm font-medium text-[color:var(--hp-foreground)]">
+            体重グラフの縦軸（kg）
+          </h3>
+          <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
+            ホームの体重・歩数グラフ左側の目盛り範囲です。未入力のときは表示中の記録（と体重画面の目標帯）に合わせて自動で決まります。
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-[color:var(--hp-muted)]">最小</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                max={499}
+                step={0.1}
+                placeholder="自動"
+                value={weightMinDraft}
+                className={settingsNumberInputClass}
+                onChange={(e) => setWeightMinDraft(e.target.value)}
+                onBlur={commitWeightAxisFromDraft}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-[color:var(--hp-muted)]">最大</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={1}
+                max={500}
+                step={0.1}
+                placeholder="自動"
+                value={weightMaxDraft}
+                className={settingsNumberInputClass}
+                onChange={(e) => setWeightMaxDraft(e.target.value)}
+                onBlur={commitWeightAxisFromDraft}
+              />
+            </label>
+          </div>
+        </div>
 
         <div className="border-t border-[color:var(--hp-border)] pt-6">
           <h3 className="text-sm font-medium text-[color:var(--hp-foreground)]">
@@ -323,7 +412,7 @@ export function SettingsPageClient() {
           onClick={resetAxes}
           className="rounded-lg border border-[color:var(--hp-border)] px-3 py-2 text-sm text-[color:var(--hp-foreground)] hover:border-[color:var(--hp-accent)]"
         >
-          血圧・脈拍の軸をデフォルトに戻す
+          グラフの縦軸をデフォルトに戻す（体重は自動、血圧・脈拍は初期値）
         </button>
 
         <p className="text-sm">

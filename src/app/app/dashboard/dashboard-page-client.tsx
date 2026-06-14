@@ -363,6 +363,33 @@ export function DashboardPageClient() {
       gx > 0 &&
       gm < gx;
 
+    const buildTicks = (d0: number, d1: number) => {
+      const step = 0.5;
+      const ticks: number[] = [];
+      for (let t = d0; t <= d1 + step / 2; t += step) {
+        ticks.push(Math.round(t * 10) / 10);
+      }
+      return ticks.length >= 2 ? ticks : [d0, d1];
+    };
+
+    if (
+      dashPrefs.weightAxisMin != null &&
+      dashPrefs.weightAxisMax != null
+    ) {
+      const domain: [number, number] = [
+        dashPrefs.weightAxisMin,
+        dashPrefs.weightAxisMax,
+      ];
+      const [d0, d1] = domain;
+      return {
+        domain,
+        ticks: buildTicks(d0, d1),
+        hasGoalBand,
+        goalMin: hasGoalBand ? gm : 0,
+        goalMax: hasGoalBand ? gx : 0,
+      };
+    }
+
     const vals = combinedChartData
       .map((p) => p.weightKg)
       .filter((v): v is number => v != null);
@@ -400,18 +427,20 @@ export function DashboardPageClient() {
     const domain: [number, number] =
       min === max ? [Math.max(0, min - step), max + step] : [min, max];
     const [d0, d1] = domain;
-    const ticks: number[] = [];
-    for (let t = d0; t <= d1 + step / 2; t += step) {
-      ticks.push(Math.round(t * 10) / 10);
-    }
     return {
       domain,
-      ticks: ticks.length >= 2 ? ticks : [d0, d1],
+      ticks: buildTicks(d0, d1),
       hasGoalBand,
       goalMin: hasGoalBand ? gm : 0,
       goalMax: hasGoalBand ? gx : 0,
     };
-  }, [combinedChartData, goalMinStr, goalMaxStr]);
+  }, [
+    combinedChartData,
+    goalMinStr,
+    goalMaxStr,
+    dashPrefs.weightAxisMin,
+    dashPrefs.weightAxisMax,
+  ]);
 
   const stepsAxisMax = useMemo(() => {
     const vals = combinedChartData

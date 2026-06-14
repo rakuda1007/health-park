@@ -8,6 +8,8 @@ const LS_BP_AXIS_MIN = "health-park-dashboard-bp-axis-min";
 const LS_BP_AXIS_MAX = "health-park-dashboard-bp-axis-max";
 const LS_PULSE_AXIS_MIN = "health-park-dashboard-pulse-axis-min";
 const LS_PULSE_AXIS_MAX = "health-park-dashboard-pulse-axis-max";
+const LS_WEIGHT_AXIS_MIN = "health-park-dashboard-weight-axis-min";
+const LS_WEIGHT_AXIS_MAX = "health-park-dashboard-weight-axis-max";
 
 export const DASHBOARD_PREFS_CHANGED = "health-park-dashboard-prefs-changed";
 
@@ -22,7 +24,10 @@ const BP_AXIS_ABS_MIN = 0;
 const BP_AXIS_ABS_MAX = 300;
 const PULSE_AXIS_ABS_MIN = 20;
 const PULSE_AXIS_ABS_MAX = 250;
+const WEIGHT_AXIS_ABS_MIN = 0;
+const WEIGHT_AXIS_ABS_MAX = 500;
 const AXIS_MIN_SPAN = 10;
+const WEIGHT_AXIS_MIN_SPAN = 1;
 
 export type DashboardDisplayPreferences = {
   /** 体重・歩数グラフ＋振り返りヒートマップ（セット） */
@@ -33,6 +38,9 @@ export type DashboardDisplayPreferences = {
   bpAxisMax: number;
   pulseAxisMin: number;
   pulseAxisMax: number;
+  /** 未設定（null）のときは記録・目標帯から自動計算 */
+  weightAxisMin: number | null;
+  weightAxisMax: number | null;
 };
 
 function readBool(key: string, defaultTrue: boolean): boolean {
@@ -63,6 +71,38 @@ function readOptionalInt(key: string): number | null {
   }
   const n = Number.parseInt(raw, 10);
   return Number.isFinite(n) ? n : null;
+}
+
+function readOptionalFloat(key: string): number | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const raw = localStorage.getItem(key);
+  if (raw === null || raw.trim() === "") {
+    return null;
+  }
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function readCustomWeightAxis(): { min: number; max: number } | null {
+  const min = readOptionalFloat(LS_WEIGHT_AXIS_MIN);
+  const max = readOptionalFloat(LS_WEIGHT_AXIS_MAX);
+  if (min === null || max === null) {
+    return null;
+  }
+  if (
+    !validateAxisRange(
+      min,
+      max,
+      WEIGHT_AXIS_ABS_MIN,
+      WEIGHT_AXIS_ABS_MAX,
+      WEIGHT_AXIS_MIN_SPAN,
+    )
+  ) {
+    return null;
+  }
+  return { min, max };
 }
 
 function clamp(n: number, lo: number, hi: number): number {
@@ -104,6 +144,7 @@ export function readDashboardDisplayPreferences(): DashboardDisplayPreferences {
     PULSE_AXIS_ABS_MIN,
     PULSE_AXIS_ABS_MAX,
   );
+  const weight = readCustomWeightAxis();
   return {
     showCoreBundle: readBool(LS_SHOW_CORE, true),
     showBloodPressure: readBoolDefaultFalse(LS_SHOW_BP),
@@ -112,6 +153,8 @@ export function readDashboardDisplayPreferences(): DashboardDisplayPreferences {
     bpAxisMax: bp.max,
     pulseAxisMin: pulse.min,
     pulseAxisMax: pulse.max,
+    weightAxisMin: weight?.min ?? null,
+    weightAxisMax: weight?.max ?? null,
   };
 }
 
@@ -121,13 +164,14 @@ export function validateAxisRange(
   max: number,
   absMin: number,
   absMax: number,
+  minSpan = AXIS_MIN_SPAN,
 ): boolean {
   if (!Number.isFinite(min) || !Number.isFinite(max)) {
     return false;
   }
   const a = clamp(min, absMin, absMax);
   const b = clamp(max, absMin, absMax);
-  return b - a >= AXIS_MIN_SPAN;
+  return b - a >= minSpan;
 }
 
 export function writeDashboardDisplayPreferences(
@@ -187,14 +231,41 @@ export function writeDashboardDisplayPreferences(
     }
   }
 
+  if (patch.weightAxisMin === null && patch.weightAxisMax === null) {
+    localStorage.removeItem(LS_WEIGHT_AXIS_MIN);
+    localStorage.removeItem(LS_WEIGHT_AXIS_MAX);
+  } else if (
+    patch.weightAxisMin !== undefined ||
+    patch.weightAxisMax !== undefined
+  ) {
+    const wMin = patch.weightAxisMin ?? current.weightAxisMin;
+    const wMax = patch.weightAxisMax ?? current.weightAxisMax;
+    if (
+      wMin != null &&
+      wMax != null &&
+      validateAxisRange(
+        wMin,
+        wMax,
+        WEIGHT_AXIS_ABS_MIN,
+        WEIGHT_AXIS_ABS_MAX,
+        WEIGHT_AXIS_MIN_SPAN,
+      )
+    ) {
+      localStorage.setItem(LS_WEIGHT_AXIS_MIN, String(wMin));
+      localStorage.setItem(LS_WEIGHT_AXIS_MAX, String(wMax));
+    }
+  }
+
   window.dispatchEvent(new Event(DASHBOARD_PREFS_CHANGED));
 }
 
-/** 血圧・脈拍グラフの縦軸をデフォルトに戻す */
+/** グラフの縦軸をデフォルトに戻す（体重は自動、血圧・脈拍は固定デフォルト） */
 export function resetDashboardChartAxisPreferences(): void {
   if (typeof window === "undefined") {
     return;
   }
+  localStorage.removeItem(LS_WEIGHT_AXIS_MIN);
+  localStorage.removeItem(LS_WEIGHT_AXIS_MAX);
   localStorage.setItem(LS_BP_AXIS_MIN, String(DEFAULT_BP_AXIS_MIN));
   localStorage.setItem(LS_BP_AXIS_MAX, String(DEFAULT_BP_AXIS_MAX));
   localStorage.setItem(LS_PULSE_AXIS_MIN, String(DEFAULT_PULSE_AXIS_MIN));
