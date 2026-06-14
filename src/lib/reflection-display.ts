@@ -11,13 +11,6 @@ export function isoDateDaysAgo(days: number): string {
   return `${y}-${m}-${day}`;
 }
 
-function legacyRatingSymbol(r: unknown): string | null {
-  if (r === "good") return "〇";
-  if (r === "ok") return "△";
-  if (r === "bad") return "✕";
-  return null;
-}
-
 function isRecord(x: unknown): x is Record<string, unknown> {
   return typeof x === "object" && x !== null;
 }
@@ -38,19 +31,7 @@ export function normalizeDailyReflectionEntry(
     return null;
   }
 
-  let comment = typeof x.comment === "string" ? x.comment.trim() : "";
-  if (!comment) {
-    const legacyParts: string[] = [];
-    const meal = legacyRatingSymbol(x.mealRating);
-    const steps = legacyRatingSymbol(x.stepsRating);
-    const condition = legacyRatingSymbol(x.conditionRating);
-    if (meal) legacyParts.push(`食事${meal}`);
-    if (steps) legacyParts.push(`歩数${steps}`);
-    if (condition) legacyParts.push(`体調${condition}`);
-    if (legacyParts.length > 0) {
-      comment = legacyParts.join(" ");
-    }
-  }
+  const comment = typeof x.comment === "string" ? x.comment.trim() : "";
   if (!comment) {
     return null;
   }
