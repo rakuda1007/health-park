@@ -261,10 +261,6 @@ export function DashboardPageClient() {
   const hasAnySteps = combinedDailyPoints.some((p) => p.steps != null);
   const hasCombined = hasAnyWeight || hasAnySteps;
 
-  const hasAnyReflectionComment = reflectionDayDailyPoints.some(
-    (p) => p.reflectionComment != null,
-  );
-
   /** 棒グラフ用（未記録は 0＋透明セル。ツールチップは元の steps を参照） */
   const combinedChartData = useMemo(
     () =>
@@ -668,13 +664,7 @@ export function DashboardPageClient() {
             customRange={reflectionCustomRange}
             onCustomRangeChange={setReflectionCustomRange}
           />
-          {!hasAnyReflectionComment ? (
-            <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
-              選択した表示期間に振り返りの記録がありません。
-            </p>
-          ) : (
-            <ReflectionCommentList points={reflectionDayDailyPoints} />
-          )}
+          <ReflectionCommentList points={reflectionDayDailyPoints} />
           <p className="mt-2 text-xs text-[color:var(--hp-muted)]">
             記録は{" "}
             <Link

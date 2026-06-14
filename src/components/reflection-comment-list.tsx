@@ -7,13 +7,7 @@ type Props = {
 };
 
 export function ReflectionCommentList({ points }: Props) {
-  const rows = [...points]
-    .filter((p) => p.reflectionComment != null)
-    .reverse();
-
-  if (rows.length === 0) {
-    return null;
-  }
+  const rows = [...points].reverse();
 
   return (
     <div className="mt-3 overflow-x-auto rounded-lg border border-[color:var(--hp-border)]">
@@ -38,7 +32,7 @@ export function ReflectionCommentList({ points }: Props) {
                 {p.date}
               </td>
               <td className="whitespace-pre-wrap px-3 py-2.5 text-[color:var(--hp-foreground)]">
-                {p.reflectionComment}
+                {p.reflectionComment ?? ""}
               </td>
             </tr>
           ))}
