@@ -660,7 +660,7 @@ export function DashboardPageClient() {
             振り返り（一覧）
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            選択した期間の一言コメントです。新しい順に表示します。
+            選択した期間の日付とコメントの一覧です。新しい順に表示します。
           </p>
           <ReflectionPeriodControls
             period={reflectionDayPeriod}
