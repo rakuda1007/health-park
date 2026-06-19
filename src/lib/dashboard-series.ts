@@ -482,8 +482,6 @@ export type WeeklyDashboardRow = {
   weightDays: number;
   avgSteps: number | null;
   stepsRecordedDays: number;
-  /** 振り返りコメントが記録された日数 */
-  reflectionDays: number;
   /** 週平均（記録があった日のみ）。脈拍は記録がある日のみ平均 */
   avgSystolic: number | null;
   avgDiastolic: number | null;
@@ -505,9 +503,6 @@ function aggregateWeekRows(
     .map(([weekStart, pts]) => {
       const wVals = pts.filter((p) => p.weightKg != null).map((p) => p.weightKg!);
       const sVals = pts.filter((p) => p.steps != null).map((p) => p.steps!);
-      const reflectionDays = pts.filter(
-        (p) => p.reflectionComment != null,
-      ).length;
       const bpPts = pts.filter(
         (p) => p.systolic != null && p.diastolic != null,
       );
@@ -530,7 +525,6 @@ function aggregateWeekRows(
             ? Math.round(sVals.reduce((a, b) => a + b, 0) / sVals.length)
             : null,
         stepsRecordedDays: sVals.length,
-        reflectionDays,
         avgSystolic:
           sysVals.length > 0
             ? Math.round(mean(sysVals))
@@ -611,34 +605,6 @@ export function weeklyStepsNarrative(
     return `前週の平均より約 ${Math.abs(Math.round(diff)).toLocaleString("ja-JP")} 歩多いです。`;
   }
   return `前週の平均より約 ${Math.abs(Math.round(diff)).toLocaleString("ja-JP")} 歩少ないです。`;
-}
-
-/**
- * 振り返り（一言コメント）の週次サマリー用。
- */
-export function weeklyReflectionNarrative(
-  row: WeeklyDashboardRow,
-  prev: WeeklyDashboardRow | null,
-): string {
-  if (row.reflectionDays === 0) {
-    return "振り返りの記録がありません。";
-  }
-  const parts = [`振り返りを ${row.reflectionDays} 日記録しました`];
-  if (prev) {
-    if (prev.reflectionDays === 0) {
-      parts.push("前週は記録がありませんでした");
-    } else {
-      const diff = row.reflectionDays - prev.reflectionDays;
-      if (diff > 0) {
-        parts.push(`前週より ${diff} 日多いです`);
-      } else if (diff < 0) {
-        parts.push(`前週より ${Math.abs(diff)} 日少ないです`);
-      } else {
-        parts.push("前週と同じ日数です");
-      }
-    }
-  }
-  return `${parts.join("。")}。`;
 }
 
 /**
@@ -846,38 +812,6 @@ function weightGoalCoachLine(
   ]);
 }
 
-function reflectionCoachLine(
-  row: WeeklyDashboardRow,
-  prev: WeeklyDashboardRow | null,
-  seed: number,
-): string | null {
-  if (row.reflectionDays === 0) {
-    return null;
-  }
-  if (row.reflectionDays >= 5) {
-    return pickVariant(seed, [
-      "振り返りがほぼ毎日続いています。短いメモでも習慣になっていれば十分な価値があります。",
-      "ほぼ毎日、一言の振り返りが残せています。続けられている自分を認めてあげてください。",
-    ]);
-  }
-  if (row.reflectionDays >= 3) {
-    return pickVariant(seed + 1, [
-      `振り返りを ${row.reflectionDays} 日記録しました。無理のないペースで続けられています。`,
-      "週の半分以上、振り返りが残せています。",
-    ]);
-  }
-  if (prev && row.reflectionDays > prev.reflectionDays) {
-    return pickVariant(seed + 2, [
-      "振り返りの記録日数が前週より増えました。少しずつ習慣になってきています。",
-      "前週より振り返りが増えています。この調子で続けてみましょう。",
-    ]);
-  }
-  return pickVariant(seed + 3, [
-    `振り返りを ${row.reflectionDays} 日記録しました。短い一言でも続くと振り返りやすくなります。`,
-    "一言メモの振り返りが残っています。完璧さより継続を優先して大丈夫です。",
-  ]);
-}
-
 function bloodPressureCoachLines(
   row: WeeklyDashboardRow,
   prev: WeeklyDashboardRow | null,
@@ -968,8 +902,7 @@ export function weeklyDashboardCoachNarrative(
 
   const hasWeight = row.avgWeightKg != null;
   const hasSteps = row.avgSteps != null;
-  const hasRefl = row.reflectionDays > 0;
-  const hasAnyCore = hasWeight || hasSteps || hasRefl;
+  const hasAnyCore = hasWeight || hasSteps;
 
   if (!hasAnyCore && !hasBpData) {
     return pickVariant(seed, [
@@ -1065,13 +998,6 @@ export function weeklyDashboardCoachNarrative(
       }
     }
     sentences.push(stepsLine);
-  }
-
-  if (hasRefl && sentences.length < 2) {
-    const reflLine = reflectionCoachLine(row, prev, seed + 20);
-    if (reflLine) {
-      sentences.push(reflLine);
-    }
   }
 
   if (sentences.length === 0) {

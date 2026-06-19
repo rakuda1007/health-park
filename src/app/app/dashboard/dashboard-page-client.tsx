@@ -28,7 +28,6 @@ import {
   type DashboardCustomDateRange,
   weeklyBloodPressureNarrative,
   weeklyDashboardCoachNarrative,
-  weeklyReflectionNarrative,
   weeklyStepsNarrative,
   weeklyWeightNarrative,
   type WeightGoalBand,
@@ -867,23 +866,6 @@ export function DashboardPageClient() {
                                 {weeklyStepsNarrative(row, prev)}
                               </p>
                             </div>
-                            <div>
-                              <dt className="text-xs text-[color:var(--hp-muted)]">
-                                振り返り
-                              </dt>
-                              <dd className="mt-0.5 tabular-nums text-[color:var(--hp-foreground)]">
-                                {row.reflectionDays > 0 ? (
-                                  <span className="text-[color:var(--hp-muted)]">
-                                    記録 {row.reflectionDays} 日分
-                                  </span>
-                                ) : (
-                                  "—"
-                                )}
-                              </dd>
-                              <p className="mt-1.5 text-xs leading-relaxed text-[color:var(--hp-muted)]">
-                                {weeklyReflectionNarrative(row, prev)}
-                              </p>
-                            </div>
                           </>
                         ) : null}
                         {showBp ? (
@@ -939,9 +921,6 @@ export function DashboardPageClient() {
                           <th className="w-[2.5rem] px-1 py-2 text-center font-medium text-[color:var(--hp-muted)]">
                             日
                           </th>
-                          <th className="w-[3rem] px-1 py-2 text-center font-medium text-[color:var(--hp-muted)]">
-                            振返
-                          </th>
                         </>
                       ) : null}
                       {showBp ? (
@@ -989,11 +968,6 @@ export function DashboardPageClient() {
                               <td className="px-1 py-2 text-center tabular-nums">
                                 {row.stepsRecordedDays}
                               </td>
-                              <td className="px-1 py-2 text-center tabular-nums text-[color:var(--hp-muted)]">
-                                {row.reflectionDays > 0
-                                  ? row.reflectionDays
-                                  : "—"}
-                              </td>
                             </>
                           ) : null}
                           {showBp ? (
@@ -1015,9 +989,6 @@ export function DashboardPageClient() {
                                 <p>{weeklyWeightNarrative(row, prev)}</p>
                                 <p className="mt-1.5 border-t border-dashed border-[color:var(--hp-border)] pt-1.5">
                                   {weeklyStepsNarrative(row, prev)}
-                                </p>
-                                <p className="mt-1.5 border-t border-dashed border-[color:var(--hp-border)] pt-1.5">
-                                  {weeklyReflectionNarrative(row, prev)}
                                 </p>
                               </>
                             ) : null}
