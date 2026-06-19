@@ -4,6 +4,8 @@ import type {
   ClinicEntry,
   DailyReflectionEntry,
   MealEntry,
+  MealItemMaster,
+  MealSetMaster,
   MealSlot,
   PastMedicalHistoryEntry,
   PrescriptionEntry,
@@ -13,12 +15,14 @@ import type {
 import { normalizeDailyReflectionEntry } from "@/lib/reflection-display";
 
 const DB_NAME = "health-park";
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 const STORE_WEIGHT = "weight";
 const STORE_STEPS = "steps";
 const STORE_BP = "bloodPressure";
 const STORE_MEALS = "meals";
+const STORE_MEAL_ITEM_MASTERS = "mealItemMasters";
+const STORE_MEAL_SET_MASTERS = "mealSetMasters";
 const STORE_CLINICS = "clinics";
 const STORE_CLINIC_APPOINTMENTS = "clinicAppointments";
 const STORE_PRESCRIPTIONS = "prescriptions";
@@ -79,6 +83,14 @@ function openDb(): Promise<IDBDatabase> {
           keyPath: "id",
         });
         s.createIndex("by-date", "startsAt", { unique: false });
+      }
+      if (event.oldVersion < 6) {
+        if (!db.objectStoreNames.contains(STORE_MEAL_ITEM_MASTERS)) {
+          db.createObjectStore(STORE_MEAL_ITEM_MASTERS, { keyPath: "id" });
+        }
+        if (!db.objectStoreNames.contains(STORE_MEAL_SET_MASTERS)) {
+          db.createObjectStore(STORE_MEAL_SET_MASTERS, { keyPath: "id" });
+        }
       }
     };
   });
@@ -412,6 +424,58 @@ export function putMealEntry(entry: MealEntry): Promise<void> {
 
 export function deleteMealEntry(id: string): Promise<void> {
   return deleteEntry(STORE_MEALS, id);
+}
+
+function sortMealMasters<T extends { sortOrder: number; label: string; lastUsedAt?: string }>(
+  rows: T[],
+): T[] {
+  return [...rows].sort((a, b) => {
+    const aUsed = a.lastUsedAt ?? "";
+    const bUsed = b.lastUsedAt ?? "";
+    if (aUsed !== bUsed) {
+      return bUsed.localeCompare(aUsed);
+    }
+    if (a.sortOrder !== b.sortOrder) {
+      return a.sortOrder - b.sortOrder;
+    }
+    return a.label.localeCompare(b.label, "ja");
+  });
+}
+
+async function listMealMasterStore<T>(storeName: string): Promise<T[]> {
+  const db = await getHealthDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, "readonly");
+    const req = tx.objectStore(storeName).getAll();
+    req.onerror = () => reject(req.error ?? new Error("getAll error"));
+    req.onsuccess = () => resolve(req.result as T[]);
+  });
+}
+
+export async function listMealItemMasters(): Promise<MealItemMaster[]> {
+  const rows = await listMealMasterStore<MealItemMaster>(STORE_MEAL_ITEM_MASTERS);
+  return sortMealMasters(rows);
+}
+
+export function putMealItemMaster(entry: MealItemMaster): Promise<void> {
+  return putEntry(STORE_MEAL_ITEM_MASTERS, entry);
+}
+
+export function deleteMealItemMaster(id: string): Promise<void> {
+  return deleteEntry(STORE_MEAL_ITEM_MASTERS, id);
+}
+
+export async function listMealSetMasters(): Promise<MealSetMaster[]> {
+  const rows = await listMealMasterStore<MealSetMaster>(STORE_MEAL_SET_MASTERS);
+  return sortMealMasters(rows);
+}
+
+export function putMealSetMaster(entry: MealSetMaster): Promise<void> {
+  return putEntry(STORE_MEAL_SET_MASTERS, entry);
+}
+
+export function deleteMealSetMaster(id: string): Promise<void> {
+  return deleteEntry(STORE_MEAL_SET_MASTERS, id);
 }
 
 export async function listClinicEntries(): Promise<ClinicEntry[]> {

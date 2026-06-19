@@ -6,6 +6,8 @@ import {
   deleteClinicEntry,
   deleteDailyReflectionEntry,
   deleteMealEntry,
+  deleteMealItemMaster,
+  deleteMealSetMaster,
   deletePastMedicalHistoryEntry,
   deletePrescriptionEntry,
   deleteStepsEntry,
@@ -15,6 +17,8 @@ import {
   listClinicEntries,
   listDailyReflectionEntries,
   listMealEntries,
+  listMealItemMasters,
+  listMealSetMasters,
   listPastMedicalHistoryEntries,
   listPrescriptionEntries,
   listStepsEntries,
@@ -24,6 +28,8 @@ import {
   putClinicEntry,
   putDailyReflectionEntry,
   putMealEntry,
+  putMealItemMaster,
+  putMealSetMaster,
   putPastMedicalHistoryEntry,
   putPrescriptionEntry,
   putStepsEntry,
@@ -35,6 +41,8 @@ import type {
   ClinicAppointmentEntry,
   ClinicEntry,
   MealEntry,
+  MealItemMaster,
+  MealSetMaster,
   PastMedicalHistoryEntry,
   PrescriptionEntry,
   StepsEntry,
@@ -57,6 +65,8 @@ const COL_WEIGHT = "weight";
 const COL_STEPS = "steps";
 const COL_BP = "bloodPressure";
 const COL_MEALS = "meals";
+const COL_MEAL_ITEM_MASTERS = "mealItemMasters";
+const COL_MEAL_SET_MASTERS = "mealSetMasters";
 const COL_CLINICS = "clinics";
 const COL_CLINIC_APPOINTMENTS = "clinicAppointments";
 const COL_DAILY_REFLECTIONS = "dailyReflections";
@@ -67,6 +77,8 @@ const STORE_WEIGHT = "weight";
 const STORE_STEPS = "steps";
 const STORE_BP = "bloodPressure";
 const STORE_MEALS = "meals";
+const STORE_MEAL_ITEM_MASTERS = "mealItemMasters";
+const STORE_MEAL_SET_MASTERS = "mealSetMasters";
 const STORE_CLINICS = "clinics";
 const STORE_CLINIC_APPOINTMENTS = "clinicAppointments";
 const STORE_DAILY_REFLECTIONS = "dailyReflections";
@@ -145,7 +157,11 @@ export async function replicateAfterPut(
           ? COL_BP
           : storeName === STORE_MEALS
             ? COL_MEALS
-            : storeName === STORE_CLINICS
+            : storeName === STORE_MEAL_ITEM_MASTERS
+              ? COL_MEAL_ITEM_MASTERS
+              : storeName === STORE_MEAL_SET_MASTERS
+                ? COL_MEAL_SET_MASTERS
+                : storeName === STORE_CLINICS
               ? COL_CLINICS
               : storeName === STORE_CLINIC_APPOINTMENTS
                 ? COL_CLINIC_APPOINTMENTS
@@ -183,7 +199,11 @@ export async function replicateAfterDelete(
           ? COL_BP
           : storeName === STORE_MEALS
             ? COL_MEALS
-            : storeName === STORE_CLINICS
+            : storeName === STORE_MEAL_ITEM_MASTERS
+              ? COL_MEAL_ITEM_MASTERS
+              : storeName === STORE_MEAL_SET_MASTERS
+                ? COL_MEAL_SET_MASTERS
+                : storeName === STORE_CLINICS
               ? COL_CLINICS
               : storeName === STORE_CLINIC_APPOINTMENTS
                 ? COL_CLINIC_APPOINTMENTS
@@ -251,6 +271,36 @@ export async function mergeCloudWithLocal(): Promise<void> {
         await putMealEntry(l);
       }
     }, putMealEntry);
+
+    await mergeSimpleCollection(
+      db,
+      COL_MEAL_ITEM_MASTERS,
+      STORE_MEAL_ITEM_MASTERS,
+      listMealItemMasters,
+      async (c, l) => {
+        if (!l || versionOf(c) > versionOf(l)) {
+          await applyRemoteEntry(STORE_MEAL_ITEM_MASTERS, c);
+        } else {
+          await putMealItemMaster(l);
+        }
+      },
+      putMealItemMaster,
+    );
+
+    await mergeSimpleCollection(
+      db,
+      COL_MEAL_SET_MASTERS,
+      STORE_MEAL_SET_MASTERS,
+      listMealSetMasters,
+      async (c, l) => {
+        if (!l || versionOf(c) > versionOf(l)) {
+          await applyRemoteEntry(STORE_MEAL_SET_MASTERS, c);
+        } else {
+          await putMealSetMaster(l);
+        }
+      },
+      putMealSetMaster,
+    );
 
     await mergeSimpleCollection(db, COL_CLINICS, STORE_CLINICS, listClinicEntries, async (c, l) => {
       if (!l || versionOf(c) > versionOf(l)) {
@@ -404,6 +454,10 @@ export function startRemoteSync(uid: string): () => void {
                 await deleteBloodPressureEntry(id);
               } else if (store === STORE_MEALS) {
                 await deleteMealEntry(id);
+              } else if (store === STORE_MEAL_ITEM_MASTERS) {
+                await deleteMealItemMaster(id);
+              } else if (store === STORE_MEAL_SET_MASTERS) {
+                await deleteMealSetMaster(id);
               } else if (store === STORE_CLINICS) {
                 await deleteClinicEntry(id);
               } else if (store === STORE_CLINIC_APPOINTMENTS) {
@@ -442,6 +496,18 @@ export function startRemoteSync(uid: string): () => void {
   });
   sub(COL_MEALS, STORE_MEALS, async (id, data) => {
     await applyRemoteEntry(STORE_MEALS, { ...data, id } as MealEntry);
+  });
+  sub(COL_MEAL_ITEM_MASTERS, STORE_MEAL_ITEM_MASTERS, async (id, data) => {
+    await applyRemoteEntry(STORE_MEAL_ITEM_MASTERS, {
+      ...data,
+      id,
+    } as MealItemMaster);
+  });
+  sub(COL_MEAL_SET_MASTERS, STORE_MEAL_SET_MASTERS, async (id, data) => {
+    await applyRemoteEntry(STORE_MEAL_SET_MASTERS, {
+      ...data,
+      id,
+    } as MealSetMaster);
   });
   sub(COL_CLINICS, STORE_CLINICS, async (id, data) => {
     await applyRemoteEntry(STORE_CLINICS, { ...data, id } as ClinicEntry);

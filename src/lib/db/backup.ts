@@ -5,6 +5,8 @@ import {
   deleteClinicEntry,
   deleteDailyReflectionEntry,
   deleteMealEntry,
+  deleteMealItemMaster,
+  deleteMealSetMaster,
   deletePastMedicalHistoryEntry,
   deletePrescriptionEntry,
   deleteStepsEntry,
@@ -14,6 +16,8 @@ import {
   listClinicEntries,
   listDailyReflectionEntries,
   listMealEntries,
+  listMealItemMasters,
+  listMealSetMasters,
   listPastMedicalHistoryEntries,
   listPrescriptionEntries,
   listStepsEntries,
@@ -23,6 +27,8 @@ import {
   putClinicEntry,
   putDailyReflectionEntry,
   putMealEntry,
+  putMealItemMaster,
+  putMealSetMaster,
   putPastMedicalHistoryEntry,
   putPrescriptionEntry,
   putStepsEntry,
@@ -34,6 +40,9 @@ import type {
   ClinicEntry,
   DailyReflectionEntry,
   MealEntry,
+  MealItemMaster,
+  MealSetMaster,
+  MealMasterSlot,
   PastMedicalHistoryEntry,
   PrescriptionEntry,
   PrescriptionMedicine,
@@ -63,6 +72,10 @@ export type HealthParkBackupV1 = {
   pastMedicalHistory?: PastMedicalHistoryEntry[];
   /** 通院予定（古いバックアップには無い場合あり） */
   clinicAppointments?: ClinicAppointmentEntry[];
+  /** 食事一品マスタ（古いバックアップには無い場合あり） */
+  mealItemMasters?: MealItemMaster[];
+  /** 食事セットマスタ（古いバックアップには無い場合あり） */
+  mealSetMasters?: MealSetMaster[];
 };
 
 function arrayBufferToBase64(buf: ArrayBuffer): string {
@@ -173,6 +186,46 @@ function isMealEntry(x: unknown): x is MealEntry {
   );
 }
 
+function isMealMasterSlot(x: unknown): x is MealMasterSlot {
+  return (
+    x === "any" ||
+    x === "breakfast" ||
+    x === "lunch" ||
+    x === "dinner"
+  );
+}
+
+function isMealItemMaster(x: unknown): x is MealItemMaster {
+  if (!isRecord(x)) {
+    return false;
+  }
+  return (
+    typeof x.id === "string" &&
+    typeof x.label === "string" &&
+    isMealMasterSlot(x.slot) &&
+    typeof x.sortOrder === "number" &&
+    typeof x.createdAt === "string" &&
+    (x.lastUsedAt === undefined || typeof x.lastUsedAt === "string") &&
+    (x.updatedAt === undefined || typeof x.updatedAt === "string")
+  );
+}
+
+function isMealSetMaster(x: unknown): x is MealSetMaster {
+  if (!isRecord(x)) {
+    return false;
+  }
+  return (
+    typeof x.id === "string" &&
+    typeof x.label === "string" &&
+    typeof x.foods === "string" &&
+    isMealMasterSlot(x.slot) &&
+    typeof x.sortOrder === "number" &&
+    typeof x.createdAt === "string" &&
+    (x.lastUsedAt === undefined || typeof x.lastUsedAt === "string") &&
+    (x.updatedAt === undefined || typeof x.updatedAt === "string")
+  );
+}
+
 function isClinicEntry(x: unknown): x is ClinicEntry {
   if (!isRecord(x)) {
     return false;
@@ -259,6 +312,8 @@ export async function buildHealthParkBackup(): Promise<HealthParkBackupV1> {
     dailyReflections,
     pastMedicalHistory,
     clinicAppointments,
+    mealItemMasters,
+    mealSetMasters,
   ] = await Promise.all([
     listWeightEntries(),
     listStepsEntries(),
@@ -269,6 +324,8 @@ export async function buildHealthParkBackup(): Promise<HealthParkBackupV1> {
     listDailyReflectionEntries(),
     listPastMedicalHistoryEntries(),
     listClinicAppointments(),
+    listMealItemMasters(),
+    listMealSetMasters(),
   ]);
   const prescriptions = prescriptionsRaw.map(serializePrescription);
   return {
@@ -284,6 +341,8 @@ export async function buildHealthParkBackup(): Promise<HealthParkBackupV1> {
     dailyReflections,
     pastMedicalHistory,
     clinicAppointments,
+    mealItemMasters,
+    mealSetMasters,
   };
 }
 
@@ -314,6 +373,8 @@ export function validateHealthParkBackupData(data: unknown): HealthParkBackupV1 
   const dr = data.dailyReflections;
   const pmh = data.pastMedicalHistory;
   const ca = data.clinicAppointments;
+  const mim = data.mealItemMasters;
+  const msm = data.mealSetMasters;
   if (!Array.isArray(w) || !w.every(isWeightEntry)) {
     throw new Error("体重データの形式が不正です。");
   }
@@ -349,6 +410,18 @@ export function validateHealthParkBackupData(data: unknown): HealthParkBackupV1 
   ) {
     throw new Error("通院予定データの形式が不正です。");
   }
+  if (
+    mim !== undefined &&
+    (!Array.isArray(mim) || !mim.every(isMealItemMaster))
+  ) {
+    throw new Error("食事一品マスタの形式が不正です。");
+  }
+  if (
+    msm !== undefined &&
+    (!Array.isArray(msm) || !msm.every(isMealSetMaster))
+  ) {
+    throw new Error("食事セットマスタの形式が不正です。");
+  }
   const dailyReflections: DailyReflectionEntry[] =
     sv === BACKUP_SCHEMA_VERSION && Array.isArray(dr)
       ? dr
@@ -359,12 +432,18 @@ export function validateHealthParkBackupData(data: unknown): HealthParkBackupV1 
     Array.isArray(pmh) && pmh.every(isPastMedicalHistoryEntry) ? pmh : [];
   const clinicAppointments: ClinicAppointmentEntry[] =
     Array.isArray(ca) && ca.every(isClinicAppointmentEntry) ? ca : [];
+  const mealItemMastersOut: MealItemMaster[] =
+    Array.isArray(mim) && mim.every(isMealItemMaster) ? mim : [];
+  const mealSetMastersOut: MealSetMaster[] =
+    Array.isArray(msm) && msm.every(isMealSetMaster) ? msm : [];
   return {
     ...(data as HealthParkBackupV1),
     schemaVersion: sv === 1 ? 1 : BACKUP_SCHEMA_VERSION,
     dailyReflections,
     pastMedicalHistory,
     clinicAppointments,
+    mealItemMasters: mealItemMastersOut,
+    mealSetMasters: mealSetMastersOut,
   };
 }
 
@@ -385,6 +464,8 @@ export async function replaceAllFromBackup(
     listDailyReflectionEntries().then((rows) => rows.map((r) => r.id)),
     listPastMedicalHistoryEntries().then((rows) => rows.map((r) => r.id)),
     listClinicAppointments().then((rows) => rows.map((r) => r.id)),
+    listMealItemMasters().then((rows) => rows.map((r) => r.id)),
+    listMealSetMasters().then((rows) => rows.map((r) => r.id)),
   ]);
   for (const id of ids[0]) {
     await deleteWeightEntry(id);
@@ -413,6 +494,12 @@ export async function replaceAllFromBackup(
   for (const id of ids[8]) {
     await deleteClinicAppointmentEntry(id);
   }
+  for (const id of ids[9]) {
+    await deleteMealItemMaster(id);
+  }
+  for (const id of ids[10]) {
+    await deleteMealSetMaster(id);
+  }
 
   for (const row of data.weight) {
     await putWeightEntry(row);
@@ -440,6 +527,12 @@ export async function replaceAllFromBackup(
   }
   for (const row of data.clinicAppointments ?? []) {
     await putClinicAppointmentEntry(row);
+  }
+  for (const row of data.mealItemMasters ?? []) {
+    await putMealItemMaster(row);
+  }
+  for (const row of data.mealSetMasters ?? []) {
+    await putMealSetMaster(row);
   }
 
   return data;

@@ -33,12 +33,40 @@ export type BloodPressureEntry = {
 
 export type MealSlot = "breakfast" | "lunch" | "dinner";
 
+/** マスタの対象区分（any = 朝昼晩すべて） */
+export type MealMasterSlot = MealSlot | "any";
+
 export type MealEntry = {
   id: string;
   date: IsoDate;
   slot: MealSlot;
   foods: string;
   note: string;
+  createdAt: string;
+  updatedAt?: string;
+};
+
+/** 食事入力の一品マスタ */
+export type MealItemMaster = {
+  id: string;
+  label: string;
+  slot: MealMasterSlot;
+  sortOrder: number;
+  lastUsedAt?: string;
+  createdAt: string;
+  updatedAt?: string;
+};
+
+/** 食事入力のセットマスタ（タップで foods に展開） */
+export type MealSetMaster = {
+  id: string;
+  /** ボタン表示名 */
+  label: string;
+  /** MealEntry.foods に入る文字列（読点区切り可） */
+  foods: string;
+  slot: MealMasterSlot;
+  sortOrder: number;
+  lastUsedAt?: string;
   createdAt: string;
   updatedAt?: string;
 };

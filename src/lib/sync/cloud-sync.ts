@@ -13,6 +13,8 @@ import type {
   ClinicEntry,
   DailyReflectionEntry,
   MealEntry,
+  MealItemMaster,
+  MealSetMaster,
   PastMedicalHistoryEntry,
   PrescriptionEntry,
   StepsEntry,
@@ -73,6 +75,14 @@ export async function pushLocalToCloud(): Promise<void> {
   await batchSet(
     "meals",
     backup.meals.map((m) => ({ id: m.id, data: scrub(m) })),
+  );
+  await batchSet(
+    "mealItemMasters",
+    (backup.mealItemMasters ?? []).map((m) => ({ id: m.id, data: scrub(m) })),
+  );
+  await batchSet(
+    "mealSetMasters",
+    (backup.mealSetMasters ?? []).map((m) => ({ id: m.id, data: scrub(m) })),
   );
   await batchSet(
     "clinics",
@@ -147,6 +157,16 @@ export async function pushLocalToCloud(): Promise<void> {
     new Set(backup.bloodPressure.map((b) => b.id)),
   );
   await deleteOrphans(uid, "meals", new Set(backup.meals.map((m) => m.id)));
+  await deleteOrphans(
+    uid,
+    "mealItemMasters",
+    new Set((backup.mealItemMasters ?? []).map((m) => m.id)),
+  );
+  await deleteOrphans(
+    uid,
+    "mealSetMasters",
+    new Set((backup.mealSetMasters ?? []).map((m) => m.id)),
+  );
   await deleteOrphans(uid, "clinics", new Set(backup.clinics.map((c) => c.id)));
   await deleteOrphans(
     uid,
@@ -211,6 +231,8 @@ export async function pullCloudToLocal(): Promise<void> {
   const steps: StepsEntry[] = [];
   const bloodPressure: BloodPressureEntry[] = [];
   const meals: MealEntry[] = [];
+  const mealItemMasters: MealItemMaster[] = [];
+  const mealSetMasters: MealSetMaster[] = [];
   const clinics: ClinicEntry[] = [];
   const clinicAppointments: ClinicAppointmentEntry[] = [];
   const dailyReflections: DailyReflectionEntry[] = [];
@@ -225,6 +247,16 @@ export async function pullCloudToLocal(): Promise<void> {
   bSnap.forEach((d) => bloodPressure.push(d.data() as BloodPressureEntry));
   const mSnap = await getDocs(collection(db, "users", uid, "meals"));
   mSnap.forEach((d) => meals.push(d.data() as MealEntry));
+  const mimSnap = await getDocs(
+    collection(db, "users", uid, "mealItemMasters"),
+  );
+  mimSnap.forEach((d) =>
+    mealItemMasters.push({ ...(d.data() as MealItemMaster), id: d.id }),
+  );
+  const msmSnap = await getDocs(collection(db, "users", uid, "mealSetMasters"));
+  msmSnap.forEach((d) =>
+    mealSetMasters.push({ ...(d.data() as MealSetMaster), id: d.id }),
+  );
   const cSnap = await getDocs(collection(db, "users", uid, "clinics"));
   cSnap.forEach((d) => clinics.push(d.data() as ClinicEntry));
   const caSnap = await getDocs(collection(db, "users", uid, "clinicAppointments"));
@@ -277,6 +309,8 @@ export async function pullCloudToLocal(): Promise<void> {
     steps,
     bloodPressure,
     meals,
+    mealItemMasters,
+    mealSetMasters,
     clinics,
     clinicAppointments,
     dailyReflections,

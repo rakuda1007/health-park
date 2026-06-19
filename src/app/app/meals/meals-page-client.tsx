@@ -3,10 +3,22 @@
 import {
   deleteMealEntry,
   listMealEntries,
+  listMealItemMasters,
+  listMealSetMasters,
   putMealEntry,
+  putMealItemMaster,
+  putMealSetMaster,
 } from "@/lib/db";
 import { RecordingPageAd } from "@/components/recording-page-ad";
-import type { MealEntry, MealSlot } from "@/lib/db/types";
+import { MealMasterEditor } from "@/components/meal-master-editor";
+import { MealQuickInput } from "@/components/meal-quick-input";
+import type {
+  MealEntry,
+  MealItemMaster,
+  MealSetMaster,
+  MealSlot,
+} from "@/lib/db/types";
+import { joinFoods, parseFoods } from "@/lib/meal-foods";
 import { todayIso } from "@/lib/date";
 import { useCallback, useEffect, useState } from "react";
 
@@ -18,14 +30,26 @@ const SLOT_LABEL: Record<MealSlot, string> = {
 
 export function MealsPageClient() {
   const [entries, setEntries] = useState<MealEntry[]>([]);
+  const [itemMasters, setItemMasters] = useState<MealItemMaster[]>([]);
+  const [setMasters, setSetMasters] = useState<MealSetMaster[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [date, setDate] = useState(todayIso);
   const [slot, setSlot] = useState<MealSlot>("breakfast");
-  const [foods, setFoods] = useState("");
+  const [foodItems, setFoodItems] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   /** 編集中の記録 ID（null なら新規） */
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  const loadMasters = useCallback(async () => {
+    const [items, sets] = await Promise.all([
+      listMealItemMasters(),
+      listMealSetMasters(),
+    ]);
+    setItemMasters(items);
+    setSetMasters(sets);
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -39,29 +63,47 @@ export function MealsPageClient() {
 
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadMasters();
+  }, [load, loadMasters]);
 
   function resetForm() {
     setEditingId(null);
     setDate(todayIso());
     setSlot("breakfast");
-    setFoods("");
+    setFoodItems([]);
     setNote("");
+    setSaveError(null);
   }
 
   function startEdit(row: MealEntry) {
     setEditingId(row.id);
     setDate(row.date);
     setSlot(row.slot);
-    setFoods(row.foods);
+    setFoodItems(parseFoods(row.foods));
     setNote(row.note);
+    setSaveError(null);
+  }
+
+  async function touchItemMaster(master: MealItemMaster) {
+    const now = new Date().toISOString();
+    await putMealItemMaster({ ...master, lastUsedAt: now, updatedAt: now });
+    await loadMasters();
+  }
+
+  async function touchSetMaster(master: MealSetMaster) {
+    const now = new Date().toISOString();
+    await putMealSetMaster({ ...master, lastUsedAt: now, updatedAt: now });
+    await loadMasters();
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (foods.trim() === "") {
+    const foods = joinFoods(foodItems);
+    if (foods === "") {
+      setSaveError("食べたものを1つ以上選ぶか追加してください。");
       return;
     }
+    setSaveError(null);
     setSaving(true);
     try {
       const now = new Date().toISOString();
@@ -75,7 +117,7 @@ export function MealsPageClient() {
           ...orig,
           date,
           slot,
-          foods: foods.trim(),
+          foods,
           note: note.trim(),
           updatedAt: now,
         };
@@ -85,7 +127,7 @@ export function MealsPageClient() {
           id: crypto.randomUUID(),
           date,
           slot,
-          foods: foods.trim(),
+          foods,
           note: note.trim(),
           createdAt: now,
         };
@@ -112,7 +154,7 @@ export function MealsPageClient() {
         食事
       </h1>
       <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
-        朝・昼・晩ごとに、食べたものと一言メモを登録します（任意）。
+        朝・昼・晩ごとに食べたものを登録します。定番から選ぶか、一品ずつ追加できます。
       </p>
 
       <form
@@ -149,17 +191,17 @@ export function MealsPageClient() {
             </select>
           </label>
         </div>
-        <label className="flex flex-col gap-1">
-          <span className="text-sm text-[color:var(--hp-muted)]">食べたもの</span>
-          <textarea
-            value={foods}
-            onChange={(e) => setFoods(e.target.value)}
-            rows={3}
-            required
-            placeholder="例: ごはん、味噌汁、焼き魚"
-            className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
-          />
-        </label>
+
+        <MealQuickInput
+          slot={slot}
+          items={foodItems}
+          onItemsChange={setFoodItems}
+          itemMasters={itemMasters}
+          setMasters={setMasters}
+          onItemMasterUsed={(master) => void touchItemMaster(master)}
+          onSetMasterUsed={(master) => void touchSetMaster(master)}
+        />
+
         <label className="flex flex-col gap-1">
           <span className="text-sm text-[color:var(--hp-muted)]">一言</span>
           <input
@@ -170,6 +212,11 @@ export function MealsPageClient() {
             className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
           />
         </label>
+        {saveError ? (
+          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+            {saveError}
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="submit"
@@ -194,6 +241,8 @@ export function MealsPageClient() {
           ) : null}
         </div>
       </form>
+
+      <MealMasterEditor onMastersChange={() => void loadMasters()} />
 
       <RecordingPageAd />
 
