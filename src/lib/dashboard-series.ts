@@ -728,12 +728,272 @@ function weightDistanceOutsideBand(w: number, goal: WeightGoalBand): number {
   return 0;
 }
 
-function truncateForQuote(text: string, max = 48): string {
-  const t = text.trim().replace(/\s+/g, " ");
-  if (t.length <= max) {
-    return t;
+type ReflectionTheme =
+  | "fatigue"
+  | "positive"
+  | "stress"
+  | "activity"
+  | "sleep"
+  | "diet"
+  | "busy"
+  | "health_concern"
+  | "effort"
+  | "neutral";
+
+type ReflectionThemeRule = {
+  theme: ReflectionTheme;
+  patterns: RegExp[];
+  weight: number;
+};
+
+const REFLECTION_THEME_RULES: ReflectionThemeRule[] = [
+  {
+    theme: "fatigue",
+    patterns: [/疲れ/, /つかれ/, /だる/, /眠[いく]/, /寝不足/, /消耗/],
+    weight: 2,
+  },
+  {
+    theme: "positive",
+    patterns: [
+      /良[いかっ]/,
+      /よかった/,
+      /嬉し/,
+      /うれし/,
+      /快調/,
+      /調子[がの]?良/,
+      /元気/,
+      /気分[がの]?良/,
+      /充実/,
+      /満足/,
+    ],
+    weight: 2,
+  },
+  {
+    theme: "stress",
+    patterns: [
+      /ストレス/,
+      /イライラ/,
+      /落ち込/,
+      /憂鬱/,
+      /しんど/,
+      /辛[いく]/,
+      /つら/,
+      /不安/,
+      /モヤモヤ/,
+      /気分[がの]?悪/,
+    ],
+    weight: 2,
+  },
+  {
+    theme: "activity",
+    patterns: [/散歩/, /運動/, /歩[いく]/, /ジム/, /泳/, /ランニング/, /ストレッチ/],
+    weight: 2,
+  },
+  {
+    theme: "sleep",
+    patterns: [/睡眠/, /寝[たる]/, /眠[れり]/, /早寝/, /遅寝/],
+    weight: 2,
+  },
+  {
+    theme: "diet",
+    patterns: [
+      /食事/,
+      /食べ/,
+      /飲[みん]/,
+      /お酒/,
+      /デザート/,
+      /甘い/,
+      /外食/,
+      /自炊/,
+    ],
+    weight: 1,
+  },
+  {
+    theme: "busy",
+    patterns: [/忙し/, /仕事/, /残業/, /予定が/, /バタバタ/],
+    weight: 2,
+  },
+  {
+    theme: "health_concern",
+    patterns: [
+      /痛[いみ]/,
+      /頭痛/,
+      /風邪/,
+      /熱[があ]/,
+      /体調[がの]?悪/,
+      /不調/,
+      /吐/,
+      /咳/,
+    ],
+    weight: 3,
+  },
+  {
+    theme: "effort",
+    patterns: [/頑張/, /目標/, /続け/, /習慣/, /チャレンジ/, /意識/],
+    weight: 1,
+  },
+];
+
+function scoreReflectionThemes(comments: string[]): Map<ReflectionTheme, number> {
+  const scores = new Map<ReflectionTheme, number>();
+  for (const comment of comments) {
+    const text = comment.trim();
+    if (!text) {
+      continue;
+    }
+    for (const rule of REFLECTION_THEME_RULES) {
+      for (const pattern of rule.patterns) {
+        if (pattern.test(text)) {
+          scores.set(rule.theme, (scores.get(rule.theme) ?? 0) + rule.weight);
+          break;
+        }
+      }
+    }
   }
-  return `${t.slice(0, max)}…`;
+  return scores;
+}
+
+function reflectionThemeCoachVariants(
+  theme: ReflectionTheme,
+  dayCount: number,
+): string[] {
+  const freq =
+    dayCount >= 5
+      ? "ほぼ毎日"
+      : dayCount >= 3
+        ? "複数の日"
+        : dayCount === 2
+          ? "いくつかの日"
+          : "ある日";
+
+  switch (theme) {
+    case "fatigue":
+      return [
+        `${freq}、疲れやだるさが気になる様子がうかがえます。休息をひとつ増やせると、次の週が楽になるかもしれません。`,
+        `メモのトーンから、体が休みを求めていた週のようです。睡眠や座って過ごす時間を意識してみてください。`,
+        `消耗感がにじむ一週間でした。数値より、まず回復を優先しても大丈夫です。`,
+      ];
+    case "positive":
+      return [
+        `${freq}、前向きな気持ちや快調さが感じられる内容でした。その感覚を少し長く持てるよう、ペースは崩さずで。`,
+        `気分や体調をプラスに感じた日があったようです。うまくいった要因を、次も再現できるか探してみるのも手です。`,
+        `明るいトーンの記述が目立つ週でした。調子が良いときこそ、無理のない範囲をキープするのが続けやすいです。`,
+      ];
+    case "stress":
+      return [
+        `${freq}、ストレスや気持ちの重さがうかがえます。数字だけでなく、心の負担にも目を向けてあげてください。`,
+        `気分の落ち込みやしんどさがにじむ週でした。小さな休息や、話せる相手がいれば頼るのも一案です。`,
+        `心のほうが忙しかった週かもしれません。自分を責めず、できることだけに絞る週にしてもよいです。`,
+      ];
+    case "activity":
+      return [
+        `${freq}、体を動かすことが意識に上がっていたようです。歩数や体重の変化とあわせて見ると、全体像がはっきりします。`,
+        `散歩や運動の話がメモに残っています。動いた実感を、無理のない頻度で続けられると効きやすいです。`,
+        `活動量への意識が働いていた週のようです。体調とセットで、増やす・減らすを調整してみてください。`,
+      ];
+    case "sleep":
+      return [
+        `${freq}、睡眠や休息のことが気にかかっていたようです。寝る時間を少し守るだけでも、翌日の体感が変わることがあります。`,
+        `眠りや寝不足の話が出てきました。睡眠は体重や血圧にも影響しやすいので、優先度を上げてみる価値があります。`,
+        `休息の質について触れている日がありました。体の回復を意識した一週間だったようです。`,
+      ];
+    case "diet":
+      return [
+        `${freq}、食事や飲み物のことが気分と結びついていたようです。何を食べた日に調子が違ったか、あとから振り返る手がかりになります。`,
+        `食生活の話がメモに残っています。体重の変化と照らすと、自分に合うリズムが見えてくるかもしれません。`,
+        `食べ方や外食などが意識に上がっていた週のようです。極端な制限より、一つだけ変えられる点を探すのが続きやすいです。`,
+      ];
+    case "busy":
+      return [
+        `${freq}、忙しさが続いていたようです。記録を続けられたこと自体が、忙しい中でのいい習慣です。`,
+        `仕事や予定で手一杯だった週かもしれません。歩数や睡眠が落ちていても、責めずにペースを戻せば十分です。`,
+        `バタバタした一週間の様子がうかがえます。次の週は、休む時間をひとつだけ先に確保してみるのも手です。`,
+      ];
+    case "health_concern":
+      return [
+        `${freq}、体調の変化や不調が気になる内容でした。続く・悪化する場合は、無理せず相談のタイミングも検討してください。`,
+        `痛みや不調の記述がありました。数値の変化とあわせて、体からのサインとして大切に扱ってください。`,
+        `体調面で気になることがにじむ週でした。様子を見つつ、必要なら早めに専門家に相談するのもよい選択です。`,
+      ];
+    case "effort":
+      return [
+        `${freq}、頑張りや継続への意識が感じられます。結果がすぐ出なくても、記録を続けていることが土台になります。`,
+        `目標や習慣づくりへの意識がメモに表れていました。小さくても、続いた日を認めてあげてください。`,
+        `自分に課題を持って過ごした週のようです。完璧より、また来週も一歩続けられることに価値があります。`,
+      ];
+    case "neutral":
+      return [
+        `${freq}、日によって様子が違うメモが残っていました。数字とあわせて見ると、自分のリズムが見えてきます。`,
+        `内容はさまざまですが、言葉にして残している点が大事です。来週も短い一言で十分です。`,
+        `静かに過ごした日も、動いた日もあったようです。メモの積み重ねが、あとから振り返りの材料になります。`,
+      ];
+  }
+}
+
+function weeklyReflectionCoachLine(
+  comments: string[],
+  seed: number,
+): string | null {
+  const trimmed = comments.map((c) => c.trim()).filter((c) => c.length > 0);
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  const scores = scoreReflectionThemes(trimmed);
+  const ranked = [...scores.entries()].sort((a, b) => b[1] - a[1]);
+  const top = ranked[0];
+  const second = ranked[1];
+
+  if (!top || top[1] === 0) {
+    return pickVariant(seed, reflectionThemeCoachVariants("neutral", trimmed.length));
+  }
+
+  if (second && second[1] >= top[1] * 0.7 && second[0] !== top[0]) {
+    return reflectionMixedThemeCoachLine(
+      top[0],
+      second[0],
+      trimmed.length,
+      seed,
+    );
+  }
+
+  return pickVariant(seed, reflectionThemeCoachVariants(top[0], trimmed.length));
+}
+
+const REFLECTION_THEME_LABEL: Record<ReflectionTheme, string> = {
+  fatigue: "疲れやだるさ",
+  positive: "快調さや前向きさ",
+  stress: "ストレスや気持ちの重さ",
+  activity: "運動や活動",
+  sleep: "睡眠や休息",
+  diet: "食事",
+  busy: "忙しさ",
+  health_concern: "体調の変化",
+  effort: "頑張りや継続への意識",
+  neutral: "日々の様子",
+};
+
+function reflectionMixedThemeCoachLine(
+  primary: ReflectionTheme,
+  secondary: ReflectionTheme,
+  dayCount: number,
+  seed: number,
+): string {
+  const freq =
+    dayCount >= 5
+      ? "ほぼ毎日"
+      : dayCount >= 3
+        ? "複数の日"
+        : dayCount === 2
+          ? "いくつかの日"
+          : "ある日";
+  const a = REFLECTION_THEME_LABEL[primary];
+  const b = REFLECTION_THEME_LABEL[secondary];
+  return pickVariant(seed, [
+    `${freq}、${a}と${b}が入り混じった週のようです。どちらか一方だけを直す必要はなく、負担の少ないほうから手を付けてみてください。`,
+    `メモには${a}と${b}の両方がうかがえます。体と心のどちらが先に休みを求めているか、優先順位を決めてみるのも手です。`,
+    `${a}と${b}が同時に感じられる一週間でした。数字の変化とあわせて、無理のない調整を一つだけ試してみてください。`,
+  ]);
 }
 
 type WeightTrend = "up" | "down" | "flat";
@@ -749,30 +1009,6 @@ function detectWeightTrend(values: number[]): WeightTrend {
     return "flat";
   }
   return diff > 0 ? "up" : "down";
-}
-
-function weeklyReflectionCoachLine(
-  comments: string[],
-  seed: number,
-): string | null {
-  const trimmed = comments.map((c) => c.trim()).filter((c) => c.length > 0);
-  if (trimmed.length === 0) {
-    return null;
-  }
-  if (trimmed.length === 1) {
-    const q = truncateForQuote(trimmed[0]!);
-    return pickVariant(seed, [
-      `振り返りでは「${q}」と書かれていました。`,
-      `メモに「${q}」との記録があり、体調や気持ちの手がかりになりそうです。`,
-      `この週の振り返りには「${q}」と残っています。`,
-    ]);
-  }
-  const sample = trimmed.slice(0, 2).map((c) => truncateForQuote(c, 32));
-  return pickVariant(seed, [
-    `振り返りが ${trimmed.length} 日ありました。「${sample[0]}」などのメモが残っています。`,
-    `この週は ${trimmed.length} 日、振り返りの一言が記録されています（例:「${sample[0]}」）。`,
-    `振り返りメモが ${trimmed.length} 件。「${sample[0]}」や「${sample[1] ?? sample[0]}」など、日々の様子がうかがえます。`,
-  ]);
 }
 
 function weeklyChangeCoachLines(
