@@ -18,8 +18,9 @@ import {
 import { ReflectionCommentList } from "@/components/reflection-comment-list";
 import {
   buildBpChartRows,
-  buildCombinedChartRows,
   buildDailyDashboardPoints,
+  buildDashboardStepsChartPoints,
+  buildDashboardWeightChartPoints,
   buildWeeklyDashboardRows,
   createDefaultCustomDateRange,
   resolveDashboardDaysBack,
@@ -39,11 +40,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Area,
   Bar,
+  BarChart,
   CartesianGrid,
   Cell,
   ComposedChart,
   Legend,
   Line,
+  LineChart,
   ReferenceArea,
   ResponsiveContainer,
   Tooltip,
@@ -90,28 +93,31 @@ export function DashboardPageClient() {
     readDashboardDisplayPreferences(),
   );
   const [error, setError] = useState<string | null>(null);
-  const [combinedPeriod, setCombinedPeriod] =
-    useState<DashboardChartPeriodOption>(7);
-  const [combinedGranularity, setCombinedGranularity] =
-    useState<CombinedChartGranularity>("day");
-  const [bpPeriod, setBpPeriod] = useState<DashboardChartPeriodOption>(7);
+  const [weightPeriod, setWeightPeriod] =
+    useState<DashboardChartPeriodOption>(30);
+  const [stepsPeriod, setStepsPeriod] =
+    useState<DashboardChartPeriodOption>(30);
+  const [bpPeriod, setBpPeriod] = useState<DashboardChartPeriodOption>(30);
   const [bpGranularity, setBpGranularity] =
     useState<CombinedChartGranularity>("day");
   const [reflectionDayPeriod, setReflectionDayPeriod] =
     useState<DashboardChartPeriodOption>(7);
   const [summaryPeriod, setSummaryPeriod] =
-    useState<DashboardChartPeriodOption>(7);
-  const [combinedCustomRange, setCombinedCustomRange] = useState(
-    createDefaultCustomDateRange,
+    useState<DashboardChartPeriodOption>(30);
+  const [weightCustomRange, setWeightCustomRange] = useState(() =>
+    createDefaultCustomDateRange(30),
   );
-  const [bpCustomRange, setBpCustomRange] = useState(
-    createDefaultCustomDateRange,
+  const [stepsCustomRange, setStepsCustomRange] = useState(() =>
+    createDefaultCustomDateRange(30),
   );
-  const [reflectionCustomRange, setReflectionCustomRange] = useState(
-    createDefaultCustomDateRange,
+  const [bpCustomRange, setBpCustomRange] = useState(() =>
+    createDefaultCustomDateRange(30),
   );
-  const [summaryCustomRange, setSummaryCustomRange] = useState(
-    createDefaultCustomDateRange,
+  const [reflectionCustomRange, setReflectionCustomRange] = useState(() =>
+    createDefaultCustomDateRange(7),
+  );
+  const [summaryCustomRange, setSummaryCustomRange] = useState(() =>
+    createDefaultCustomDateRange(30),
   );
   const [goalMinStr, setGoalMinStr] = useState("");
   const [goalMaxStr, setGoalMaxStr] = useState("");
@@ -175,18 +181,37 @@ export function DashboardPageClient() {
     };
   }, []);
 
-  const combinedDailyPoints = useMemo(
+  const weightDailyPoints = useMemo(
     () =>
       buildDailyDashboardPoints(
-        resolveDashboardDaysBack(combinedPeriod, combinedCustomRange),
+        resolveDashboardDaysBack(weightPeriod, weightCustomRange),
         weightEntries,
         stepsEntries,
         reflections,
         bloodPressureEntries,
       ),
     [
-      combinedPeriod,
-      combinedCustomRange,
+      weightPeriod,
+      weightCustomRange,
+      weightEntries,
+      stepsEntries,
+      reflections,
+      bloodPressureEntries,
+    ],
+  );
+
+  const stepsDailyPoints = useMemo(
+    () =>
+      buildDailyDashboardPoints(
+        resolveDashboardDaysBack(stepsPeriod, stepsCustomRange),
+        weightEntries,
+        stepsEntries,
+        reflections,
+        bloodPressureEntries,
+      ),
+    [
+      stepsPeriod,
+      stepsCustomRange,
       weightEntries,
       stepsEntries,
       reflections,
@@ -256,15 +281,17 @@ export function DashboardPageClient() {
     [weeklySummaryDailyPoints],
   );
 
-  const hasAnyWeight = combinedDailyPoints.some((p) => p.weightKg != null);
-  const hasAnySteps = combinedDailyPoints.some((p) => p.steps != null);
-  const hasCombined = hasAnyWeight || hasAnySteps;
+  const hasAnyWeight = weightDailyPoints.some((p) => p.weightKg != null);
+  const hasAnySteps = stepsDailyPoints.some((p) => p.steps != null);
 
-  /** 棒グラフ用（未記録は 0＋透明セル。ツールチップは元の steps を参照） */
-  const combinedChartData = useMemo(
-    () =>
-      buildCombinedChartRows(combinedDailyPoints, combinedGranularity),
-    [combinedDailyPoints, combinedGranularity],
+  const weightChartData = useMemo(
+    () => buildDashboardWeightChartPoints(weightDailyPoints),
+    [weightDailyPoints],
+  );
+
+  const stepsChartData = useMemo(
+    () => buildDashboardStepsChartPoints(stepsDailyPoints),
+    [stepsDailyPoints],
   );
 
   const bpChartData = useMemo(
@@ -336,9 +363,13 @@ export function DashboardPageClient() {
       };
     }
 
-    const vals = combinedChartData
-      .map((p) => p.weightKg)
-      .filter((v): v is number => v != null);
+    const vals = weightChartData.flatMap((p) => {
+      const row: number[] = [p.weightKg];
+      if (p.ma7 != null) {
+        row.push(p.ma7);
+      }
+      return row;
+    });
 
     let low: number;
     let high: number;
@@ -381,7 +412,7 @@ export function DashboardPageClient() {
       goalMax: hasGoalBand ? gx : 0,
     };
   }, [
-    combinedChartData,
+    weightChartData,
     goalMinStr,
     goalMaxStr,
     dashPrefs.weightAxisMin,
@@ -389,7 +420,7 @@ export function DashboardPageClient() {
   ]);
 
   const stepsAxisMax = useMemo(() => {
-    const vals = combinedChartData
+    const vals = stepsChartData
       .map((p) => p.steps)
       .filter((v): v is number => v != null);
     if (vals.length === 0) {
@@ -397,9 +428,22 @@ export function DashboardPageClient() {
     }
     const m = Math.max(...vals);
     return Math.max(Math.ceil(m * 1.05), 100);
-  }, [combinedChartData]);
+  }, [stepsChartData]);
 
-  const hasAnyWeightOnChart = combinedChartData.some((p) => p.weightKg != null);
+  const stepsAverage = useMemo(() => {
+    const vals = stepsChartData
+      .filter((p) => p.recorded && p.steps != null)
+      .map((p) => p.steps!);
+    if (vals.length === 0) {
+      return null;
+    }
+    return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+  }, [stepsChartData]);
+
+  const stepsRecordedDays = useMemo(
+    () => stepsChartData.filter((p) => p.recorded).length,
+    [stepsChartData],
+  );
 
   const dashboardAppointments = useMemo(
     () => selectDashboardClinicAppointments(clinicAppointments),
@@ -499,36 +543,27 @@ export function DashboardPageClient() {
           <>
         <div className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
           <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
-            体重と歩数（折れ線＋棒）
-            <span className="ml-1.5 font-normal text-[color:var(--hp-muted)]">
-              {combinedGranularity === "day"
-                ? "・日ごと"
-                : combinedGranularity === "week"
-                  ? "・週平均"
-                  : "・月平均"}
-            </span>
+            体重
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            週・月を選んだ場合はその期間内で記録があった日だけを平均した値となります。
+            日次体重と7点移動平均です。記録がある日のみ表示します。
           </p>
-          <ChartPeriodControls
-            period={combinedPeriod}
-            onPeriodChange={setCombinedPeriod}
-            customRange={combinedCustomRange}
-            onCustomRangeChange={setCombinedCustomRange}
-            granularity={combinedGranularity}
-            onGranularityChange={setCombinedGranularity}
+          <DisplayPeriodControls
+            period={weightPeriod}
+            onPeriodChange={setWeightPeriod}
+            customRange={weightCustomRange}
+            onCustomRangeChange={setWeightCustomRange}
           />
-          {!hasCombined ? (
+          {!hasAnyWeight ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
-              この期間に体重・歩数の記録がありません。
+              この期間に体重の記録がありません。
             </p>
           ) : (
             <div className="mt-2 h-64 w-full min-h-[16rem] min-w-0">
               <ResponsiveContainer width="100%" height="100%" minHeight={256}>
-                <ComposedChart
-                  data={combinedChartData}
-                  margin={{ top: 8, right: 12, left: 12, bottom: 0 }}
+                <LineChart
+                  data={weightChartData}
+                  margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
                 >
                   <CartesianGrid
                     stroke="var(--hp-border)"
@@ -540,65 +575,22 @@ export function DashboardPageClient() {
                     interval="preserveStartEnd"
                   />
                   <YAxis
-                    yAxisId="w"
-                    orientation="left"
                     domain={weightAxisConfig.domain}
                     ticks={weightAxisConfig.ticks}
-                    tick={(props) => (
-                      <WeightAxisTick
-                        x={Number(props.x)}
-                        y={Number(props.y)}
-                        value={props.payload.value}
-                        weightFloor={weightAxisConfig.domain[0]}
-                        hasWeight={hasAnyWeightOnChart}
-                      />
-                    )}
-                    width={44}
-                    label={{
-                      value: "kg（0〜は省略）",
-                      position: "left",
-                      angle: -90,
-                      dx: -4,
-                      fill: "var(--hp-muted)",
-                      fontSize: 10,
-                    }}
-                  />
-                  <YAxis
-                    yAxisId="s"
-                    orientation="right"
-                    domain={[0, stepsAxisMax]}
                     tick={{ fill: "var(--hp-muted)", fontSize: 11 }}
-                    width={44}
-                    tickFormatter={(v) => `${v}`}
+                    width={40}
                     label={{
-                      value: "歩（0〜）",
-                      position: "right",
-                      angle: 90,
-                      dx: 4,
+                      value: "kg",
+                      angle: -90,
+                      position: "insideLeft",
                       fill: "var(--hp-muted)",
                       fontSize: 10,
                     }}
                   />
-                  <Tooltip
-                    content={
-                      <CombinedTooltip
-                        chartGranularity={combinedGranularity}
-                      />
-                    }
-                  />
-                  <Legend
-                    wrapperStyle={{ fontSize: 12 }}
-                    formatter={(value) => {
-                      const labels: Record<string, string> = {
-                        weightKg: "体重 (kg)",
-                        steps: "歩数",
-                      };
-                      return labels[value] ?? value;
-                    }}
-                  />
+                  <Tooltip content={<WeightTooltip />} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
                   {weightAxisConfig.hasGoalBand ? (
                     <ReferenceArea
-                      yAxisId="w"
                       y1={weightAxisConfig.goalMin}
                       y2={weightAxisConfig.goalMax}
                       strokeOpacity={0}
@@ -606,34 +598,24 @@ export function DashboardPageClient() {
                       fillOpacity={0.12}
                     />
                   ) : null}
-                  <Bar
-                    yAxisId="s"
-                    dataKey="stepsBar"
-                    name="steps"
-                    fill="#16a34a"
-                    maxBarSize={22}
-                    radius={[3, 3, 0, 0]}
-                  >
-                    {combinedChartData.map((entry, i) => (
-                      <Cell
-                        key={`steps-bar-${entry.date}-${i}`}
-                        fill={
-                          entry.stepsRecorded ? "#16a34a" : "transparent"
-                        }
-                      />
-                    ))}
-                  </Bar>
                   <Line
-                    yAxisId="w"
                     type="monotone"
                     dataKey="weightKg"
-                    name="weightKg"
-                    stroke="var(--hp-accent)"
+                    name="体重"
+                    stroke="#0f766e"
                     strokeWidth={2}
                     dot={{ r: 2 }}
-                    connectNulls={false}
                   />
-                </ComposedChart>
+                  <Line
+                    type="monotone"
+                    dataKey="ma7"
+                    name="7点移動平均"
+                    stroke="#c4a574"
+                    strokeWidth={2}
+                    dot={false}
+                    connectNulls
+                  />
+                </LineChart>
               </ResponsiveContainer>
             </div>
           )}
@@ -642,7 +624,88 @@ export function DashboardPageClient() {
             <Link href={appPath("/weight")} className="text-[color:var(--hp-accent)] underline">
               体重
             </Link>
-            ・
+            へ。
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
+          <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
+            歩数
+          </h2>
+          <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
+            未記録の日は棒を表示しません。平均は記録がある日のみの算術平均です。
+          </p>
+          <DisplayPeriodControls
+            period={stepsPeriod}
+            onPeriodChange={setStepsPeriod}
+            customRange={stepsCustomRange}
+            onCustomRangeChange={setStepsCustomRange}
+          />
+          {!hasAnySteps ? (
+            <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
+              この期間に歩数の記録がありません。
+            </p>
+          ) : (
+            <>
+              <div className="mt-2 h-64 w-full min-h-[16rem] min-w-0">
+                <ResponsiveContainer width="100%" height="100%" minHeight={256}>
+                  <BarChart
+                    data={stepsChartData}
+                    margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid
+                      stroke="var(--hp-border)"
+                      strokeDasharray="3 3"
+                    />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fill: "var(--hp-muted)", fontSize: 10 }}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis
+                      domain={[0, stepsAxisMax]}
+                      tick={{ fill: "var(--hp-muted)", fontSize: 11 }}
+                      width={40}
+                      tickFormatter={(v) => `${v}`}
+                    />
+                    <Tooltip content={<StepsTooltip />} />
+                    <Bar
+                      dataKey="barValue"
+                      name="歩数"
+                      fill="var(--hp-accent)"
+                      maxBarSize={22}
+                      radius={[3, 3, 0, 0]}
+                    >
+                      {stepsChartData.map((entry, i) => (
+                        <Cell
+                          key={`steps-bar-${entry.date}-${i}`}
+                          fill={entry.recorded ? "var(--hp-accent)" : "transparent"}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-[color:var(--hp-muted)]">
+                <div>
+                  <dt className="inline">記録がある日（この期間）</dt>
+                  <dd className="ml-1 inline font-medium text-[color:var(--hp-foreground)]">
+                    {stepsRecordedDays} 日
+                  </dd>
+                </div>
+                <div>
+                  <dt className="inline">平均（記録日のみ）</dt>
+                  <dd className="ml-1 inline font-medium text-[color:var(--hp-foreground)]">
+                    {stepsAverage != null
+                      ? `${stepsAverage.toLocaleString("ja-JP")} 歩`
+                      : "—"}
+                  </dd>
+                </div>
+              </dl>
+            </>
+          )}
+          <p className="mt-2 text-xs text-[color:var(--hp-muted)]">
+            詳細入力は{" "}
             <Link href={appPath("/steps")} className="text-[color:var(--hp-accent)] underline">
               歩数
             </Link>
@@ -1219,88 +1282,66 @@ function ReflectionPeriodControls({
   );
 }
 
-function WeightAxisTick({
-  x,
-  y,
-  value,
-  weightFloor,
-  hasWeight,
-}: {
-  x: number;
-  y: number;
-  value: number | string;
-  weightFloor: number;
-  hasWeight: boolean;
-}) {
-  const num = typeof value === "number" ? value : Number(value);
-  const eps = Math.max(1e-6, Math.abs(weightFloor) * 1e-9);
-  /** 軸の下限が 0 でないときだけ 0〜 の省略を示す */
-  const isMinTick =
-    hasWeight &&
-    weightFloor > 0.05 &&
-    Math.abs(num - weightFloor) < eps;
-  const label = isMinTick ? `～${num}` : String(num);
-  return (
-    <text
-      x={x}
-      y={y}
-      dy={3}
-      textAnchor="end"
-      fill="var(--hp-muted)"
-      fontSize={11}
-    >
-      {label}
-    </text>
-  );
-}
-
-function CombinedTooltip({
+function WeightTooltip({
   active,
   payload,
-  chartGranularity,
 }: {
   active?: boolean;
-  payload?: Array<{ payload: Record<string, unknown>; dataKey?: string }>;
-  chartGranularity: CombinedChartGranularity;
+  payload?: Array<{ payload: Record<string, unknown> }>;
 }) {
   if (!active || !payload?.length) {
     return null;
   }
   const row = payload[0]?.payload as {
-    date: string;
     label: string;
-    weightKg: number | null;
-    steps: number | null;
-    weightSampleDays: number;
-    stepsSampleDays: number;
+    date: string;
+    weightKg: number;
+    ma7: number | null;
   };
-  const agg = chartGranularity !== "day";
-  const wSuffix =
-    agg && row.weightKg != null && row.weightSampleDays > 0
-      ? `（${row.weightSampleDays}日分の平均）`
-      : "";
-  const sSuffix =
-    agg && row.steps != null && row.stepsSampleDays > 0
-      ? `（${row.stepsSampleDays}日分の平均）`
-      : "";
   return (
     <div className="rounded-md border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-2 py-1.5 text-xs shadow">
       <div className="tabular-nums text-[color:var(--hp-muted)]">
-        {row.label}
-        {agg ? (
-          <span className="text-[color:var(--hp-muted)]"> ({row.date}〜)</span>
-        ) : null}
+        {row.label} ({row.date})
       </div>
       <div className="mt-1 text-[color:var(--hp-foreground)]">
-        体重:{" "}
-        {row.weightKg != null ? `${row.weightKg} kg${wSuffix}` : "—"}
+        体重: {row.weightKg} kg
       </div>
-      <div className="text-[color:var(--hp-foreground)]">
-        歩数:{" "}
-        {row.steps != null
-          ? `${row.steps.toLocaleString("ja-JP")} 歩${sSuffix}`
-          : "—"}
+      {row.ma7 != null ? (
+        <div className="text-[color:var(--hp-foreground)]">
+          7点移動平均: {row.ma7} kg
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function StepsTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: Record<string, unknown> }>;
+}) {
+  if (!active || !payload?.length) {
+    return null;
+  }
+  const row = payload[0]?.payload as {
+    label: string;
+    recorded: boolean;
+    steps: number | null;
+  };
+  if (!row.recorded) {
+    return (
+      <div className="rounded-md border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-2 py-1.5 text-xs shadow">
+        <div className="font-medium">{row.label}</div>
+        <div className="text-[color:var(--hp-muted)]">未記録</div>
       </div>
+    );
+  }
+  return (
+    <div className="rounded-md border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-2 py-1.5 text-xs shadow">
+      <div className="font-medium">{row.label}</div>
+      <div>{(row.steps ?? 0).toLocaleString("ja-JP")} 歩</div>
     </div>
   );
 }

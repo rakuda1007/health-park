@@ -7,7 +7,12 @@ import type {
 import { todayIso } from "@/lib/date";
 import { isoDateDaysAgo } from "@/lib/reflection-display";
 import { aggregateStepsByDate } from "@/lib/steps-stats";
-import { buildDailySeries, weekMondayKey } from "@/lib/weight-stats";
+import {
+  addMovingAverage7,
+  buildDailySeries,
+  weekMondayKey,
+  type ChartPoint,
+} from "@/lib/weight-stats";
 
 /** ダッシュボード各グラフの表示期間プリセット（数値は今日を含む直近 n 日）。`all` は記録の最古日〜今日。`custom` は日付範囲指定。 */
 export type DashboardChartPeriodOption = 7 | 14 | 30 | "all" | "custom";
@@ -487,7 +492,51 @@ export type WeeklyDashboardRow = {
   avgDiastolic: number | null;
   avgPulse: number | null;
   bpRecordedDays: number;
+  /** その週に記録された振り返りコメント（日付順） */
+  reflectionComments: string[];
 };
+
+export type DashboardWeightChartPoint = ChartPoint & { label: string };
+
+/** ダッシュボード体重グラフ用（記録日のみ・7点移動平均付き） */
+export function buildDashboardWeightChartPoints(
+  dailyPoints: DailyDashboardPoint[],
+): DashboardWeightChartPoint[] {
+  const labelByDate = new Map(dailyPoints.map((p) => [p.date, p.label]));
+  const daily = dailyPoints
+    .filter((p) => p.weightKg != null)
+    .map((p) => ({
+      date: p.date,
+      weightKg: p.weightKg!,
+      count: 1,
+    }));
+  return addMovingAverage7(daily).map((p) => ({
+    ...p,
+    label: labelByDate.get(p.date) ?? p.date,
+  }));
+}
+
+export type DashboardStepsChartPoint = {
+  date: string;
+  label: string;
+  steps: number | null;
+  recorded: boolean;
+  /** 棒グラフ用（未記録は 0＋透明セル） */
+  barValue: number;
+};
+
+/** ダッシュボード歩数グラフ用 */
+export function buildDashboardStepsChartPoints(
+  dailyPoints: DailyDashboardPoint[],
+): DashboardStepsChartPoint[] {
+  return dailyPoints.map((p) => ({
+    date: p.date,
+    label: p.label,
+    steps: p.steps,
+    recorded: p.steps != null,
+    barValue: p.steps ?? 0,
+  }));
+}
 
 function aggregateWeekRows(
   dailyPoints: DailyDashboardPoint[],
@@ -511,6 +560,10 @@ function aggregateWeekRows(
       const pulVals = pts
         .filter((p) => p.pulse != null)
         .map((p) => p.pulse!);
+      const reflectionComments = pts
+        .filter((p) => p.reflectionComment != null)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((p) => p.reflectionComment!);
       return {
         weekStart,
         label: formatWeekLabel(weekStart),
@@ -538,6 +591,7 @@ function aggregateWeekRows(
             ? Math.round(mean(pulVals))
             : null,
         bpRecordedDays: bpPts.length,
+        reflectionComments,
       };
     })
     .sort((a, b) => a.weekStart.localeCompare(b.weekStart));
@@ -674,141 +728,223 @@ function weightDistanceOutsideBand(w: number, goal: WeightGoalBand): number {
   return 0;
 }
 
-function countTrailingWeightGoalSide(
-  rowsNewestFirst: WeeklyDashboardRow[],
-  goal: WeightGoalBand,
-  side: WeightGoalSide,
-): number {
-  let n = 0;
-  for (const r of rowsNewestFirst) {
-    if (r.avgWeightKg == null) {
-      break;
-    }
-    if (weightGoalSide(r.avgWeightKg, goal) !== side) {
-      break;
-    }
-    n += 1;
+function truncateForQuote(text: string, max = 48): string {
+  const t = text.trim().replace(/\s+/g, " ");
+  if (t.length <= max) {
+    return t;
   }
-  return n;
+  return `${t.slice(0, max)}…`;
 }
 
-function weightGoalCoachLine(
+type WeightTrend = "up" | "down" | "flat";
+
+function detectWeightTrend(values: number[]): WeightTrend {
+  if (values.length < 3) {
+    return "flat";
+  }
+  const first = values[values.length - 1]!;
+  const last = values[0]!;
+  const diff = last - first;
+  if (Math.abs(diff) < 0.25) {
+    return "flat";
+  }
+  return diff > 0 ? "up" : "down";
+}
+
+function weeklyReflectionCoachLine(
+  comments: string[],
+  seed: number,
+): string | null {
+  const trimmed = comments.map((c) => c.trim()).filter((c) => c.length > 0);
+  if (trimmed.length === 0) {
+    return null;
+  }
+  if (trimmed.length === 1) {
+    const q = truncateForQuote(trimmed[0]!);
+    return pickVariant(seed, [
+      `振り返りでは「${q}」と書かれていました。`,
+      `メモに「${q}」との記録があり、体調や気持ちの手がかりになりそうです。`,
+      `この週の振り返りには「${q}」と残っています。`,
+    ]);
+  }
+  const sample = trimmed.slice(0, 2).map((c) => truncateForQuote(c, 32));
+  return pickVariant(seed, [
+    `振り返りが ${trimmed.length} 日ありました。「${sample[0]}」などのメモが残っています。`,
+    `この週は ${trimmed.length} 日、振り返りの一言が記録されています（例:「${sample[0]}」）。`,
+    `振り返りメモが ${trimmed.length} 件。「${sample[0]}」や「${sample[1] ?? sample[0]}」など、日々の様子がうかがえます。`,
+  ]);
+}
+
+function weeklyChangeCoachLines(
   row: WeeklyDashboardRow,
   prev: WeeklyDashboardRow | null,
   priorWeeks: WeeklyDashboardRow[],
-  goal: WeightGoalBand,
   seed: number,
-): string {
-  const w = row.avgWeightKg!;
-  const { min: gMin, max: gMax } = goal;
-  const side = weightGoalSide(w, goal);
-  const gap = weightDistanceOutsideBand(w, goal);
-  const history = [row, ...(prev ? [prev] : []), ...priorWeeks].filter(
-    (r) => r.avgWeightKg != null,
-  );
+): string[] {
+  const lines: string[] = [];
 
-  if (side === "in") {
-    const streak = countTrailingWeightGoalSide(history, goal, "in");
-    if (streak >= 3) {
-      return pickVariant(seed, [
-        `体重の週平均は ${w} kg で、目標帯（${gMin}〜${gMax} kg）に ${streak} 週続けて収まっています。`,
-        `体重は目標帯の中です。ここ ${streak} 週、設定レンジをキープできています。`,
-      ]);
+  if (row.avgWeightKg != null && prev?.avgWeightKg != null) {
+    const diff = Math.round((row.avgWeightKg - prev.avgWeightKg) * 10) / 10;
+    if (Math.abs(diff) >= 0.3) {
+      lines.push(
+        pickVariant(seed, [
+          diff < 0
+            ? `体重の週平均は前週より約 ${Math.abs(diff)} kg 低下しました。`
+            : `体重の週平均は前週より約 ${diff} kg 上昇しました。`,
+          diff < 0
+            ? `体重は前週より軽くなった週です（約 ${Math.abs(diff)} kg）。`
+            : `体重は前週より重くなった週です（約 ${diff} kg）。`,
+        ]),
+      );
+    } else if (Math.abs(diff) >= 0.15) {
+      lines.push(
+        pickVariant(seed + 1, [
+          diff < 0
+            ? `体重は前週よりわずかに下がりました（約 ${Math.abs(diff)} kg）。`
+            : `体重は前週よりわずかに上がりました（約 ${diff} kg）。`,
+          `体重の週平均は前週と比べて小さな変化（${diff > 0 ? "+" : ""}${diff} kg）でした。`,
+        ]),
+      );
     }
-    if (prev?.avgWeightKg != null) {
-      const prevSide = weightGoalSide(prev.avgWeightKg, goal);
-      if (prevSide === "above") {
-        return pickVariant(seed + 1, [
-          `体重の週平均は ${w} kg で、目標帯（${gMin}〜${gMax} kg）に入りました。前週は帯より上だったので、ひとつ前進です。`,
-          `体重は目標帯内です。前週より重めの水準から戻ってきた週でした。`,
-        ]);
-      }
-      if (prevSide === "below") {
-        return pickVariant(seed + 2, [
-          `体重の週平均は ${w} kg で、目標帯（${gMin}〜${gMax} kg）に入りました。前週は帯より軽めでした。`,
-          `体重は目標帯内です。前週より軽めの水準から戻ってきた週です。`,
-        ]);
-      }
-    }
-    return pickVariant(seed + 3, [
-      `体重の週平均は ${w} kg で、目標帯（${gMin}〜${gMax} kg）の中です。`,
-      `体重は設定した目標レンジ内に収まっています（週平均 ${w} kg）。`,
-    ]);
   }
 
+  const weightHistory = [row, ...(prev ? [prev] : []), ...priorWeeks]
+    .map((r) => r.avgWeightKg)
+    .filter((v): v is number => v != null);
+  if (weightHistory.length >= 3 && lines.length === 0) {
+    const trend = detectWeightTrend(weightHistory);
+    if (trend === "down") {
+      lines.push(
+        pickVariant(seed + 2, [
+          "体重の週平均はここ数週、緩やかに下がる傾向が続いています。",
+          "数週にわたり体重の平均がじわじわ下がっています。",
+        ]),
+      );
+    } else if (trend === "up") {
+      lines.push(
+        pickVariant(seed + 3, [
+          "体重の週平均はここ数週、緩やかに上がる傾向が続いています。",
+          "数週にわたり体重の平均がじわじわ上がっています。",
+        ]),
+      );
+    }
+  }
+
+  if (row.avgSteps != null && prev?.avgSteps != null && prev.avgSteps > 0) {
+    const diff = row.avgSteps - prev.avgSteps;
+    const pct = Math.round((diff / prev.avgSteps) * 100);
+    if (Math.abs(pct) >= 12) {
+      lines.push(
+        pickVariant(seed + 10, [
+          diff > 0
+            ? `歩数の週平均は前週より約 ${Math.abs(Math.round(diff)).toLocaleString("ja-JP")} 歩増えました（${pct > 0 ? "+" : ""}${pct}% ほど）。`
+            : `歩数の週平均は前週より約 ${Math.abs(Math.round(diff)).toLocaleString("ja-JP")} 歩減りました（${pct}% ほど）。`,
+          diff > 0
+            ? `歩数は前週より活発な週でした（平均 ${row.avgSteps.toLocaleString("ja-JP")} 歩/日）。`
+            : `歩数は前週より控えめな週でした（平均 ${row.avgSteps.toLocaleString("ja-JP")} 歩/日）。`,
+        ]),
+      );
+    } else if (Math.abs(pct) >= 5 && lines.length < 2) {
+      lines.push(
+        pickVariant(seed + 11, [
+          `歩数は前週と大きくは変わらず、平均 ${row.avgSteps.toLocaleString("ja-JP")} 歩/日程度でした。`,
+          `歩数の週平均は前週とほぼ同水準（${row.avgSteps.toLocaleString("ja-JP")} 歩/日）でした。`,
+        ]),
+      );
+    }
+  } else if (row.avgSteps != null && prev?.avgSteps == null && lines.length < 2) {
+    lines.push(
+      pickVariant(seed + 12, [
+        `歩数の記録が始まった週です（平均 ${row.avgSteps.toLocaleString("ja-JP")} 歩/日）。`,
+        `歩数が記録され始めました。週平均は ${row.avgSteps.toLocaleString("ja-JP")} 歩/日です。`,
+      ]),
+    );
+  }
+
+  if (
+    row.avgWeightKg != null &&
+    row.avgSteps != null &&
+    prev?.avgWeightKg != null &&
+    prev.avgSteps != null &&
+    prev.avgSteps > 0 &&
+    lines.length < 2
+  ) {
+    const wDiff = row.avgWeightKg - prev.avgWeightKg;
+    const sPct = Math.round(
+      ((row.avgSteps - prev.avgSteps) / prev.avgSteps) * 100,
+    );
+    if (Math.abs(wDiff) < 0.15 && sPct >= 10) {
+      lines.push(
+        pickVariant(seed + 20, [
+          "体重はほぼ横ばいながら、歩数は増えた週でした。動きと体重のバランスがうかがえます。",
+          "体重は大きく動かず、歩数だけ伸びた週です。",
+        ]),
+      );
+    } else if (wDiff <= -0.2 && sPct >= 8) {
+      lines.push(
+        pickVariant(seed + 21, [
+          "歩数を増やしつつ、体重の平均は下がった週でした。",
+          "動きが増え、体重の平均はやや下がった組み合わせです。",
+        ]),
+      );
+    }
+  }
+
+  if (lines.length === 0) {
+    if (row.avgWeightKg != null || row.avgSteps != null) {
+      lines.push(
+        pickVariant(seed + 99, [
+          "大きな変化は少ない週でしたが、記録が続いていることが一番の蓄積です。",
+          "数値のブレは小さめでした。トレンドを見るにはあと数週続けるとわかりやすくなります。",
+          "静かな週でした。変化が小さいときほど、記録を続ける価値があります。",
+        ]),
+      );
+    }
+  }
+
+  return lines.slice(0, 2);
+}
+
+function briefGoalContextLine(
+  row: WeeklyDashboardRow,
+  prev: WeeklyDashboardRow | null,
+  goal: WeightGoalBand,
+  seed: number,
+): string | null {
+  const w = row.avgWeightKg;
+  if (w == null) {
+    return null;
+  }
+  const side = weightGoalSide(w, goal);
+  const { min: gMin, max: gMax } = goal;
+  if (side === "in") {
+    if (
+      prev?.avgWeightKg != null &&
+      weightGoalSide(prev.avgWeightKg, goal) !== "in"
+    ) {
+      return pickVariant(seed, [
+        `目標帯（${gMin}〜${gMax} kg）に戻ってきた週でもあります。`,
+        `体重は目標レンジ内に入りました（週平均 ${w} kg）。`,
+      ]);
+    }
+    return null;
+  }
+  const gap = weightDistanceOutsideBand(w, goal);
   const prevW = prev?.avgWeightKg ?? null;
   const prevDist =
     prevW != null ? weightDistanceOutsideBand(prevW, goal) : null;
-  const closer =
-    prevDist != null && gap < prevDist - 0.05;
-  const further =
-    prevDist != null && gap > prevDist + 0.05;
-  const flatGap = prevDist != null && !closer && !further;
-
-  const streakAbove =
-    side === "above"
-      ? countTrailingWeightGoalSide(history, goal, "above")
-      : 0;
-  const streakBelow =
-    side === "below"
-      ? countTrailingWeightGoalSide(history, goal, "below")
-      : 0;
-
-  if (side === "above") {
-    if (closer) {
-      return pickVariant(seed + 10, [
-        `体重の週平均は ${w} kg で、目標帯（${gMin}〜${gMax} kg）の上限より約 ${gap} kg 上です。前週より目標に近づいています。`,
-        `体重はまだ目標帯より上（約 ${gap} kg）ですが、前週より帯に近づいた週でした。`,
-        `目標帯より重めですが、平均は前週より下がり、目標への距離が縮まっています。`,
-      ]);
-    }
-    if (further) {
-      return pickVariant(seed + 11, [
-        `体重の週平均は ${w} kg で、目標帯の上限より約 ${gap} kg 上です。前週より目標から離れました。`,
-        `体重は目標帯より上で、前週よりさらに重い水準になりました（帯まで約 ${gap} kg）。`,
-      ]);
-    }
-    if (flatGap && streakAbove >= 3) {
-      return pickVariant(seed + 12, [
-        `体重の週平均は ${w} kg で、ここ ${streakAbove} 週続けて目標帯（${gMin}〜${gMax} kg）より上です（おおよそ ${gap} kg）。小さな調整を一つだけ試す週にしてみましょう。`,
-        `体重は ${streakAbove} 週ほど目標帯より上の水準が続いています。帯まで約 ${gap} kg。焦らず、食事や睡眠のどちらか一方だけ意識してみてください。`,
-        `目標帯より上の状態がしばらく続いています。今週も帯まで約 ${gap} kg で、前週と大きくは変わっていません。`,
-      ]);
-    }
-    if (flatGap) {
-      return pickVariant(seed + 13, [
-        `体重の週平均は ${w} kg で、目標帯の上限より約 ${gap} kg 上です。前週と目標からの距離はほぼ同じです。`,
-        `体重は目標帯より上（約 ${gap} kg）で、前週から大きな変化はありません。`,
-      ]);
-    }
-    return pickVariant(seed + 14, [
-      `体重の週平均は ${w} kg で、目標帯（${gMin}〜${gMax} kg）の上限より約 ${gap} kg 上です。`,
-      `体重は目標レンジより重めです（帯の上限より約 ${gap} kg）。`,
+  if (prevDist != null && gap < prevDist - 0.05) {
+    return pickVariant(seed + 1, [
+      `目標帯まで約 ${gap} kg。前週より近づいています（参考）。`,
     ]);
   }
-
-  // below band
-  if (closer) {
-    return pickVariant(seed + 20, [
-      `体重の週平均は ${w} kg で、目標帯（${gMin}〜${gMax} kg）の下限より約 ${gap} kg 下です。前週より目標に近づいています。`,
-      `体重はまだ目標帯より軽めですが、前週より帯に近づいた週でした。`,
+  if (prevDist != null && gap > prevDist + 0.05) {
+    return pickVariant(seed + 2, [
+      `目標帯まで約 ${gap} kg。前週より離れた週でした（参考）。`,
     ]);
   }
-  if (further) {
-    return pickVariant(seed + 21, [
-      `体重の週平均は ${w} kg で、目標帯の下限より約 ${gap} kg 下です。前週より目標から離れました。体調もあわせて見てください。`,
-      `体重は目標帯より軽く、前週よりさらに下がった週です（帯まで約 ${gap} kg）。`,
-    ]);
-  }
-  if (flatGap && streakBelow >= 3) {
-    return pickVariant(seed + 22, [
-      `体重の週平均は ${w} kg で、${streakBelow} 週続けて目標帯（${gMin}〜${gMax} kg）より下です。急な変化が気になるときは相談を。`,
-      `体重はしばらく目標帯より軽めの水準が続いています（おおよそ ${gap} kg 下）。無理に合わせなくて大丈夫です。`,
-    ]);
-  }
-  return pickVariant(seed + 23, [
-    `体重の週平均は ${w} kg で、目標帯（${gMin}〜${gMax} kg）の下限より約 ${gap} kg 下です。`,
-    `体重は目標レンジより軽めです（帯の下限より約 ${gap} kg）。`,
+  return pickVariant(seed + 3, [
+    `目標帯（${gMin}〜${gMax} kg）まで約 ${gap} kg（参考値）。`,
   ]);
 }
 
@@ -894,7 +1030,7 @@ export function weeklyDashboardCoachNarrative(
   options?: WeeklyCoachNarrativeOptions,
 ): string {
   const priorWeeks = options?.priorWeeks ?? [];
-  const seed = hashSeed([row.weekStart, "coach-v2"]);
+  const seed = hashSeed([row.weekStart, "coach-v3"]);
   const sentences: string[] = [];
   const includeBp = options?.includeBloodPressure === true;
   const hasBpData =
@@ -905,11 +1041,44 @@ export function weeklyDashboardCoachNarrative(
   const hasAnyCore = hasWeight || hasSteps;
 
   if (!hasAnyCore && !hasBpData) {
+    const reflOnly = weeklyReflectionCoachLine(row.reflectionComments, seed + 50);
+    if (reflOnly) {
+      return `${reflOnly}${pickVariant(seed + 40, [
+        "次の週も、自分に合うペースで十分です。",
+        "小さな積み重ねを信じて、続けていきましょう。",
+      ])}`;
+    }
     return pickVariant(seed, [
       "記録がまだ少ない週でした。無理のない範囲から続けてみましょう。",
       "データが揃うと振り返りやすくなります。次の一歩を楽しみにしています。",
       "小さな記録の積み重ねが後から効いてきます。焦らずで大丈夫です。",
     ]);
+  }
+
+  sentences.push(
+    ...weeklyChangeCoachLines(row, prev, priorWeeks, seed + 1),
+  );
+
+  const reflLine = weeklyReflectionCoachLine(
+    row.reflectionComments,
+    seed + 50,
+  );
+  if (reflLine) {
+    sentences.push(reflLine);
+  }
+
+  if (goal && hasWeight && sentences.length < 3) {
+    const goalLine = briefGoalContextLine(row, prev, goal, seed + 70);
+    if (goalLine) {
+      sentences.push(goalLine);
+    }
+  } else if (hasWeight && !goal && sentences.length < 2) {
+    sentences.push(
+      pickVariant(seed + 4, [
+        "体重画面で目標帯を設定すると、変化とあわせて見やすくなります。",
+        "目標帯があると、数週のトレンドがより具体的に語れます。",
+      ]),
+    );
   }
 
   if (!hasAnyCore && hasBpData && includeBp) {
@@ -923,81 +1092,11 @@ export function weeklyDashboardCoachNarrative(
     return [...bpLines, closing].join("");
   }
 
-  if (!hasAnyCore && hasBpData && !includeBp) {
-    return pickVariant(seed, [
-      "記録がまだ少ない週でした。無理のない範囲から続けてみましょう。",
-      "データが揃うと振り返りやすくなります。次の一歩を楽しみにしています。",
-      "小さな記録の積み重ねが後から効いてきます。焦らずで大丈夫です。",
-    ]);
-  }
-
-  if (hasWeight && goal) {
-    sentences.push(
-      weightGoalCoachLine(row, prev, priorWeeks, goal, seed + 1),
-    );
-  } else if (hasWeight && !goal) {
-    sentences.push(
-      pickVariant(seed + 4, [
-        "体重画面で目標帯を設定すると、達成度が見えやすくなります。",
-        "目標帯があると「近い・遠い」が言葉にしやすくなります。設定を検討してみてください。",
-      ]),
-    );
-    if (prev?.avgWeightKg != null && row.avgWeightKg != null) {
-      const diff = row.avgWeightKg - prev.avgWeightKg;
-      if (diff < -0.2) {
-        sentences.push(
-          pickVariant(seed + 5, [
-            "前週より平均が下がっています。意図した変化なら、その努力を認めてあげてください。",
-            "平均が下がる週でした。体調とセットで見ると安心材料になります。",
-          ]),
-        );
-      } else if (diff > 0.2) {
-        sentences.push(
-          pickVariant(seed + 6, [
-            "前週より平均が上がっています。一週間単位のブレはよくあるので、トレンドで見ましょう。",
-            "平均が上がった週です。ストレスや睡眠も含め、全体のバランスを一度なでてみてください。",
-          ]),
-        );
-      }
+  if (includeBp && hasBpData && sentences.length < 4) {
+    const bpLines = bloodPressureCoachLines(row, prev, seed + 60);
+    if (bpLines.length > 0) {
+      sentences.push(bpLines[0]!);
     }
-  }
-
-  if (hasSteps && sentences.length < 2) {
-    const st = row.avgSteps!;
-    const prevSt = prev?.avgSteps ?? null;
-    let stepsLine: string;
-    if (st >= 8500) {
-      stepsLine = pickVariant(seed + 10, [
-        `歩数の週平均は ${st.toLocaleString("ja-JP")} 歩で、とても活発な週でした。`,
-        `歩数は ${st.toLocaleString("ja-JP")} 歩/日程度。体を動かせているのは心身の土台になります。`,
-      ]);
-    } else if (st >= 6500) {
-      stepsLine = pickVariant(seed + 11, [
-        `歩数の週平均は ${st.toLocaleString("ja-JP")} 歩で、おおむね良好です。`,
-        `歩数は ${st.toLocaleString("ja-JP")} 歩/日程度。維持できていれば十分な価値があります。`,
-      ]);
-    } else if (st >= 4500) {
-      stepsLine = pickVariant(seed + 12, [
-        `歩数の週平均は ${st.toLocaleString("ja-JP")} 歩で、やや控えめな週でした。短い散歩の追加が続きやすいです。`,
-        `歩数は ${st.toLocaleString("ja-JP")} 歩/日程度。少しだけ足す余地がありそうです。`,
-      ]);
-    } else {
-      stepsLine = pickVariant(seed + 13, [
-        `歩数の週平均は ${st.toLocaleString("ja-JP")} 歩で、低めの週でした。体調を優先し、無理のない範囲からで大丈夫です。`,
-        `歩数は ${st.toLocaleString("ja-JP")} 歩/日程度。忙しさや体調の影響もよくあるので、責めずに再開を。`,
-      ]);
-    }
-    if (prevSt != null && prevSt > 0) {
-      const diff = st - prevSt;
-      const pct = Math.round((diff / prevSt) * 100);
-      if (Math.abs(pct) >= 8) {
-        stepsLine +=
-          diff > 0
-            ? ` 前週より約 ${Math.abs(Math.round(diff)).toLocaleString("ja-JP")} 歩多いです。`
-            : ` 前週より約 ${Math.abs(Math.round(diff)).toLocaleString("ja-JP")} 歩少ないです。`;
-      }
-    }
-    sentences.push(stepsLine);
   }
 
   if (sentences.length === 0) {
@@ -1007,10 +1106,6 @@ export function weeklyDashboardCoachNarrative(
         "データが揃うほど、自分のペースが見えやすくなります。",
       ]),
     );
-  }
-
-  if (includeBp && hasBpData) {
-    sentences.push(...bloodPressureCoachLines(row, prev, seed + 60));
   }
 
   const closing = pickVariant(seed + 40, [
