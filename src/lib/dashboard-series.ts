@@ -1353,3 +1353,163 @@ export function weeklyDashboardCoachNarrative(
 
   return [...sentences, closing].join("");
 }
+
+/** グラフ下コメント用の固定分析期間（日） */
+export const DASHBOARD_TREND_COMMENT_DAYS = 30;
+
+function splitRecordedValuesChronological(
+  points: DailyDashboardPoint[],
+  pick: (p: DailyDashboardPoint) => number | null,
+): number[] {
+  return points
+    .map((p) => pick(p))
+    .filter((v): v is number => v != null);
+}
+
+function describeHalvesTrend(
+  values: number[],
+  label: string,
+  flatThreshold: number,
+  format: (n: number) => string,
+): string | null {
+  if (values.length < 4) {
+    return null;
+  }
+  const mid = Math.ceil(values.length / 2);
+  const early = values.slice(0, mid);
+  const late = values.slice(mid);
+  const earlyAvg = mean(early);
+  const lateAvg = mean(late);
+  const diff = lateAvg - earlyAvg;
+  if (Math.abs(diff) < flatThreshold) {
+    return `直近30日間、${label}は前半と後半で大きな差はなく、おおむね安定した推移です。`;
+  }
+  if (diff > 0) {
+    return `直近30日間、${label}は後半にかけて上がる傾向があります（前半平均 ${format(earlyAvg)} → 後半平均 ${format(lateAvg)}）。`;
+  }
+  return `直近30日間、${label}は後半にかけて下がる傾向があります（前半平均 ${format(earlyAvg)} → 後半平均 ${format(lateAvg)}）。`;
+}
+
+/** 体重グラフ下：直近30日のトレンド・現状コメント（診断ではない） */
+export function weightDashboardTrendComment(
+  dailyPoints: DailyDashboardPoint[],
+  goal: WeightGoalBand | null,
+): string {
+  const weights = splitRecordedValuesChronological(
+    dailyPoints,
+    (p) => p.weightKg,
+  );
+  if (weights.length === 0) {
+    return "直近30日間に体重の記録がありません。記録が増えると、ここに推移のコメントが表示されます。";
+  }
+  const latest = weights[weights.length - 1]!;
+  const avg = Math.round(mean(weights) * 10) / 10;
+  const parts: string[] = [
+    `直近30日間、体重は ${weights.length} 日記録されています。最新は ${latest} kg、期間平均は ${avg} kg です。`,
+  ];
+  const trend = describeHalvesTrend(
+    weights,
+    "体重",
+    0.15,
+    (n) => `${Math.round(n * 10) / 10} kg`,
+  );
+  if (trend) {
+    parts.push(trend);
+  }
+  if (goal) {
+    const side =
+      latest >= goal.min && latest <= goal.max
+        ? "in"
+        : latest > goal.max
+          ? "above"
+          : "below";
+    if (side === "in") {
+      parts.push(
+        `最新値は目標帯（${goal.min}〜${goal.max} kg）の中にあります。`,
+      );
+    } else if (side === "above") {
+      const gap = Math.round((latest - goal.max) * 10) / 10;
+      parts.push(
+        `最新値は目標帯の上限より約 ${gap} kg 上です（参考）。`,
+      );
+    } else {
+      const gap = Math.round((goal.min - latest) * 10) / 10;
+      parts.push(
+        `最新値は目標帯の下限より約 ${gap} kg 下です（参考）。`,
+      );
+    }
+  }
+  return parts.join("");
+}
+
+/** 歩数グラフ下：直近30日のトレンド・現状コメント */
+export function stepsDashboardTrendComment(
+  dailyPoints: DailyDashboardPoint[],
+): string {
+  const steps = splitRecordedValuesChronological(dailyPoints, (p) => p.steps);
+  if (steps.length === 0) {
+    return "直近30日間に歩数の記録がありません。記録が増えると、ここに推移のコメントが表示されます。";
+  }
+  const avg = Math.round(mean(steps));
+  const latest = steps[steps.length - 1]!;
+  let level: string;
+  if (avg >= 8500) {
+    level = "とても活発";
+  } else if (avg >= 6500) {
+    level = "おおむね良好";
+  } else if (avg >= 4500) {
+    level = "やや控えめ";
+  } else {
+    level = "低め";
+  }
+  const parts: string[] = [
+    `直近30日間、歩数は ${steps.length} 日記録されています。期間平均は ${avg.toLocaleString("ja-JP")} 歩/日で、${level}な水準です。最新の記録は ${latest.toLocaleString("ja-JP")} 歩です。`,
+  ];
+  const trend = describeHalvesTrend(
+    steps,
+    "歩数",
+    avg * 0.05,
+    (n) => `${Math.round(n).toLocaleString("ja-JP")} 歩`,
+  );
+  if (trend) {
+    parts.push(trend);
+  }
+  return parts.join("");
+}
+
+/** 血圧グラフ下：直近30日のトレンド・現状コメント（診断ではない） */
+export function bloodPressureDashboardTrendComment(
+  dailyPoints: DailyDashboardPoint[],
+): string {
+  const sysVals: number[] = [];
+  const diaVals: number[] = [];
+  for (const p of dailyPoints) {
+    if (p.systolic != null && p.diastolic != null) {
+      sysVals.push(p.systolic);
+      diaVals.push(p.diastolic);
+    }
+  }
+  if (sysVals.length === 0) {
+    return "直近30日間に血圧の記録がありません。記録が増えると、ここに推移のコメントが表示されます。";
+  }
+  const avgSys = Math.round(mean(sysVals));
+  const avgDia = Math.round(mean(diaVals));
+  const latestSys = sysVals[sysVals.length - 1]!;
+  const latestDia = diaVals[diaVals.length - 1]!;
+  const parts: string[] = [
+    `直近30日間、血圧は ${sysVals.length} 日記録されています。期間平均は ${avgSys} / ${avgDia} mmHg です。最新は ${latestSys} / ${latestDia} mmHg です。`,
+  ];
+  const trend = describeHalvesTrend(
+    sysVals,
+    "収縮期血圧",
+    3,
+    (n) => `${Math.round(n)} mmHg`,
+  );
+  if (trend) {
+    parts.push(trend);
+  } else if (sysVals.length >= 2) {
+    parts.push("直近30日間、収縮期血圧は大きくは動いていません。");
+  }
+  parts.push("医療的な判定ではなく、記録の参考としてご覧ください。");
+  return parts.join("");
+}

@@ -17,13 +17,16 @@ import {
 } from "@/lib/dashboard-preferences";
 import { ReflectionCommentList } from "@/components/reflection-comment-list";
 import {
+  bloodPressureDashboardTrendComment,
   buildBpChartRows,
+  buildCombinedChartRows,
   buildDailyDashboardPoints,
-  buildDashboardStepsChartPoints,
   buildDashboardWeightChartPoints,
   buildWeeklyDashboardRows,
   createDefaultCustomDateRange,
+  DASHBOARD_TREND_COMMENT_DAYS,
   resolveDashboardDaysBack,
+  stepsDashboardTrendComment,
   type CombinedChartGranularity,
   type DashboardChartPeriodOption,
   type DashboardCustomDateRange,
@@ -31,6 +34,7 @@ import {
   weeklyDashboardCoachNarrative,
   weeklyStepsNarrative,
   weeklyWeightNarrative,
+  weightDashboardTrendComment,
   type WeightGoalBand,
 } from "@/lib/dashboard-series";
 import { appPath } from "@/lib/app-paths";
@@ -55,6 +59,9 @@ import {
 } from "recharts";
 
 const FINITE_PERIOD_DAYS = [7, 14, 30] as const satisfies readonly DashboardChartPeriodOption[];
+
+/** 歩数棒グラフの色（オレンジ系） */
+const STEPS_BAR_FILL = "#f97316";
 
 /** `weight-visualization.tsx` と同じキー（体重画面で設定した目標帯） */
 const LS_WEIGHT_GOAL_MIN = "health-park-weight-goal-min";
@@ -97,6 +104,8 @@ export function DashboardPageClient() {
     useState<DashboardChartPeriodOption>(30);
   const [stepsPeriod, setStepsPeriod] =
     useState<DashboardChartPeriodOption>(30);
+  const [stepsGranularity, setStepsGranularity] =
+    useState<CombinedChartGranularity>("day");
   const [bpPeriod, setBpPeriod] = useState<DashboardChartPeriodOption>(30);
   const [bpGranularity, setBpGranularity] =
     useState<CombinedChartGranularity>("day");
@@ -281,6 +290,23 @@ export function DashboardPageClient() {
     [weeklySummaryDailyPoints],
   );
 
+  const trendDailyPoints = useMemo(
+    () =>
+      buildDailyDashboardPoints(
+        DASHBOARD_TREND_COMMENT_DAYS,
+        weightEntries,
+        stepsEntries,
+        reflections,
+        bloodPressureEntries,
+      ),
+    [
+      weightEntries,
+      stepsEntries,
+      reflections,
+      bloodPressureEntries,
+    ],
+  );
+
   const hasAnyWeight = weightDailyPoints.some((p) => p.weightKg != null);
   const hasAnySteps = stepsDailyPoints.some((p) => p.steps != null);
 
@@ -290,8 +316,8 @@ export function DashboardPageClient() {
   );
 
   const stepsChartData = useMemo(
-    () => buildDashboardStepsChartPoints(stepsDailyPoints),
-    [stepsDailyPoints],
+    () => buildCombinedChartRows(stepsDailyPoints, stepsGranularity),
+    [stepsDailyPoints, stepsGranularity],
   );
 
   const bpChartData = useMemo(
@@ -324,6 +350,21 @@ export function DashboardPageClient() {
     }
     return null;
   }, [goalMinStr, goalMaxStr]);
+
+  const weightTrendComment = useMemo(
+    () => weightDashboardTrendComment(trendDailyPoints, goalBand),
+    [trendDailyPoints, goalBand],
+  );
+
+  const stepsTrendComment = useMemo(
+    () => stepsDashboardTrendComment(trendDailyPoints),
+    [trendDailyPoints],
+  );
+
+  const bpTrendComment = useMemo(
+    () => bloodPressureDashboardTrendComment(trendDailyPoints),
+    [trendDailyPoints],
+  );
 
   /** 体重は記録の範囲を拡大表示（0 起点は省略）。目標帯があるときは軸に含める。左軸の最小目盛に ～ を付与 */
   const weightAxisConfig = useMemo(() => {
@@ -431,18 +472,18 @@ export function DashboardPageClient() {
   }, [stepsChartData]);
 
   const stepsAverage = useMemo(() => {
-    const vals = stepsChartData
-      .filter((p) => p.recorded && p.steps != null)
+    const vals = stepsDailyPoints
+      .filter((p) => p.steps != null)
       .map((p) => p.steps!);
     if (vals.length === 0) {
       return null;
     }
     return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
-  }, [stepsChartData]);
+  }, [stepsDailyPoints]);
 
   const stepsRecordedDays = useMemo(
-    () => stepsChartData.filter((p) => p.recorded).length,
-    [stepsChartData],
+    () => stepsDailyPoints.filter((p) => p.steps != null).length,
+    [stepsDailyPoints],
   );
 
   const dashboardAppointments = useMemo(
@@ -493,11 +534,11 @@ export function DashboardPageClient() {
       {showAppt ? (
       <div className="mt-6 rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
         <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
-          通院予定（7日以内）
+          通院予定（3か月先まで）
         </h2>
         {dashboardAppointments.length === 0 ? (
           <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
-            1週間以内の予定はありません
+            3か月以内の予定はありません
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
@@ -619,6 +660,7 @@ export function DashboardPageClient() {
               </ResponsiveContainer>
             </div>
           )}
+          <DashboardTrendComment text={weightTrendComment} />
           <p className="mt-2 text-xs text-[color:var(--hp-muted)]">
             詳細入力は{" "}
             <Link href={appPath("/weight")} className="text-[color:var(--hp-accent)] underline">
@@ -631,15 +673,24 @@ export function DashboardPageClient() {
         <div className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
           <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
             歩数
+            <span className="ml-1.5 font-normal text-[color:var(--hp-muted)]">
+              {stepsGranularity === "day"
+                ? "・日ごと"
+                : stepsGranularity === "week"
+                  ? "・週平均"
+                  : "・月平均"}
+            </span>
           </h2>
           <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            未記録の日は棒を表示しません。平均は記録がある日のみの算術平均です。
+            未記録の日は棒を表示しません。週・月は記録があった日のみを平均した値です。
           </p>
-          <DisplayPeriodControls
+          <ChartPeriodControls
             period={stepsPeriod}
             onPeriodChange={setStepsPeriod}
             customRange={stepsCustomRange}
             onCustomRangeChange={setStepsCustomRange}
+            granularity={stepsGranularity}
+            onGranularityChange={setStepsGranularity}
           />
           {!hasAnySteps ? (
             <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
@@ -668,18 +719,24 @@ export function DashboardPageClient() {
                       width={40}
                       tickFormatter={(v) => `${v}`}
                     />
-                    <Tooltip content={<StepsTooltip />} />
+                    <Tooltip
+                      content={
+                        <StepsTooltip chartGranularity={stepsGranularity} />
+                      }
+                    />
                     <Bar
-                      dataKey="barValue"
+                      dataKey="stepsBar"
                       name="歩数"
-                      fill="var(--hp-accent)"
+                      fill={STEPS_BAR_FILL}
                       maxBarSize={22}
                       radius={[3, 3, 0, 0]}
                     >
                       {stepsChartData.map((entry, i) => (
                         <Cell
                           key={`steps-bar-${entry.date}-${i}`}
-                          fill={entry.recorded ? "var(--hp-accent)" : "transparent"}
+                          fill={
+                            entry.stepsRecorded ? STEPS_BAR_FILL : "transparent"
+                          }
                         />
                       ))}
                     </Bar>
@@ -704,36 +761,11 @@ export function DashboardPageClient() {
               </dl>
             </>
           )}
+          <DashboardTrendComment text={stepsTrendComment} />
           <p className="mt-2 text-xs text-[color:var(--hp-muted)]">
             詳細入力は{" "}
             <Link href={appPath("/steps")} className="text-[color:var(--hp-accent)] underline">
               歩数
-            </Link>
-            へ。
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
-          <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
-            振り返り（一覧）
-          </h2>
-          <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-            選択した期間の日付とコメントの一覧です。新しい順に表示します。
-          </p>
-          <ReflectionPeriodControls
-            period={reflectionDayPeriod}
-            onPeriodChange={setReflectionDayPeriod}
-            customRange={reflectionCustomRange}
-            onCustomRangeChange={setReflectionCustomRange}
-          />
-          <ReflectionCommentList points={reflectionDayDailyPoints} />
-          <p className="mt-2 text-xs text-[color:var(--hp-muted)]">
-            記録は{" "}
-            <Link
-              href={appPath("/reflection")}
-              className="text-[color:var(--hp-accent)] underline"
-            >
-              振り返り
             </Link>
             へ。
           </p>
@@ -850,6 +882,7 @@ export function DashboardPageClient() {
               </ResponsiveContainer>
             </div>
           )}
+          <DashboardTrendComment text={bpTrendComment} />
           <p className="mt-2 text-xs text-[color:var(--hp-muted)]">
             記録の追加・修正は{" "}
             <Link
@@ -857,6 +890,34 @@ export function DashboardPageClient() {
               className="text-[color:var(--hp-accent)] underline"
             >
               血圧
+            </Link>
+            へ。
+          </p>
+        </div>
+        ) : null}
+
+        {showCore ? (
+        <div className="rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4">
+          <h2 className="text-sm font-medium text-[color:var(--hp-foreground)]">
+            振り返り（一言）
+          </h2>
+          <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
+            選択した期間の日付とコメントの一覧です。新しい順に表示します。
+          </p>
+          <ReflectionPeriodControls
+            period={reflectionDayPeriod}
+            onPeriodChange={setReflectionDayPeriod}
+            customRange={reflectionCustomRange}
+            onCustomRangeChange={setReflectionCustomRange}
+          />
+          <ReflectionCommentList points={reflectionDayDailyPoints} />
+          <p className="mt-2 text-xs text-[color:var(--hp-muted)]">
+            記録は{" "}
+            <Link
+              href={appPath("/reflection")}
+              className="text-[color:var(--hp-accent)] underline"
+            >
+              振り返り
             </Link>
             へ。
           </p>
@@ -1282,6 +1343,17 @@ function ReflectionPeriodControls({
   );
 }
 
+function DashboardTrendComment({ text }: { text: string }) {
+  return (
+    <p className="mt-3 rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2.5 text-sm leading-relaxed text-[color:var(--hp-foreground)]">
+      <span className="text-xs font-medium text-[color:var(--hp-muted)]">
+        直近30日のコメント
+      </span>
+      <span className="mt-1 block">{text}</span>
+    </p>
+  );
+}
+
 function WeightTooltip({
   active,
   payload,
@@ -1318,19 +1390,24 @@ function WeightTooltip({
 function StepsTooltip({
   active,
   payload,
+  chartGranularity,
 }: {
   active?: boolean;
   payload?: Array<{ payload: Record<string, unknown> }>;
+  chartGranularity: CombinedChartGranularity;
 }) {
   if (!active || !payload?.length) {
     return null;
   }
   const row = payload[0]?.payload as {
     label: string;
-    recorded: boolean;
+    date: string;
     steps: number | null;
+    stepsRecorded: boolean;
+    stepsSampleDays: number;
   };
-  if (!row.recorded) {
+  const agg = chartGranularity !== "day";
+  if (!row.stepsRecorded || row.steps == null) {
     return (
       <div className="rounded-md border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-2 py-1.5 text-xs shadow">
         <div className="font-medium">{row.label}</div>
@@ -1338,10 +1415,21 @@ function StepsTooltip({
       </div>
     );
   }
+  const suffix =
+    agg && row.stepsSampleDays > 0
+      ? `（${row.stepsSampleDays}日分の平均）`
+      : "";
   return (
     <div className="rounded-md border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] px-2 py-1.5 text-xs shadow">
-      <div className="font-medium">{row.label}</div>
-      <div>{(row.steps ?? 0).toLocaleString("ja-JP")} 歩</div>
+      <div className="tabular-nums text-[color:var(--hp-muted)]">
+        {row.label}
+        {agg ? (
+          <span className="text-[color:var(--hp-muted)]"> ({row.date}〜)</span>
+        ) : null}
+      </div>
+      <div className="mt-1 text-[color:var(--hp-foreground)]">
+        {row.steps.toLocaleString("ja-JP")} 歩{suffix}
+      </div>
     </div>
   );
 }

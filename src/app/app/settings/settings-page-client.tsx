@@ -270,10 +270,10 @@ export function SettingsPageClient() {
           />
           <span>
             <span className="font-medium text-[color:var(--hp-foreground)]">
-              通院予定（7日以内）
+              通院予定（3か月先まで）
             </span>
             <span className="mt-0.5 block text-sm text-[color:var(--hp-muted)]">
-              1週間以内の通院予定の一覧をダッシュボード上部に表示します。
+              3か月以内の通院予定の一覧をダッシュボード上部に表示します。
             </span>
           </span>
         </label>
