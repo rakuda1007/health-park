@@ -426,15 +426,10 @@ export function deleteMealEntry(id: string): Promise<void> {
   return deleteEntry(STORE_MEALS, id);
 }
 
-function sortMealMasters<T extends { sortOrder: number; label: string; lastUsedAt?: string }>(
+function sortMealMasters<T extends { sortOrder: number; label: string }>(
   rows: T[],
 ): T[] {
   return [...rows].sort((a, b) => {
-    const aUsed = a.lastUsedAt ?? "";
-    const bUsed = b.lastUsedAt ?? "";
-    if (aUsed !== bUsed) {
-      return bUsed.localeCompare(aUsed);
-    }
     if (a.sortOrder !== b.sortOrder) {
       return a.sortOrder - b.sortOrder;
     }

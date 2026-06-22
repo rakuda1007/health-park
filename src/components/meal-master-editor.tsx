@@ -168,6 +168,40 @@ export function MealMasterEditor({ onMastersChange }: Props) {
     await load();
   }
 
+  async function handleMoveItem(id: string, direction: "up" | "down") {
+    const sorted = [...itemMasters].sort((a, b) => a.sortOrder - b.sortOrder);
+    const index = sorted.findIndex((row) => row.id === id);
+    if (index < 0) {
+      return;
+    }
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= sorted.length) {
+      return;
+    }
+
+    const current = sorted[index];
+    const neighbor = sorted[targetIndex];
+    const now = new Date().toISOString();
+    setSaving(true);
+    try {
+      await Promise.all([
+        putMealItemMaster({
+          ...current,
+          sortOrder: neighbor.sortOrder,
+          updatedAt: now,
+        }),
+        putMealItemMaster({
+          ...neighbor,
+          sortOrder: current.sortOrder,
+          updatedAt: now,
+        }),
+      ]);
+      await load();
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleDeleteSet(id: string) {
     if (!window.confirm("このセット定番を削除しますか？")) {
       return;
@@ -203,7 +237,8 @@ export function MealMasterEditor({ onMastersChange }: Props) {
               一品マスタ
             </h3>
             <p className="mt-1 text-xs text-[color:var(--hp-muted)]">
-              よく使う一品（例: ごはん、卵焼き）を登録します。
+              よく使う一品（例: ごはん、卵焼き）を登録します。一覧の ↑↓
+              で表示順を変更できます。
             </p>
             <form onSubmit={handleSaveItem} className="mt-3 space-y-2">
               <div className="flex flex-wrap gap-2">
@@ -248,7 +283,7 @@ export function MealMasterEditor({ onMastersChange }: Props) {
             </form>
             {itemMasters.length > 0 ? (
               <ul className="mt-3 divide-y divide-[color:var(--hp-border)] rounded-lg border border-[color:var(--hp-border)]">
-                {itemMasters.map((row) => (
+                {itemMasters.map((row, index) => (
                   <li
                     key={row.id}
                     className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm"
@@ -262,7 +297,29 @@ export function MealMasterEditor({ onMastersChange }: Props) {
                         )
                       </span>
                     </span>
-                    <span className="flex gap-2">
+                    <span className="flex items-center gap-2">
+                      <span className="flex gap-0.5">
+                        <button
+                          type="button"
+                          disabled={saving || index === 0}
+                          onClick={() => void handleMoveItem(row.id, "up")}
+                          aria-label={`${row.label} を上へ`}
+                          className="rounded border border-[color:var(--hp-border)] px-1.5 py-0.5 text-xs disabled:opacity-40"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          disabled={
+                            saving || index === itemMasters.length - 1
+                          }
+                          onClick={() => void handleMoveItem(row.id, "down")}
+                          aria-label={`${row.label} を下へ`}
+                          className="rounded border border-[color:var(--hp-border)] px-1.5 py-0.5 text-xs disabled:opacity-40"
+                        >
+                          ↓
+                        </button>
+                      </span>
                       <button
                         type="button"
                         onClick={() => startEditItem(row)}
