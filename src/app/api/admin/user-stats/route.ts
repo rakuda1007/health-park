@@ -1,4 +1,8 @@
 import { computeUserStatsFromFirestore } from "@/lib/admin/compute-firestore-user-stats";
+import {
+  computeTelemetryStatsFromFirestore,
+  telemetryDevicesQuery,
+} from "@/lib/admin/compute-telemetry-stats";
 import { isDeveloperAdminEmail } from "@/lib/admin/developer-allowlist";
 import {
   getFirebaseAdminAuth,
@@ -39,12 +43,20 @@ export async function GET(request: NextRequest) {
     }
 
     const db = getFirebaseAdminFirestore();
-    const stats = await computeUserStatsFromFirestore(
-      (id) => db.collectionGroup(id),
-      Date.now(),
-      RECENT_WINDOW_DAYS,
-    );
-    return NextResponse.json(stats);
+    const nowMs = Date.now();
+    const [firestoreStats, telemetryStats] = await Promise.all([
+      computeUserStatsFromFirestore(
+        (id) => db.collectionGroup(id),
+        nowMs,
+        RECENT_WINDOW_DAYS,
+      ),
+      computeTelemetryStatsFromFirestore(
+        () => telemetryDevicesQuery(db).get(),
+        nowMs,
+        RECENT_WINDOW_DAYS,
+      ),
+    ]);
+    return NextResponse.json({ ...firestoreStats, ...telemetryStats });
   } catch (e) {
     console.error("[api/admin/user-stats]", e);
     const msg = e instanceof Error ? e.message : "内部エラー";

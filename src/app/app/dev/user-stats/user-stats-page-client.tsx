@@ -9,6 +9,9 @@ type StatsPayload = {
   everEnteredDataUserCount: number;
   activeLast30DaysUserCount: number;
   documentsScanned: number;
+  localOnlyEverRecordedDeviceCount: number;
+  localOnlyActiveLast30DaysDeviceCount: number;
+  telemetryDocumentsScanned: number;
   computedAt: string;
   recentWindowDays: number;
 };
@@ -43,6 +46,11 @@ export function UserStatsPageClient() {
         everEnteredDataUserCount: body.everEnteredDataUserCount ?? 0,
         activeLast30DaysUserCount: body.activeLast30DaysUserCount ?? 0,
         documentsScanned: body.documentsScanned ?? 0,
+        localOnlyEverRecordedDeviceCount:
+          body.localOnlyEverRecordedDeviceCount ?? 0,
+        localOnlyActiveLast30DaysDeviceCount:
+          body.localOnlyActiveLast30DaysDeviceCount ?? 0,
+        telemetryDocumentsScanned: body.telemetryDocumentsScanned ?? 0,
         computedAt: body.computedAt ?? "",
         recentWindowDays: body.recentWindowDays ?? 30,
       });
@@ -97,7 +105,8 @@ export function UserStatsPageClient() {
         利用統計（開発者）
       </h1>
       <p className="mt-2 text-sm text-[color:var(--hp-muted)]">
-        Firestore のユーザー別サブコレクション（体重・歩数など）のみを集計します。サーバーで開発者メールに一致する場合のみ実行されます。
+        Firestore のユーザー別サブコレクション（体重・歩数など）と、未ログイン端末から送られる軽量テレメトリ（匿名
+        ID・記録種別・時刻のみ）を集計します。サーバーで開発者メールに一致する場合のみ実行されます。
       </p>
 
       <div className="mt-6">
@@ -120,6 +129,14 @@ export function UserStatsPageClient() {
       {stats ? (
         <dl className="mt-6 space-y-4 rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4 text-sm">
           <div>
+            <dt className="text-xs font-medium text-[color:var(--hp-foreground)]">
+              クラウド同期ユーザー（Firestore）
+            </dt>
+            <dd className="mt-2 text-xs text-[color:var(--hp-muted)]">
+              メールログイン後に記録が Firestore へ同期された UID
+            </dd>
+          </div>
+          <div>
             <dt className="text-xs text-[color:var(--hp-muted)]">
               一度でもデータを入れたユーザー数
             </dt>
@@ -141,8 +158,40 @@ export function UserStatsPageClient() {
               各ドキュメントの日付・作成・更新のいずれかが窓内のユーザーを1人以上と数えます。
             </dd>
           </div>
+          <div className="border-t border-[color:var(--hp-border)] pt-4">
+            <dt className="text-xs font-medium text-[color:var(--hp-foreground)]">
+              ローカルのみ記録（テレメトリ端末）
+            </dt>
+            <dd className="mt-2 text-xs text-[color:var(--hp-muted)]">
+              未ログイン（または Firebase 未設定）で記録した端末。健康データ本体は送らず、匿名
+              ID と記録種別のみを `telemetryDevices` に保持します。
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-[color:var(--hp-muted)]">
+              一度でも記録した端末数
+            </dt>
+            <dd className="mt-1 text-2xl font-semibold tabular-nums text-[color:var(--hp-foreground)]">
+              {stats.localOnlyEverRecordedDeviceCount}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-[color:var(--hp-muted)]">
+              直近 {stats.recentWindowDays} 日に記録のあった端末数
+            </dt>
+            <dd className="mt-1 text-2xl font-semibold tabular-nums text-[color:var(--hp-foreground)]">
+              {stats.localOnlyActiveLast30DaysDeviceCount}
+            </dd>
+          </div>
           <div className="border-t border-[color:var(--hp-border)] pt-3 text-xs text-[color:var(--hp-muted)]">
-            <p>走査ドキュメント数: {stats.documentsScanned.toLocaleString("ja-JP")}</p>
+            <p>
+              走査ドキュメント数（Firestore 記録）:{" "}
+              {stats.documentsScanned.toLocaleString("ja-JP")}
+            </p>
+            <p className="mt-1">
+              走査ドキュメント数（テレメトリ）:{" "}
+              {stats.telemetryDocumentsScanned.toLocaleString("ja-JP")}
+            </p>
             <p className="mt-1">
               集計時刻:{" "}
               {stats.computedAt

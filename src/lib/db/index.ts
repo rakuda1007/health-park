@@ -310,6 +310,14 @@ function scheduleReplicateAfterPut(storeName: string, entry: object): void {
   );
 }
 
+function scheduleTelemetryReport(storeName: string): void {
+  void import("@/lib/telemetry/report-record-activity").then((m) =>
+    m.reportRecordActivity(storeName).catch(() => {
+      // テレメトリ失敗は記録処理に影響させない
+    }),
+  );
+}
+
 function scheduleReplicateAfterDelete(storeName: string, id: string): void {
   if (suppressCloudReplicate) {
     return;
@@ -329,6 +337,7 @@ function putEntry(storeName: string, entry: object): Promise<void> {
   const e = bumpUpdatedAt(entry as object);
   return putEntryRaw(storeName, e).then(() => {
     scheduleReplicateAfterPut(storeName, e);
+    scheduleTelemetryReport(storeName);
   });
 }
 
