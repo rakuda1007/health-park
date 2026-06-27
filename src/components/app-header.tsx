@@ -282,19 +282,6 @@ export function AppHeader() {
               >
                 <span className="truncate">Health Park</span>
               </Link>
-              {usePortalStyleNav ? (
-                <nav
-                  className="hidden min-w-0 md:flex md:items-center md:gap-x-4"
-                  aria-label="案内"
-                >
-                  <Link
-                    href={appPath("/dashboard")}
-                    className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
-                  >
-                    記録アプリへ（登録不要）
-                  </Link>
-                </nav>
-              ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-2 md:gap-3">
               {signedInWithEmail ? (
@@ -307,6 +294,24 @@ export function AppHeader() {
                     ログアウト
                   </button>
                 </span>
+              ) : usePortalStyleNav ? (
+                <nav
+                  className="flex items-center gap-2"
+                  aria-label="案内"
+                >
+                  <Link
+                    href={appPath("/dashboard")}
+                    className="rounded-md bg-[color:var(--hp-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--hp-accent-fg)] hover:opacity-90"
+                  >
+                    登録なしで始める
+                  </Link>
+                  <Link
+                    href={loginHref}
+                    className="rounded-md border border-[color:var(--hp-border)] px-3 py-1.5 text-sm font-medium text-[color:var(--hp-foreground)] hover:bg-[color:var(--hp-card)]"
+                  >
+                    ログイン
+                  </Link>
+                </nav>
               ) : (
                 <>
                   {hasKnownAccount ? (
@@ -316,10 +321,9 @@ export function AppHeader() {
                   ) : null}
                   <Link
                     href={loginHref}
-                    title="別の端末や機種変更後に記録を復元できます"
                     className="rounded-md border border-[color:var(--hp-border)] px-3 py-1.5 text-sm font-medium text-[color:var(--hp-foreground)] hover:bg-[color:var(--hp-card)]"
                   >
-                    {usePortalStyleNav ? "同期用ログイン" : "ログイン"}
+                    ログイン
                   </Link>
                 </>
               )}
@@ -385,17 +389,16 @@ export function AppHeader() {
                   <Link
                     href={appPath("/dashboard")}
                     onClick={() => setMobileOpen(false)}
-                    className="text-sm font-medium text-[color:var(--hp-accent)] underline-offset-4 hover:underline"
+                    className="rounded-md bg-[color:var(--hp-accent)] px-3 py-2 text-center text-sm font-medium text-[color:var(--hp-accent-fg)]"
                   >
-                    記録アプリへ（登録不要）
+                    登録なしで始める
                   </Link>
                   <Link
                     href={loginHref}
                     onClick={() => setMobileOpen(false)}
-                    title="別の端末や機種変更後に記録を復元できます"
-                    className="text-sm font-medium text-[color:var(--hp-foreground)] underline-offset-4 hover:underline"
+                    className="rounded-md border border-[color:var(--hp-border)] px-3 py-2 text-center text-sm font-medium text-[color:var(--hp-foreground)]"
                   >
-                    同期用ログイン
+                    ログイン
                   </Link>
                 </nav>
               )}
