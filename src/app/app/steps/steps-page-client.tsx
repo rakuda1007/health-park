@@ -8,6 +8,7 @@ import {
 import { RecordingPageAd } from "@/components/recording-page-ad";
 import { StepsVisualization } from "@/components/steps-visualization";
 import type { StepsEntry } from "@/lib/db/types";
+import { useReloadOnHealthDataSync } from "@/hooks/use-reload-on-health-data-sync";
 import { todayIso } from "@/lib/date";
 import { useCallback, useEffect, useState } from "react";
 
@@ -31,6 +32,7 @@ export function StepsPageClient() {
   useEffect(() => {
     void load();
   }, [load]);
+  useReloadOnHealthDataSync(load);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

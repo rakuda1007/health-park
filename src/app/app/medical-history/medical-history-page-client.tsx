@@ -5,6 +5,7 @@ import {
   listPastMedicalHistoryEntries,
   putPastMedicalHistoryEntry,
 } from "@/lib/db";
+import { useReloadOnHealthDataSync } from "@/hooks/use-reload-on-health-data-sync";
 import type { PastMedicalHistoryEntry } from "@/lib/db/types";
 import { useCallback, useEffect, useState } from "react";
 
@@ -30,6 +31,7 @@ export function MedicalHistoryPageClient() {
   useEffect(() => {
     void load();
   }, [load]);
+  useReloadOnHealthDataSync(load);
 
   function resetForm() {
     setEditingId(null);

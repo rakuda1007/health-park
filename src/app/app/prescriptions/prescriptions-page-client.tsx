@@ -5,6 +5,7 @@ import {
   listPrescriptionEntries,
   putPrescriptionEntry,
 } from "@/lib/db";
+import { useReloadOnHealthDataSync } from "@/hooks/use-reload-on-health-data-sync";
 import type { PrescriptionEntry, PrescriptionMedicine } from "@/lib/db/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -84,6 +85,7 @@ export function PrescriptionsPageClient() {
   useEffect(() => {
     void load();
   }, [load]);
+  useReloadOnHealthDataSync(load);
 
   const tableRows = useMemo(() => {
     return entries.flatMap((entry) => {

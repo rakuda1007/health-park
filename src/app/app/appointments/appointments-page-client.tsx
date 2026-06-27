@@ -11,6 +11,7 @@ import type {
   ClinicAppointmentEntry,
   ClinicEntry,
 } from "@/lib/db/types";
+import { useReloadOnHealthDataSync } from "@/hooks/use-reload-on-health-data-sync";
 import { datetimeLocalToIso, isoToDatetimeLocal } from "@/lib/datetime-local";
 import { appPath } from "@/lib/app-paths";
 import Link from "next/link";
@@ -68,6 +69,7 @@ export function AppointmentsPageClient() {
   useEffect(() => {
     void load();
   }, [load]);
+  useReloadOnHealthDataSync(load);
 
   const clinicById = useMemo(
     () => new Map(clinics.map((x) => [x.id, x] as const)),

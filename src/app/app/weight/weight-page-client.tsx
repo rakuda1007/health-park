@@ -8,6 +8,7 @@ import {
 import { RecordingPageAd } from "@/components/recording-page-ad";
 import { WeightVisualization } from "@/components/weight-visualization";
 import type { WeightEntry } from "@/lib/db/types";
+import { useReloadOnHealthDataSync } from "@/hooks/use-reload-on-health-data-sync";
 import { todayIso } from "@/lib/date";
 import { useCallback, useEffect, useState } from "react";
 
@@ -33,6 +34,7 @@ export function WeightPageClient() {
   useEffect(() => {
     void load();
   }, [load]);
+  useReloadOnHealthDataSync(load);
 
   function resetForm() {
     setEditingId(null);

@@ -12,6 +12,7 @@ import {
   deletePrescriptionEntry,
   deleteStepsEntry,
   deleteWeightEntry,
+  getEntryById,
   listBloodPressureEntries,
   listClinicAppointments,
   listClinicEntries,
@@ -23,17 +24,6 @@ import {
   listPrescriptionEntries,
   listStepsEntries,
   listWeightEntries,
-  putBloodPressureEntry,
-  putClinicAppointmentEntry,
-  putClinicEntry,
-  putDailyReflectionEntry,
-  putMealEntry,
-  putMealItemMaster,
-  putMealSetMaster,
-  putPastMedicalHistoryEntry,
-  putPrescriptionEntry,
-  putStepsEntry,
-  putWeightEntry,
   setSuppressCloudReplicate,
 } from "@/lib/db";
 import type {
@@ -49,6 +39,7 @@ import type {
   WeightEntry,
 } from "@/lib/db/types";
 import { serializePrescription } from "@/lib/db/backup";
+import { notifyHealthDataChanged } from "@/lib/data-changed";
 import { ensureSignedInUser } from "@/lib/firebase/auth";
 import { getFirebaseDb, getFirebaseStorage, isFirebaseConfigured } from "@/lib/firebase/client";
 import {
@@ -95,6 +86,25 @@ function prescriptionImagePath(uid: string, id: string): string {
 
 function versionOf(e: { updatedAt?: string; createdAt?: string }): string {
   return e.updatedAt ?? e.createdAt ?? "";
+}
+
+async function applyRemoteEntryIfNewer(
+  storeName: string,
+  entry: object,
+): Promise<void> {
+  const id = (entry as { id: string }).id;
+  if (!id) {
+    return;
+  }
+  const local = await getEntryById(storeName, id);
+  if (local && typeof local === "object") {
+    const vR = versionOf(entry as { updatedAt?: string; createdAt?: string });
+    const vL = versionOf(local as { updatedAt?: string; createdAt?: string });
+    if (vL >= vR) {
+      return;
+    }
+  }
+  await applyRemoteEntry(storeName, entry);
 }
 
 export async function replicateAfterPut(
@@ -243,34 +253,42 @@ export async function mergeCloudWithLocal(): Promise<void> {
     await mergeSimpleCollection(db, COL_WEIGHT, STORE_WEIGHT, listWeightEntries, async (c, l) => {
       if (!l || versionOf(c) > versionOf(l)) {
         await applyRemoteEntry(STORE_WEIGHT, c);
-      } else {
-        await putWeightEntry(l);
+      } else if (versionOf(l) > versionOf(c)) {
+        await replicateAfterPut(STORE_WEIGHT, l);
       }
-    }, putWeightEntry);
+    }, async (l) => {
+      await replicateAfterPut(STORE_WEIGHT, l);
+    });
 
     await mergeSimpleCollection(db, COL_STEPS, STORE_STEPS, listStepsEntries, async (c, l) => {
       if (!l || versionOf(c) > versionOf(l)) {
         await applyRemoteEntry(STORE_STEPS, c);
-      } else {
-        await putStepsEntry(l);
+      } else if (versionOf(l) > versionOf(c)) {
+        await replicateAfterPut(STORE_STEPS, l);
       }
-    }, putStepsEntry);
+    }, async (l) => {
+      await replicateAfterPut(STORE_STEPS, l);
+    });
 
     await mergeSimpleCollection(db, COL_BP, STORE_BP, listBloodPressureEntries, async (c, l) => {
       if (!l || versionOf(c) > versionOf(l)) {
         await applyRemoteEntry(STORE_BP, c);
-      } else {
-        await putBloodPressureEntry(l);
+      } else if (versionOf(l) > versionOf(c)) {
+        await replicateAfterPut(STORE_BP, l);
       }
-    }, putBloodPressureEntry);
+    }, async (l) => {
+      await replicateAfterPut(STORE_BP, l);
+    });
 
     await mergeSimpleCollection(db, COL_MEALS, STORE_MEALS, listMealEntries, async (c, l) => {
       if (!l || versionOf(c) > versionOf(l)) {
         await applyRemoteEntry(STORE_MEALS, c);
-      } else {
-        await putMealEntry(l);
+      } else if (versionOf(l) > versionOf(c)) {
+        await replicateAfterPut(STORE_MEALS, l);
       }
-    }, putMealEntry);
+    }, async (l) => {
+      await replicateAfterPut(STORE_MEALS, l);
+    });
 
     await mergeSimpleCollection(
       db,
@@ -280,11 +298,13 @@ export async function mergeCloudWithLocal(): Promise<void> {
       async (c, l) => {
         if (!l || versionOf(c) > versionOf(l)) {
           await applyRemoteEntry(STORE_MEAL_ITEM_MASTERS, c);
-        } else {
-          await putMealItemMaster(l);
+        } else if (versionOf(l) > versionOf(c)) {
+          await replicateAfterPut(STORE_MEAL_ITEM_MASTERS, l);
         }
       },
-      putMealItemMaster,
+      async (l) => {
+        await replicateAfterPut(STORE_MEAL_ITEM_MASTERS, l);
+      },
     );
 
     await mergeSimpleCollection(
@@ -295,20 +315,24 @@ export async function mergeCloudWithLocal(): Promise<void> {
       async (c, l) => {
         if (!l || versionOf(c) > versionOf(l)) {
           await applyRemoteEntry(STORE_MEAL_SET_MASTERS, c);
-        } else {
-          await putMealSetMaster(l);
+        } else if (versionOf(l) > versionOf(c)) {
+          await replicateAfterPut(STORE_MEAL_SET_MASTERS, l);
         }
       },
-      putMealSetMaster,
+      async (l) => {
+        await replicateAfterPut(STORE_MEAL_SET_MASTERS, l);
+      },
     );
 
     await mergeSimpleCollection(db, COL_CLINICS, STORE_CLINICS, listClinicEntries, async (c, l) => {
       if (!l || versionOf(c) > versionOf(l)) {
         await applyRemoteEntry(STORE_CLINICS, c);
-      } else {
-        await putClinicEntry(l);
+      } else if (versionOf(l) > versionOf(c)) {
+        await replicateAfterPut(STORE_CLINICS, l);
       }
-    }, putClinicEntry);
+    }, async (l) => {
+      await replicateAfterPut(STORE_CLINICS, l);
+    });
 
     await mergeSimpleCollection(
       db,
@@ -318,11 +342,13 @@ export async function mergeCloudWithLocal(): Promise<void> {
       async (c, l) => {
         if (!l || versionOf(c) > versionOf(l)) {
           await applyRemoteEntry(STORE_CLINIC_APPOINTMENTS, c);
-        } else {
-          await putClinicAppointmentEntry(l);
+        } else if (versionOf(l) > versionOf(c)) {
+          await replicateAfterPut(STORE_CLINIC_APPOINTMENTS, l);
         }
       },
-      putClinicAppointmentEntry,
+      async (l) => {
+        await replicateAfterPut(STORE_CLINIC_APPOINTMENTS, l);
+      },
     );
 
     await mergeSimpleCollection(
@@ -333,11 +359,13 @@ export async function mergeCloudWithLocal(): Promise<void> {
       async (c, l) => {
         if (!l || versionOf(c) > versionOf(l)) {
           await applyRemoteEntry(STORE_DAILY_REFLECTIONS, c);
-        } else {
-          await putDailyReflectionEntry(l);
+        } else if (versionOf(l) > versionOf(c)) {
+          await replicateAfterPut(STORE_DAILY_REFLECTIONS, l);
         }
       },
-      putDailyReflectionEntry,
+      async (l) => {
+        await replicateAfterPut(STORE_DAILY_REFLECTIONS, l);
+      },
     );
 
     await mergeSimpleCollection(
@@ -348,11 +376,13 @@ export async function mergeCloudWithLocal(): Promise<void> {
       async (c, l) => {
         if (!l || versionOf(c) > versionOf(l)) {
           await applyRemoteEntry(STORE_PAST_MEDICAL_HISTORY, c);
-        } else {
-          await putPastMedicalHistoryEntry(l);
+        } else if (versionOf(l) > versionOf(c)) {
+          await replicateAfterPut(STORE_PAST_MEDICAL_HISTORY, l);
         }
       },
-      putPastMedicalHistoryEntry,
+      async (l) => {
+        await replicateAfterPut(STORE_PAST_MEDICAL_HISTORY, l);
+      },
     );
 
     const pSnap = await getDocs(collection(db, "users", uid, COL_RX));
@@ -385,17 +415,18 @@ export async function mergeCloudWithLocal(): Promise<void> {
       const vL = local ? versionOf(local) : "";
       if (!local || vC > vL) {
         await applyRemoteEntry(STORE_RX, entry);
-      } else {
-        await putPrescriptionEntry(local);
+      } else if (vL > vC) {
+        await replicateAfterPut(STORE_RX, local);
       }
     }
     for (const p of localRx) {
       if (!rxCloudIds.has(p.id)) {
-        await putPrescriptionEntry(p);
+        await replicateAfterPut(STORE_RX, p);
       }
     }
   } finally {
     setSuppressCloudReplicate(false);
+    notifyHealthDataChanged();
   }
 }
 
@@ -479,6 +510,7 @@ export function startRemoteSync(uid: string): () => void {
           console.error("[Health Park] リモート同期の適用に失敗", e);
         } finally {
           setSuppressCloudReplicate(false);
+          notifyHealthDataChanged();
         }
       })();
     });
@@ -486,34 +518,34 @@ export function startRemoteSync(uid: string): () => void {
   };
 
   sub(COL_WEIGHT, STORE_WEIGHT, async (id, data) => {
-    await applyRemoteEntry(STORE_WEIGHT, { ...data, id } as WeightEntry);
+    await applyRemoteEntryIfNewer(STORE_WEIGHT, { ...data, id } as WeightEntry);
   });
   sub(COL_STEPS, STORE_STEPS, async (id, data) => {
-    await applyRemoteEntry(STORE_STEPS, { ...data, id } as StepsEntry);
+    await applyRemoteEntryIfNewer(STORE_STEPS, { ...data, id } as StepsEntry);
   });
   sub(COL_BP, STORE_BP, async (id, data) => {
-    await applyRemoteEntry(STORE_BP, { ...data, id } as BloodPressureEntry);
+    await applyRemoteEntryIfNewer(STORE_BP, { ...data, id } as BloodPressureEntry);
   });
   sub(COL_MEALS, STORE_MEALS, async (id, data) => {
-    await applyRemoteEntry(STORE_MEALS, { ...data, id } as MealEntry);
+    await applyRemoteEntryIfNewer(STORE_MEALS, { ...data, id } as MealEntry);
   });
   sub(COL_MEAL_ITEM_MASTERS, STORE_MEAL_ITEM_MASTERS, async (id, data) => {
-    await applyRemoteEntry(STORE_MEAL_ITEM_MASTERS, {
+    await applyRemoteEntryIfNewer(STORE_MEAL_ITEM_MASTERS, {
       ...data,
       id,
     } as MealItemMaster);
   });
   sub(COL_MEAL_SET_MASTERS, STORE_MEAL_SET_MASTERS, async (id, data) => {
-    await applyRemoteEntry(STORE_MEAL_SET_MASTERS, {
+    await applyRemoteEntryIfNewer(STORE_MEAL_SET_MASTERS, {
       ...data,
       id,
     } as MealSetMaster);
   });
   sub(COL_CLINICS, STORE_CLINICS, async (id, data) => {
-    await applyRemoteEntry(STORE_CLINICS, { ...data, id } as ClinicEntry);
+    await applyRemoteEntryIfNewer(STORE_CLINICS, { ...data, id } as ClinicEntry);
   });
   sub(COL_CLINIC_APPOINTMENTS, STORE_CLINIC_APPOINTMENTS, async (id, data) => {
-    await applyRemoteEntry(STORE_CLINIC_APPOINTMENTS, {
+    await applyRemoteEntryIfNewer(STORE_CLINIC_APPOINTMENTS, {
       ...data,
       id,
     } as ClinicAppointmentEntry);
@@ -523,10 +555,10 @@ export function startRemoteSync(uid: string): () => void {
     if (!normalized) {
       return;
     }
-    await applyRemoteEntry(STORE_DAILY_REFLECTIONS, normalized);
+    await applyRemoteEntryIfNewer(STORE_DAILY_REFLECTIONS, normalized);
   });
   sub(COL_PAST_MEDICAL_HISTORY, STORE_PAST_MEDICAL_HISTORY, async (id, data) => {
-    await applyRemoteEntry(STORE_PAST_MEDICAL_HISTORY, {
+    await applyRemoteEntryIfNewer(STORE_PAST_MEDICAL_HISTORY, {
       ...data,
       id,
     } as PastMedicalHistoryEntry);
@@ -552,7 +584,7 @@ export function startRemoteSync(uid: string): () => void {
       entry.imageBlob = await getBytes(r);
       entry.imageMime = d.imageMime ?? "image/jpeg";
     }
-    await applyRemoteEntry(STORE_RX, entry);
+    await applyRemoteEntryIfNewer(STORE_RX, entry);
   });
 
   return () => {

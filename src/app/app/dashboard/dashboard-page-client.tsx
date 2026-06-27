@@ -37,6 +37,7 @@ import {
   weightDashboardTrendComment,
   type WeightGoalBand,
 } from "@/lib/dashboard-series";
+import { useReloadOnHealthDataSync } from "@/hooks/use-reload-on-health-data-sync";
 import { appPath } from "@/lib/app-paths";
 import { todayIso } from "@/lib/date";
 import Link from "next/link";
@@ -149,6 +150,7 @@ export function DashboardPageClient() {
   useEffect(() => {
     void load();
   }, [load]);
+  useReloadOnHealthDataSync(load);
 
   useEffect(() => {
     const syncPrefs = () => {

@@ -7,6 +7,7 @@ import {
 } from "@/lib/db";
 import { RecordingPageAd } from "@/components/recording-page-ad";
 import type { BloodPressureEntry } from "@/lib/db/types";
+import { useReloadOnHealthDataSync } from "@/hooks/use-reload-on-health-data-sync";
 import { todayIso } from "@/lib/date";
 import { useCallback, useEffect, useState } from "react";
 
@@ -33,6 +34,7 @@ export function BloodPressurePageClient() {
   useEffect(() => {
     void load();
   }, [load]);
+  useReloadOnHealthDataSync(load);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

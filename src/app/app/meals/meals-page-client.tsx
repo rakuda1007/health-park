@@ -18,6 +18,7 @@ import type {
   MealSetMaster,
   MealSlot,
 } from "@/lib/db/types";
+import { useReloadOnHealthDataSync } from "@/hooks/use-reload-on-health-data-sync";
 import { joinFoods, parseFoods } from "@/lib/meal-foods";
 import { todayIso } from "@/lib/date";
 import { useCallback, useEffect, useState } from "react";
@@ -65,6 +66,10 @@ export function MealsPageClient() {
     void load();
     void loadMasters();
   }, [load, loadMasters]);
+  useReloadOnHealthDataSync(async () => {
+    await load();
+    await loadMasters();
+  });
 
   function resetForm() {
     setEditingId(null);

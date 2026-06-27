@@ -8,6 +8,7 @@ import {
 } from "@/lib/db";
 import type { DailyReflectionEntry } from "@/lib/db/types";
 import { RecordingPageAd } from "@/components/recording-page-ad";
+import { useReloadOnHealthDataSync } from "@/hooks/use-reload-on-health-data-sync";
 import { todayIso } from "@/lib/date";
 import { useCallback, useEffect, useState } from "react";
 
@@ -50,6 +51,12 @@ export function ReflectionPageClient() {
   useEffect(() => {
     void loadList();
   }, [loadList]);
+
+  const reloadAll = useCallback(() => {
+    void loadList();
+    void loadForDate(date);
+  }, [loadList, loadForDate, date]);
+  useReloadOnHealthDataSync(reloadAll);
 
   useEffect(() => {
     void loadForDate(date);
