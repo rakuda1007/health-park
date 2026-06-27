@@ -50,8 +50,11 @@ export default function PortalPage() {
                 href={appPath("/dashboard")}
                 className="inline-flex items-center justify-center rounded-full bg-[#FF9800] px-7 py-3 text-sm font-semibold text-white shadow-md transition hover:brightness-95"
               >
-                無料で今すぐはじめる
+                登録なしではじめる
               </Link>
+              <p className="mt-2 text-xs text-white/85 sm:text-sm">
+                アカウント不要・この端末ですぐ記録できます
+              </p>
             </div>
           </div>
         </div>
@@ -185,7 +188,7 @@ export default function PortalPage() {
             <span className="text-5xl font-bold leading-none text-[#76BA1B]/30">1</span>
             <h3 className="mt-3 text-lg font-semibold">アプリをひらく</h3>
             <p className="mt-2 text-sm leading-7 text-[color:var(--hp-muted)]">
-              登録なしですぐに使い始められます。テニスパークのアカウントでログインすると、クラウド同期など便利な機能も使えます。
+              アカウント不要ですぐに使い始められます。データはまずこの端末のブラウザに保存されます。メールアドレスでログインすると、別の端末や機種変更後も同じ記録を復元できます（任意）。
             </p>
           </article>
           <article className="relative rounded-2xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-6">
@@ -203,19 +206,27 @@ export default function PortalPage() {
             </p>
           </article>
         </div>
-        <div className="flex flex-wrap justify-center gap-3">
+        <div className="flex flex-col items-center gap-5">
           <Link
             href={appPath("/dashboard")}
-            className="inline-flex items-center justify-center rounded-full bg-[#76BA1B] px-6 py-3 text-sm font-semibold text-white transition hover:brightness-95"
+            className="inline-flex items-center justify-center rounded-full bg-[#76BA1B] px-7 py-3 text-sm font-semibold text-white transition hover:brightness-95"
           >
-            記録アプリを開く
+            登録なしではじめる
           </Link>
-          <Link
-            href={appPath("/login")}
-            className="inline-flex items-center justify-center rounded-full border border-[#76BA1B]/40 bg-white px-6 py-3 text-sm font-semibold text-[#2e5f09] transition hover:bg-[#76BA1B]/10"
-          >
-            ログイン / 新規登録
-          </Link>
+          <div className="flex flex-col items-center gap-2 text-center">
+            <p className="text-sm text-[color:var(--hp-muted)]">
+              ログイン済みの方・複数端末で使いたい方（任意）
+            </p>
+            <Link
+              href={appPath("/login")}
+              className="inline-flex items-center justify-center rounded-full border border-[#76BA1B]/40 bg-white px-6 py-2.5 text-sm font-semibold text-[#2e5f09] transition hover:bg-[#76BA1B]/10"
+            >
+              ログイン / 新規登録（クラウド同期）
+            </Link>
+            <p className="text-xs text-[color:var(--hp-muted)]">
+              機種変更・バックアップの復元に使えます
+            </p>
+          </div>
         </div>
       </section>
 
@@ -238,8 +249,11 @@ export default function PortalPage() {
               href={appPath("/dashboard")}
               className="inline-flex items-center justify-center rounded-full bg-[#FF9800] px-8 py-3 text-sm font-semibold text-white shadow-md transition hover:brightness-95"
             >
-              ヘルスパークを体験してみる（無料）
+              登録なしではじめる
             </Link>
+            <p className="mt-2 text-xs text-white/90 sm:text-sm">
+              ログインはクラウド同期を使うときだけでOKです
+            </p>
           </div>
         </div>
       </section>
