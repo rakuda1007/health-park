@@ -301,7 +301,7 @@ export function AppHeader() {
                 >
                   <Link
                     href={appPath("/dashboard")}
-                    className="rounded-md bg-[color:var(--hp-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--hp-accent-fg)] hover:opacity-90"
+                    className="rounded-md bg-[#76BA1B] px-3 py-1.5 text-sm font-semibold text-white transition hover:brightness-95"
                   >
                     登録なしで始める
                   </Link>
@@ -389,7 +389,7 @@ export function AppHeader() {
                   <Link
                     href={appPath("/dashboard")}
                     onClick={() => setMobileOpen(false)}
-                    className="rounded-md bg-[color:var(--hp-accent)] px-3 py-2 text-center text-sm font-medium text-[color:var(--hp-accent-fg)]"
+                    className="rounded-md bg-[#76BA1B] px-3 py-2 text-center text-sm font-semibold text-white transition hover:brightness-95"
                   >
                     登録なしで始める
                   </Link>
