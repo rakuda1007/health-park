@@ -15,7 +15,14 @@ import { useCallback, useEffect, useState } from "react";
 export function ReflectionPageClient() {
   const [date, setDate] = useState(todayIso);
   const [comment, setComment] = useState("");
-  const [loadedId, setLoadedId] = useState<string | null>(null);
+  /** フォームに表示中の記録 ID（削除・同一日の更新用） */
+  const [recordId, setRecordId] = useState<string | null>(null);
+  const [recordCreatedAt, setRecordCreatedAt] = useState<string | null>(null);
+  /**
+   * 一覧の「編集」から入ったときだけ true。
+   * true のあいだは日付変更で別日を読み込まず、保存時に同一レコードの日付を更新する。
+   */
+  const [dateEditable, setDateEditable] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -32,35 +39,80 @@ export function ReflectionPageClient() {
     }
   }, []);
 
-  const loadForDate = useCallback(async (d: string) => {
-    try {
-      setLoadError(null);
-      const r = await getDailyReflectionByDate(d);
-      if (r) {
-        setLoadedId(r.id);
-        setComment(r.comment);
-      } else {
-        setLoadedId(null);
-        setComment("");
-      }
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "読み込みに失敗しました");
-    }
+  const showEntry = useCallback(
+    (r: DailyReflectionEntry, { editDate }: { editDate: boolean }) => {
+      setRecordId(r.id);
+      setRecordCreatedAt(r.createdAt);
+      setDate(r.date);
+      setComment(r.comment);
+      setDateEditable(editDate);
+      setSaveError(null);
+    },
+    [],
+  );
+
+  const showEmpty = useCallback((d: string) => {
+    setRecordId(null);
+    setRecordCreatedAt(null);
+    setDate(d);
+    setComment("");
+    setDateEditable(false);
+    setSaveError(null);
   }, []);
+
+  const loadForDate = useCallback(
+    async (d: string) => {
+      try {
+        setLoadError(null);
+        const r = await getDailyReflectionByDate(d);
+        if (r) {
+          showEntry(r, { editDate: false });
+        } else {
+          showEmpty(d);
+        }
+      } catch (e) {
+        setLoadError(e instanceof Error ? e.message : "読み込みに失敗しました");
+      }
+    },
+    [showEntry, showEmpty],
+  );
 
   useEffect(() => {
     void loadList();
-  }, [loadList]);
+    void loadForDate(todayIso());
+  }, [loadList, loadForDate]);
 
   const reloadAll = useCallback(() => {
     void loadList();
-    void loadForDate(date);
-  }, [loadList, loadForDate, date]);
+    if (dateEditable && recordId) {
+      void (async () => {
+        const list = await listDailyReflectionEntries();
+        const row = list.find((r) => r.id === recordId);
+        if (row) {
+          // 編集中の日付・コメント入力はユーザー操作を優先し、ID の存在だけ確認する
+          setRecordCreatedAt(row.createdAt);
+        } else {
+          await loadForDate(todayIso());
+        }
+      })();
+    } else {
+      void loadForDate(date);
+    }
+  }, [loadList, loadForDate, date, dateEditable, recordId]);
   useReloadOnHealthDataSync(reloadAll);
 
-  useEffect(() => {
-    void loadForDate(date);
-  }, [date, loadForDate]);
+  function handleDateChange(next: string) {
+    setSaveError(null);
+    if (dateEditable) {
+      setDate(next);
+      return;
+    }
+    void loadForDate(next);
+  }
+
+  function resetForm() {
+    void loadForDate(todayIso());
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -73,18 +125,40 @@ export function ReflectionPageClient() {
     setSaving(true);
     try {
       const now = new Date().toISOString();
-      const existing = await getDailyReflectionByDate(date);
-      const id = existing?.id ?? crypto.randomUUID();
-      const createdAt = existing?.createdAt ?? now;
-      await putDailyReflectionEntry({
-        id,
-        date,
-        comment: trimmed,
-        createdAt,
-        updatedAt: now,
-      });
-      setLoadedId(id);
-      await loadForDate(date);
+      const existingByDate = await getDailyReflectionByDate(date);
+
+      if (dateEditable && recordId) {
+        if (existingByDate && existingByDate.id !== recordId) {
+          setSaveError(
+            "その日付にはすでに別の振り返りがあります。先にそちらを削除するか、別の日付にしてください。",
+          );
+          return;
+        }
+        const createdAt = recordCreatedAt ?? existingByDate?.createdAt ?? now;
+        await putDailyReflectionEntry({
+          id: recordId,
+          date,
+          comment: trimmed,
+          createdAt,
+          updatedAt: now,
+        });
+        setRecordCreatedAt(createdAt);
+        setDateEditable(false);
+      } else {
+        const id = existingByDate?.id ?? recordId ?? crypto.randomUUID();
+        const createdAt =
+          existingByDate?.createdAt ?? recordCreatedAt ?? now;
+        await putDailyReflectionEntry({
+          id,
+          date,
+          comment: trimmed,
+          createdAt,
+          updatedAt: now,
+        });
+        setRecordId(id);
+        setRecordCreatedAt(createdAt);
+        setDateEditable(false);
+      }
       await loadList();
     } finally {
       setSaving(false);
@@ -92,21 +166,19 @@ export function ReflectionPageClient() {
   }
 
   async function handleDelete() {
-    if (!loadedId) {
+    if (!recordId) {
       return;
     }
     if (!window.confirm("この日の振り返りを削除しますか？")) {
       return;
     }
-    await deleteDailyReflectionEntry(loadedId);
-    setLoadedId(null);
-    setComment("");
-    await loadForDate(date);
+    await deleteDailyReflectionEntry(recordId);
+    showEmpty(date);
     await loadList();
   }
 
-  function editRow(iso: string) {
-    setDate(iso);
+  function editRow(row: DailyReflectionEntry) {
+    showEntry(row, { editDate: true });
     requestAnimationFrame(() => {
       document.getElementById("reflection-form")?.scrollIntoView({
         behavior: "smooth",
@@ -127,14 +199,20 @@ export function ReflectionPageClient() {
       <form
         id="reflection-form"
         onSubmit={handleSubmit}
+        aria-label={dateEditable ? "振り返りを編集" : "振り返りを登録"}
         className="mt-6 space-y-5 rounded-xl border border-[color:var(--hp-border)] bg-[color:var(--hp-card)] p-4"
       >
+        {dateEditable ? (
+          <p className="rounded-lg bg-[color:var(--hp-input)] px-3 py-2 text-sm text-[color:var(--hp-foreground)]">
+            編集中です。日付の間違いもここで直せます。「更新」で保存、「編集をやめる」で取り消せます。
+          </p>
+        ) : null}
         <label className="flex max-w-xs flex-col gap-1">
           <span className="text-sm text-[color:var(--hp-muted)]">対象の日付</span>
           <input
             type="date"
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(e) => handleDateChange(e.target.value)}
             required
             className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
           />
@@ -158,15 +236,26 @@ export function ReflectionPageClient() {
             disabled={saving}
             className="rounded-lg bg-[color:var(--hp-accent)] px-4 py-2 text-sm font-medium text-[color:var(--hp-accent-fg)] disabled:opacity-60"
           >
-            {saving ? "保存中…" : "保存"}
+            {saving ? "保存中…" : dateEditable ? "更新" : "保存"}
           </button>
-          {loadedId ? (
+          {dateEditable ? (
             <button
               type="button"
-              onClick={() => void handleDelete()}
-              className="rounded-lg border border-[color:var(--hp-border)] px-4 py-2 text-sm text-red-600 dark:text-red-400"
+              disabled={saving}
+              onClick={resetForm}
+              className="rounded-lg border border-[color:var(--hp-border)] px-4 py-2 text-sm font-medium text-[color:var(--hp-muted)] disabled:opacity-60"
             >
-              この日の振り返りを削除
+              編集をやめる
+            </button>
+          ) : null}
+          {recordId ? (
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void handleDelete()}
+              className="rounded-lg border border-[color:var(--hp-border)] px-4 py-2 text-sm text-red-600 dark:text-red-400 disabled:opacity-60"
+            >
+              この振り返りを削除
             </button>
           ) : null}
         </div>
@@ -234,7 +323,7 @@ export function ReflectionPageClient() {
                     <td className="px-2 py-2.5 text-right">
                       <button
                         type="button"
-                        onClick={() => editRow(row.date)}
+                        onClick={() => editRow(row)}
                         className="text-xs text-[color:var(--hp-accent)] underline"
                       >
                         編集
