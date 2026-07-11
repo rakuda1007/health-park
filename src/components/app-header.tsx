@@ -34,7 +34,7 @@ function NavLink({
     <Link
       href={href}
       onClick={onNavigate}
-      className="text-[color:var(--hp-muted)] underline-offset-4 hover:text-[color:var(--hp-accent)] hover:underline"
+      className="block rounded-md px-2 py-3 text-base leading-relaxed text-[color:var(--hp-foreground)] underline-offset-4 hover:bg-[color:var(--hp-card)] hover:text-[color:var(--hp-accent)] hover:underline"
     >
       {children}
     </Link>
@@ -44,12 +44,12 @@ function NavLink({
 /** ドロワー内などモバイル向け：カテゴリ＋一覧をそのまま表示 */
 function NavSections({ onNavigate }: { onNavigate?: () => void }) {
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-7">
       <div>
-        <p className="text-xs font-medium text-[color:var(--hp-muted)]">
+        <p className="px-2 text-sm font-medium leading-normal text-[color:var(--hp-muted)]">
           記録する
         </p>
-        <ul className="mt-2 flex flex-col gap-1.5 border-l border-[color:var(--hp-border)] pl-3">
+        <ul className="mt-2 flex flex-col gap-0.5 border-l border-[color:var(--hp-border)] pl-2">
           {recordLinks.map((item) => (
             <li key={item.href}>
               <NavLink href={item.href} onNavigate={onNavigate}>
@@ -60,10 +60,10 @@ function NavSections({ onNavigate }: { onNavigate?: () => void }) {
         </ul>
       </div>
       <div>
-        <p className="text-xs font-medium text-[color:var(--hp-muted)]">
+        <p className="px-2 text-sm font-medium leading-normal text-[color:var(--hp-muted)]">
           健康情報
         </p>
-        <ul className="mt-2 flex flex-col gap-1.5 border-l border-[color:var(--hp-border)] pl-3">
+        <ul className="mt-2 flex flex-col gap-0.5 border-l border-[color:var(--hp-border)] pl-2">
           {healthInfoLinks.map((item) => (
             <li key={item.href}>
               <NavLink href={item.href} onNavigate={onNavigate}>
@@ -74,19 +74,21 @@ function NavSections({ onNavigate }: { onNavigate?: () => void }) {
         </ul>
       </div>
       <div>
-        <p className="text-xs font-medium text-[color:var(--hp-muted)]">
+        <p className="px-2 text-sm font-medium leading-normal text-[color:var(--hp-muted)]">
           設定
         </p>
-        <div className="mt-2">
-          <NavLink href={appPath("/settings")} onNavigate={onNavigate}>
-            ダッシュボード設定
-          </NavLink>
-          <div className="mt-1">
+        <ul className="mt-2 flex flex-col gap-0.5 border-l border-[color:var(--hp-border)] pl-2">
+          <li>
+            <NavLink href={appPath("/settings")} onNavigate={onNavigate}>
+              ダッシュボード設定
+            </NavLink>
+          </li>
+          <li>
             <NavLink href={appPath("/settings/profile")} onNavigate={onNavigate}>
               プロフィール
             </NavLink>
-          </div>
-        </div>
+          </li>
+        </ul>
       </div>
     </div>
   );
@@ -369,17 +371,17 @@ export function AppHeader() {
           />
           <div
             id={panelId}
-            className="absolute inset-y-0 right-0 flex w-[min(100%,18rem)] flex-col border-l border-[color:var(--hp-border)] bg-[color:var(--hp-surface)] shadow-xl"
+            className="absolute inset-y-0 right-0 flex w-[min(100%,20rem)] flex-col border-l border-[color:var(--hp-border)] bg-[color:var(--hp-surface)] shadow-xl"
             role="dialog"
             aria-modal="true"
             aria-label="サイトメニュー"
           >
-            <div className="border-b border-[color:var(--hp-border)] px-4 py-3">
-              <p className="text-sm font-medium text-[color:var(--hp-foreground)]">
+            <div className="border-b border-[color:var(--hp-border)] px-4 py-3.5">
+              <p className="text-base font-medium text-[color:var(--hp-foreground)]">
                 メニュー
               </p>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 py-5">
               {inApp && !usePortalStyleNav ? (
                 <nav aria-label="主要ナビゲーション">
                   <NavSections onNavigate={() => setMobileOpen(false)} />
@@ -389,14 +391,14 @@ export function AppHeader() {
                   <Link
                     href={appPath("/dashboard")}
                     onClick={() => setMobileOpen(false)}
-                    className="rounded-md bg-[#76BA1B] px-3 py-2 text-center text-sm font-semibold text-white transition hover:brightness-95"
+                    className="rounded-md bg-[#76BA1B] px-3 py-3.5 text-center text-base font-semibold leading-relaxed text-white transition hover:brightness-95"
                   >
                     登録なしで始める
                   </Link>
                   <Link
                     href={loginHref}
                     onClick={() => setMobileOpen(false)}
-                    className="rounded-md border border-[color:var(--hp-border)] px-3 py-2 text-center text-sm font-medium text-[color:var(--hp-foreground)]"
+                    className="rounded-md border border-[color:var(--hp-border)] px-3 py-3.5 text-center text-base font-medium leading-relaxed text-[color:var(--hp-foreground)]"
                   >
                     ログイン
                   </Link>
