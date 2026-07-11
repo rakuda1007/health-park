@@ -71,9 +71,12 @@ export function MealsPageClient() {
     await loadMasters();
   });
 
-  function resetForm() {
+  /** フォームを空の新規入力状態に戻す。保存直後は日付を残して連続入力しやすくする。 */
+  function resetForm({ keepDate = false }: { keepDate?: boolean } = {}) {
     setEditingId(null);
-    setDate(todayIso());
+    if (!keepDate) {
+      setDate(todayIso());
+    }
     setSlot("breakfast");
     setFoodItems([]);
     setNote("");
@@ -138,7 +141,7 @@ export function MealsPageClient() {
         };
         await putMealEntry(entry);
       }
-      resetForm();
+      resetForm({ keepDate: true });
       await load();
     } finally {
       setSaving(false);
