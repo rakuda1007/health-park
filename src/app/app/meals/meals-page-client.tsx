@@ -241,7 +241,7 @@ export function MealsPageClient() {
             <button
               type="button"
               disabled={saving}
-              onClick={resetForm}
+              onClick={() => resetForm()}
               className="rounded-lg border border-[color:var(--hp-border)] px-4 py-2 text-sm font-medium text-[color:var(--hp-muted)] disabled:opacity-60"
             >
               編集をやめる
