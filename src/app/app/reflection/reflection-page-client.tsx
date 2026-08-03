@@ -193,7 +193,7 @@ export function ReflectionPageClient() {
         一日の振り返り
       </h1>
       <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
-        その日のことを一言で記録します。前日分を翌日に入力する場合は日付を変えてください。
+        その日のことを一言で記録します。食事の記録画面からも同じ振り返りを入力できます。前日分を翌日に入力する場合は日付を変えてください。
       </p>
 
       <form

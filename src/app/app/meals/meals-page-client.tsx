@@ -1,10 +1,12 @@
 "use client";
 
 import {
+  getDailyReflectionByDate,
   deleteMealEntry,
   listMealEntries,
   listMealItemMasters,
   listMealSetMasters,
+  putDailyReflectionEntry,
   putMealEntry,
   putMealItemMaster,
   putMealSetMaster,
@@ -37,7 +39,12 @@ export function MealsPageClient() {
   const [date, setDate] = useState(todayIso);
   const [slot, setSlot] = useState<MealSlot>("breakfast");
   const [foodItems, setFoodItems] = useState<string[]>([]);
-  const [note, setNote] = useState("");
+  /** 選択日付の日次振り返り（食事ごとではない） */
+  const [reflectionComment, setReflectionComment] = useState("");
+  const [reflectionId, setReflectionId] = useState<string | null>(null);
+  const [reflectionCreatedAt, setReflectionCreatedAt] = useState<string | null>(
+    null,
+  );
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   /** 編集中の記録 ID（null なら新規） */
@@ -62,24 +69,49 @@ export function MealsPageClient() {
     }
   }, []);
 
+  const loadReflectionForDate = useCallback(async (d: string) => {
+    try {
+      const r = await getDailyReflectionByDate(d);
+      if (r) {
+        setReflectionId(r.id);
+        setReflectionCreatedAt(r.createdAt);
+        setReflectionComment(r.comment);
+      } else {
+        setReflectionId(null);
+        setReflectionCreatedAt(null);
+        setReflectionComment("");
+      }
+    } catch {
+      setReflectionId(null);
+      setReflectionCreatedAt(null);
+      setReflectionComment("");
+    }
+  }, []);
+
   useEffect(() => {
     void load();
     void loadMasters();
   }, [load, loadMasters]);
+
+  useEffect(() => {
+    void loadReflectionForDate(date);
+  }, [date, loadReflectionForDate]);
+
   useReloadOnHealthDataSync(async () => {
     await load();
     await loadMasters();
+    await loadReflectionForDate(date);
   });
 
-  /** フォームを空の新規入力状態に戻す。保存直後は日付を残して連続入力しやすくする。 */
+  /** フォームを空の新規入力状態に戻す。保存直後は日付・振り返りを残して連続入力しやすくする。 */
   function resetForm({ keepDate = false }: { keepDate?: boolean } = {}) {
     setEditingId(null);
     if (!keepDate) {
       setDate(todayIso());
+      // 日付変更の useEffect で振り返りを読み込む
     }
     setSlot("breakfast");
     setFoodItems([]);
-    setNote("");
     setSaveError(null);
   }
 
@@ -88,8 +120,8 @@ export function MealsPageClient() {
     setDate(row.date);
     setSlot(row.slot);
     setFoodItems(parseFoods(row.foods));
-    setNote(row.note);
     setSaveError(null);
+    // 振り返りは日付変更の useEffect で読み込む
   }
 
   async function touchItemMaster(master: MealItemMaster) {
@@ -126,7 +158,7 @@ export function MealsPageClient() {
           date,
           slot,
           foods,
-          note: note.trim(),
+          note: "",
           updatedAt: now,
         };
         await putMealEntry(entry);
@@ -136,13 +168,40 @@ export function MealsPageClient() {
           date,
           slot,
           foods,
-          note: note.trim(),
+          note: "",
           createdAt: now,
         };
         await putMealEntry(entry);
       }
+
+      // 空欄は既存振り返りを変更しない。文字があれば後勝ちで upsert。
+      const trimmedReflection = reflectionComment.trim();
+      if (trimmedReflection) {
+        const existing = await getDailyReflectionByDate(date);
+        const id = existing?.id ?? reflectionId ?? crypto.randomUUID();
+        const createdAt =
+          existing?.createdAt ?? reflectionCreatedAt ?? now;
+        await putDailyReflectionEntry({
+          id,
+          date,
+          comment: trimmedReflection,
+          createdAt,
+          updatedAt: now,
+        });
+        setReflectionId(id);
+        setReflectionCreatedAt(createdAt);
+        setReflectionComment(trimmedReflection);
+      } else {
+        // 空欄保存時は DB を触らないが、表示は保存済み内容に戻す
+        await loadReflectionForDate(date);
+      }
+
       resetForm({ keepDate: true });
       await load();
+    } catch (err) {
+      setSaveError(
+        err instanceof Error ? err.message : "保存に失敗しました",
+      );
     } finally {
       setSaving(false);
     }
@@ -162,7 +221,7 @@ export function MealsPageClient() {
         食事
       </h1>
       <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
-        朝・昼・晩ごとに食べたものを登録します。定番から選ぶか、一品ずつ追加できます。
+        朝・昼・晩ごとに食べたものを登録します。定番から選ぶか、一品ずつ追加できます。振り返りは日付ごとに1件（任意）です。
       </p>
 
       <form
@@ -211,12 +270,17 @@ export function MealsPageClient() {
         />
 
         <label className="flex flex-col gap-1">
-          <span className="text-sm text-[color:var(--hp-muted)]">一言</span>
-          <input
-            type="text"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="例: 外食、少し多め"
+          <span className="text-sm text-[color:var(--hp-muted)]">
+            振り返り
+            {reflectionId ? (
+              <span className="ml-1 font-normal">（この日の記録あり）</span>
+            ) : null}
+          </span>
+          <textarea
+            value={reflectionComment}
+            onChange={(e) => setReflectionComment(e.target.value)}
+            rows={3}
+            placeholder="今日の体調やできごとなど（任意・空欄のまま保存すると既存の振り返りは変えません）"
             className="rounded-lg border border-[color:var(--hp-border)] bg-[color:var(--hp-input)] px-3 py-2 text-base text-[color:var(--hp-foreground)]"
           />
         </label>
@@ -294,11 +358,6 @@ export function MealsPageClient() {
                   <p className="mt-1 whitespace-pre-wrap text-[color:var(--hp-foreground)]">
                     {row.foods}
                   </p>
-                  {row.note ? (
-                    <p className="mt-1 text-sm text-[color:var(--hp-muted)]">
-                      {row.note}
-                    </p>
-                  ) : null}
                 </div>
                 <div className="flex shrink-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
                   <button

@@ -41,6 +41,7 @@ export type MealEntry = {
   date: IsoDate;
   slot: MealSlot;
   foods: string;
+  /** 後方互換のため残す。新規・更新では空文字。日次振り返りは DailyReflectionEntry を使う */
   note: string;
   createdAt: string;
   updatedAt?: string;
