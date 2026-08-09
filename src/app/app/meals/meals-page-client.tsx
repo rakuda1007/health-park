@@ -136,13 +136,48 @@ export function MealsPageClient() {
     await loadMasters();
   }
 
+  async function upsertReflection(trimmed: string, now: string) {
+    const existing = await getDailyReflectionByDate(date);
+    const id = existing?.id ?? reflectionId ?? crypto.randomUUID();
+    const createdAt = existing?.createdAt ?? reflectionCreatedAt ?? now;
+    await putDailyReflectionEntry({
+      id,
+      date,
+      comment: trimmed,
+      createdAt,
+      updatedAt: now,
+    });
+    setReflectionId(id);
+    setReflectionCreatedAt(createdAt);
+    setReflectionComment(trimmed);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const foods = joinFoods(foodItems);
+    const trimmedReflection = reflectionComment.trim();
+
+    // 食事の編集中は食べたものが必須。新規は振り返りのみの連続登録も許可する。
     if (foods === "") {
-      setSaveError("食べたものを1つ以上選ぶか追加してください。");
+      if (editingId || !trimmedReflection) {
+        setSaveError("食べたものを1つ以上選ぶか追加してください。");
+        return;
+      }
+      setSaveError(null);
+      setSaving(true);
+      try {
+        await upsertReflection(trimmedReflection, new Date().toISOString());
+        resetForm({ keepDate: true });
+      } catch (err) {
+        setSaveError(
+          err instanceof Error ? err.message : "保存に失敗しました",
+        );
+      } finally {
+        setSaving(false);
+      }
       return;
     }
+
     setSaveError(null);
     setSaving(true);
     try {
@@ -175,22 +210,8 @@ export function MealsPageClient() {
       }
 
       // 空欄は既存振り返りを変更しない。文字があれば後勝ちで upsert。
-      const trimmedReflection = reflectionComment.trim();
       if (trimmedReflection) {
-        const existing = await getDailyReflectionByDate(date);
-        const id = existing?.id ?? reflectionId ?? crypto.randomUUID();
-        const createdAt =
-          existing?.createdAt ?? reflectionCreatedAt ?? now;
-        await putDailyReflectionEntry({
-          id,
-          date,
-          comment: trimmedReflection,
-          createdAt,
-          updatedAt: now,
-        });
-        setReflectionId(id);
-        setReflectionCreatedAt(createdAt);
-        setReflectionComment(trimmedReflection);
+        await upsertReflection(trimmedReflection, now);
       } else {
         // 空欄保存時は DB を触らないが、表示は保存済み内容に戻す
         await loadReflectionForDate(date);
