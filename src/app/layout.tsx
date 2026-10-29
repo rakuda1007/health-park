@@ -3,6 +3,7 @@ import { AppHeader } from "@/components/app-header";
 import { AuthProvider } from "@/contexts/auth-context";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import { AdsenseScript } from "@/components/adsense-script";
 import {
   getAdsensePublisherId,
@@ -26,6 +27,14 @@ const siteUrl =
 
 const adsenseClientForScript = getAdsensePublisherId();
 const adsenseScriptEnabled = shouldLoadAdsenseScript();
+
+/** tennis-park-community.com と同じ GA4 測定 ID。未設定・形式違いのときは空文字。 */
+function readGaMeasurementId(): string {
+  const raw = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() ?? "";
+  return /^G-[A-Za-z0-9]+$/.test(raw) ? raw : "";
+}
+
+const gaMeasurementId = readGaMeasurementId();
 
 export const metadata: Metadata = {
   ...(siteUrl ? { metadataBase: new URL(siteUrl) } : {}),
@@ -60,6 +69,22 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full min-w-0 flex-col bg-[color:var(--hp-background)]">
+        {gaMeasurementId ? (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
+              strategy="afterInteractive"
+            />
+            <Script id="ga4" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${gaMeasurementId}');
+              `}
+            </Script>
+          </>
+        ) : null}
         {adsenseScriptEnabled && adsenseClientForScript ? (
           <AdsenseScript clientId={adsenseClientForScript} />
         ) : null}
